@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<robot name="explorer">
+
+  <group name="arm">
+    <chain base_link="base_link" tip_link="tool0" />
+  </group>
+
+</robot>

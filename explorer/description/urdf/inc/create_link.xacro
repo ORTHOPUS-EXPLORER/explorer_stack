@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <xacro:macro name="create_link" params="
+        link_name
+        xyz_offset
+        rpy_offset
+        mesh_package
+        mesh_name
+        xyz_mass
+        mass
+        ixx
+        ixy
+        ixz
+        iyy
+        iyz
+        izz">
+    <link name="${link_name}">
+      <visual>
+        <origin xyz="${xyz_offset}" rpy="${rpy_offset}"/>
+        <geometry>
+          <mesh filename="file://$(find ${mesh_package})/description/meshes/visual/${mesh_name}.dae" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="${xyz_offset}" rpy="${rpy_offset}"/>
+        <geometry>
+          <mesh filename="file://$(find ${mesh_package})/description/meshes/collision/${mesh_name}.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="${xyz_mass}" rpy="0 0 0"/>
+        <mass value="${mass}"/>
+        <inertia ixx="${ixx}" ixy="${ixy}" ixz="${ixz}" iyy="${iyy}" iyz="${iyz}" izz="${izz}"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+</robot>

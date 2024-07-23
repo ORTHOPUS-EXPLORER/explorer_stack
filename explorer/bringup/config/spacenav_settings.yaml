@@ -1,0 +1,6 @@
+#
+#  ### Params of the spacenav device interface ###
+#
+device_spacenav:
+  ros__parameters:
+    debounce_button_time        : 0.05

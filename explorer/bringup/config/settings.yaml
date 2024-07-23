@@ -1,0 +1,46 @@
+spacenav_trajectory_qp:
+  ros__parameters:
+
+    joint_number  : 6
+
+    ### --- QP WEIGHTS --- ###
+    #  Minimize cartesian velocity difference : dx - dx_des
+    alpha_weight  : [4., 4., 4., 1., 1., 1., 1.]
+    #  Minimize joints velocities coefs : dq
+    beta_weight   : [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+    #  Minimize cartesian pose difference : x-x_des
+    gamma_weight  : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    #gamma_weight  : [2000.0, 2000.0, 2000.0, 500.0, 500.0, 500.0, 500.0]
+
+    ### --- JOINT LIMITS --- ###
+    j1:
+      limits  : 1 #int type, 0 if joint is multiturn or 1 otherwise
+      min     : -1.57
+      max     : 1.57
+    j2:
+      limits  : 1
+      min     : -1.57
+      max     : 4.71
+    j3:
+      limits  : 1
+      min     : -3.14
+      max     : 3.14
+    j4:
+      limits  : 1
+      min     : -3.14
+      max     : 3.14
+    j5:
+      limits  : 1
+      min     : -3.14
+      max     : 3.14
+    j6:
+      limits  : 1
+      min     : -3.14
+      max     : 3.14
+
+    ### --- NAME OF SDRF GROUP --- ###
+    model_group_name            : "arm"
+    end_effector_name           : "Torch"
+
+    joint_max_vel               : 6.28   # rad/s
+
