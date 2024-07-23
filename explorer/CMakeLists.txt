@@ -17,9 +17,14 @@ install(DIRECTORY description
 )
 
 ## EXPORTS
-ament_export_targets(export_ros2_control_explorer
-  HAS_LIBRARY_TARGET
+find_package(pluginlib REQUIRED)
+# Export hardware plugins
+pluginlib_export_plugin_description_file(hardware_interface
+  ros2_control_explorer.xml
 )
-ament_export_dependencies(${CONTROLLER_INCLUDE_DEPENDS}
+# Export controller plugins
+pluginlib_export_plugin_description_file(controller_interface
+  ros2_control_explorer.xml
 )
+
 ament_package()

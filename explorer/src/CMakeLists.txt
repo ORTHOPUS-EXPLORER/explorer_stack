@@ -4,7 +4,7 @@ add_subdirectory(input_device/)
 add_subdirectory(reference_generator/)
 
 # find dependencies
-set(CONTROLLER_INCLUDE_DEPENDS
+set(CONTROLLER_DEPENDENCIES
   pluginlib
   rcpputils
   controller_interface
@@ -13,7 +13,7 @@ set(CONTROLLER_INCLUDE_DEPENDS
 )
 
 find_package(ament_cmake REQUIRED)
-foreach(Dependency IN ITEMS ${CONTROLLER_INCLUDE_DEPENDS})
+foreach(Dependency IN ITEMS ${CONTROLLER_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
@@ -38,8 +38,7 @@ PUBLIC
 
 ament_target_dependencies(ros2_control_explorer
 PUBLIC
-  ${HW_IF_INCLUDE_DEPENDS}
-  ${CONTROLLER_INCLUDE_DEPENDS}
+  ${CONTROLLER_DEPENDENCIES}
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -49,18 +48,18 @@ PRIVATE
   "ROS2_CONTROL_EXPLORER_BUILDING_DLL"
 )
 
-# Export hardware plugins
-pluginlib_export_plugin_description_file(hardware_interface
-  ros2_control_explorer.xml
-)
-# Export controller plugins
-pluginlib_export_plugin_description_file(controller_interface
-  ros2_control_explorer.xml
-)
+ament_export_libraries(ros2_control_explorer)
 
 install(TARGETS ros2_control_explorer
   EXPORT export_ros2_control_explorer
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+ament_export_targets(export_ros2_control_explorer
+  HAS_LIBRARY_TARGET
+)
+
+ament_export_dependencies(${CONTROLLER_DEPENDENCIES}
 )
