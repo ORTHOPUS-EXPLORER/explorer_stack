@@ -48,8 +48,8 @@ namespace space_control
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_debug_pub_;
                         
         JointPosition q_command_;
+        JointPosition q_command_explorer_;
         JointPosition q_current_;
-        JointPosition q_meas_;
         JointVelocity dq_desired_;
 
         SpacePosition x_current_;

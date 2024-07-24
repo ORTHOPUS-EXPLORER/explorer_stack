@@ -6,18 +6,17 @@ namespace space_control
     SpacenavTrajectoryQP::SpacenavTrajectoryQP(rclcpp::Node::SharedPtr n)
     : n_(n)
     , ik_(n, 6)
-    , fk_(n, 6)
+    , fk_(n, 12)
     , vi_(n, 6)
     , sampling_period_(0.0)
-    , q_command_(6)
-    , q_current_(6)
-    , q_meas_(6)
+    , q_command_(12)
+    , q_command_explorer_(6)
+    , q_current_(12)
     , dq_desired_(6)
     , x_current_()
     , x_desired_()
     , dx_desired_()
     {
-        rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
 
         max_vel_ = 0.05;
         sampling_period_ = 0.001;
@@ -82,6 +81,10 @@ namespace space_control
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Velocity integrator computes joint position :");
         //RCLCPP_DEBUG_STREAM(n_->get_logger(), "q_command_           : " << q_command_);
 
+        for(int i=0; i< 6; i++){
+            q_command_explorer_[i] = q_command_[i];
+        }
+
         send_Command();
         publishDebugTopic_();
 
@@ -98,7 +101,7 @@ namespace space_control
 
         // copy to trajectory_point_msg
         std::memcpy(
-        trajectory_point_msg.positions.data(), q_command_.data(),
+        trajectory_point_msg.positions.data(), q_command_explorer_.data(),
         trajectory_point_msg.positions.size() * sizeof(double));
         std::memcpy(
         trajectory_point_msg.velocities.data(), dq_desired_.data(),
