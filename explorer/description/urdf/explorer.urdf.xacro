@@ -6,7 +6,15 @@
   <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_old_description.urdf.xacro"/>
 
   <!-- create link fixed to the "world" -->
-  <!-- <link name="world"/> -->
+  <link name="world"/>
+
+  <!-- base_joint fixes base_link to the environment -->
+  <joint name="base_joint" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
 
   <xacro:explorer_old_description/>
 
