@@ -8,7 +8,6 @@ set(REF_GEN_DEPENDENCIES
   trajectory_msgs
   sensor_msgs
   std_srvs
-  custom_interfaces
   geometry_msgs
   trac_ik_lib
   # required to build with explorer_robot_manager
