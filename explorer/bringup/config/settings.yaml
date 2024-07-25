@@ -15,16 +15,16 @@ spacenav_trajectory_qp:
     ### --- JOINT LIMITS --- ###
     j1:
       limits  : 1 #int type, 0 if joint is multiturn or 1 otherwise
-      min     : -1.57
-      max     : 1.57
+      min     : -3.14
+      max     : 3.14
     j2:
       limits  : 1
       min     : -1.57
-      max     : 4.71
+      max     : 1.57
     j3:
       limits  : 1
-      min     : -3.14
-      max     : 3.14
+      min     : -4.71
+      max     : 1.57
     j4:
       limits  : 1
       min     : -3.14
@@ -40,7 +40,7 @@ spacenav_trajectory_qp:
 
     ### --- NAME OF SDRF GROUP --- ###
     model_group_name            : "arm"
-    end_effector_name           : "Torch"
+    end_effector_name           : "tool0"
 
-    joint_max_vel               : 6.28   # rad/s
+    joint_max_vel               : 2.5   # rad/s
 
