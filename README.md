@@ -114,11 +114,11 @@ ros2 run ros2_control_wheelchair teleop
 To check that the descriptions are working properly use following launch commands
 
 ```
-ros2 launch disabled_simulator display.launch.py
+ros2 launch explorer_on_wheelchair display.launch.py
 ```
 
 To start the wheelchair in the simulators, open a terminal, source your ROS2-workspace first. Then, execute the launch file with (not working)
 
 ```
-ros2 launch disabled_simulator simulation.launch.py gui:=true
+ros2 launch explorer_on_wheelchair simulation.launch.py gui:=true
 ```
