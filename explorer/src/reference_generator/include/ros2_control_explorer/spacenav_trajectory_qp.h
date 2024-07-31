@@ -8,6 +8,8 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 #include "ros2_control_explorer/inverse_kinematic.h"
 #include "ros2_control_explorer/forward_kinematic.h"
@@ -39,9 +41,11 @@ namespace space_control
         ForwardKinematic fk_;
         VelocityIntegrator vi_;
         rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr trajectory_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_sub_;
         rclcpp::TimerBase::SharedPtr timer_;
         
         rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr command_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_debug_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_debug_pub_;
@@ -64,7 +68,8 @@ namespace space_control
         double sampling_period_;
         bool trajectory_tracking ;
 
-        void callback(const geometry_msgs::msg::TwistStamped & msg);
+        void callback_trajectory(const geometry_msgs::msg::TwistStamped & msg);
+        void callback_gripper(const std_msgs::msg::Bool & msg);
         void callback_pos(const sensor_msgs::msg::JointState & msg);
         void timer_callback();
         void send_Command();

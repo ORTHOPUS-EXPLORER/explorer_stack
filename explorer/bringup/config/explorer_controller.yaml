@@ -13,6 +13,9 @@ controller_manager:
 
     joint_trajectory_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
+
+    gripper_controller:
+      type: forward_command_controller/ForwardCommandController
   
 explorer_controller:
   ros__parameters:
@@ -62,3 +65,10 @@ joint_trajectory_controller:
     open_loop_control: true
     
     allow_integration_in_goal_trajectories: true
+
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - right_finger_joint
+    interface_name: position

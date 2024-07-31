@@ -1,0 +1,224 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="gripper_pincette">
+
+  <!-- helper macro -->
+  <xacro:include filename="$(find gripper_pincette)/description/urdf/inc/create_link.xacro"/>    
+
+  <xacro:create_link
+      link_name="structure"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="structure"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="motor"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="motor"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="palm_top_shell"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="palm_top_shell"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="right_finger_first_phalanx"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="right_finger_first_phalanx"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="right_external_rod"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="external_rod"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="right_finger_last_phalanx"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="finger_last_phalanx"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+
+
+  <xacro:create_link
+      link_name="left_finger_first_phalanx"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="left_finger_first_phalanx"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="left_external_rod"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="external_rod"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="left_finger_last_phalanx"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="gripper_pincette"
+      mesh_name="finger_last_phalanx"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <joint name="structure_motor" type="fixed">
+    <parent link="structure"/>
+    <child link="motor"/>
+    <origin xyz="0.009 0 0.0825" rpy="0 -1.57 0"/>
+  </joint>
+
+  <joint name="structure_palm" type="fixed">
+    <parent link="structure"/>
+    <child link="palm_top_shell"/>
+    <origin xyz="-0.002 0 0.101" rpy="0 -1.57 0"/>
+  </joint>
+
+  <joint name="right_finger_joint" type="revolute">
+    <parent link="structure"/>
+    <child link="right_finger_first_phalanx"/>
+    <origin xyz="0.015 -0.038 0.1015" rpy="0 -1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="0.0" upper="1.05" velocity="2.5"/>
+  </joint>
+
+  <joint name="right_external_rod_joint" type="revolute">
+    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <parent link="structure"/>
+    <child link="right_external_rod"/>
+    <origin xyz="0.012 -0.054 0.1069" rpy="3.14 -1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-1.05" upper="0.0" velocity="2.5"/>
+  </joint>
+
+  <joint name="right_fingertip_joint" type="revolute">
+    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <parent link="right_external_rod"/>
+    <child link="right_finger_last_phalanx"/>
+    <origin xyz="0.0433 0.025 0" rpy="3.14 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-1.05" upper="0.0" velocity="2.5"/>
+  </joint>
+
+  <joint name="left_finger_joint" type="revolute">
+    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <parent link="structure"/>
+    <child link="left_finger_first_phalanx"/>
+    <origin xyz="0.015 0.038 0.1015" rpy="0 -1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-1.05" upper="0.0" velocity="2.5"/>
+  </joint>
+
+  <joint name="left_external_rod_joint" type="revolute">
+    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <parent link="structure"/>
+    <child link="left_external_rod"/>
+    <origin xyz="0.012 0.054 0.1069" rpy="0 -1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-1.05" upper="0.0" velocity="2.5"/>
+  </joint>
+
+  <joint name="left_fingertip_joint" type="revolute">
+    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <parent link="left_external_rod"/>
+    <child link="left_finger_last_phalanx"/>
+    <origin xyz="0.0433 0.025 0" rpy="3.14 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="-1.05" upper="0.0" velocity="2.5"/>
+  </joint>
+
+
+
+</xacro:macro>
+
+</robot>

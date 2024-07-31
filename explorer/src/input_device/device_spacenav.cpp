@@ -145,6 +145,7 @@ void DeviceSpacenav::debounceButtons_(const sensor_msgs::msg::Joy::SharedPtr msg
 
 void DeviceSpacenav::updateGripperCmd_()
 {
+  std_msgs::msg::Bool gripper_cmd;
   // Use A to toggle gripper state (open/close)
   if (button_left_ == 1 && gripper_toggle_ == false)
   {
@@ -156,6 +157,8 @@ void DeviceSpacenav::updateGripperCmd_()
     gripper_toggle_ = false;
     //closeGripper_();
   }
+  gripper_cmd.data = gripper_toggle_;
+  gripper_cmd_pub_->publish(gripper_cmd);
 }
 
 void DeviceSpacenav::updateControlMode_()

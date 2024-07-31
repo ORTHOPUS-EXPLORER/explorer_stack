@@ -10,6 +10,7 @@
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 /* TODO Improve multiple device handling. Currently, all device publish at the
 same time in the same topic device_sub_ which is nor safe nor expected behavior */
@@ -31,6 +32,7 @@ protected:
   rclcpp::Node::SharedPtr n_;
 
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_cmd_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_cmd_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr device_sub_;
   /*
   ros::ServiceClient learning_mode_client_;

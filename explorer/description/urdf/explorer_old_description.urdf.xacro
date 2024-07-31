@@ -102,7 +102,7 @@
       izz="0.00092964379"
   />
 
-  <xacro:create_link
+  <!-- <xacro:create_link
       link_name="link_6"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
@@ -116,7 +116,7 @@
       iyy="0.001072546483"
       iyz="2.73718e-7"
       izz="0.000713799995"
-  />
+  /> -->
 
   <link name="ft_frame"/>
   <link name="tool0"/>
@@ -161,7 +161,7 @@
     <axis xyz="0 0 1"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
-
+<!-- 
   <joint name="joint_6" type="revolute">
     <parent link="link_5"/>
     <child link="link_6"/>
@@ -180,7 +180,7 @@
     <parent link="ft_frame"/>
     <child link="tool0"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
+  </joint> -->
 
 </xacro:macro>
 

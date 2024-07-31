@@ -6,12 +6,12 @@ namespace space_control
     SpacenavTrajectoryQP::SpacenavTrajectoryQP(rclcpp::Node::SharedPtr n)
     : n_(n)
     , ik_(n, 6)
-    , fk_(n, 12)
+    , fk_(n, 18)
     , vi_(n, 6)
     , sampling_period_(0.0)
-    , q_command_(12)
+    , q_command_(18)
     , q_command_explorer_(6)
-    , q_current_(12)
+    , q_current_(18)
     , dq_desired_(6)
     , x_current_()
     , x_desired_()
@@ -33,8 +33,10 @@ namespace space_control
         trajectory_tracking = true;
 
         command_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>("/explorer_controller/joint_trajectory", 10);
-        trajectory_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&SpacenavTrajectoryQP::callback, this, std::placeholders::_1));
-        
+        gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
+
+        trajectory_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&SpacenavTrajectoryQP::callback_trajectory, this, std::placeholders::_1));
+        gripper_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/gripper_command", 10, std::bind(&SpacenavTrajectoryQP::callback_gripper, this, std::placeholders::_1));
         timer_ = n_->create_wall_timer(1ms, std::bind(&SpacenavTrajectoryQP::timer_callback, this));
 
         x_current_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controller/debug/x_current", 10);
@@ -43,7 +45,7 @@ namespace space_control
 
     }
 
-    void SpacenavTrajectoryQP::callback(const geometry_msgs::msg::TwistStamped & msg)
+    void SpacenavTrajectoryQP::callback_trajectory(const geometry_msgs::msg::TwistStamped & msg)
     {
         dx_desired_.position.x() = (msg.twist.linear.x * max_vel_);
         dx_desired_.position.y() = (msg.twist.linear.y * max_vel_);
@@ -53,6 +55,22 @@ namespace space_control
         dx_desired_.orientation.x() = (msg.twist.angular.x);
         dx_desired_.orientation.y() = (msg.twist.angular.y);
         dx_desired_.orientation.z() = (msg.twist.angular.z);
+    }
+
+    void SpacenavTrajectoryQP::callback_gripper(const std_msgs::msg::Bool & msg)
+    {   
+        std_msgs::msg::Float64MultiArray commands;
+        
+        if(msg.data == true)
+        {
+            commands.data.push_back(1.05);
+        }
+        else
+        {
+            commands.data.push_back(0);
+        }
+
+        gripper_command_pub_->publish(commands);
     }
 
     void SpacenavTrajectoryQP::timer_callback()

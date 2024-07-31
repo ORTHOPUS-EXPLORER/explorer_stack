@@ -15,6 +15,8 @@ Device::Device(rclcpp::Node::SharedPtr n) : n_(n)
 
   cartesian_cmd_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>
                         ("/ros2_control_explorer/input_device_velocity", 1);
+  gripper_cmd_pub_ = n_->create_publisher<std_msgs::msg::Bool>
+                        ("/ros2_control_explorer/gripper_command", 1);
   //initializeServices_();
 }
 
