@@ -10,6 +10,7 @@ set(CONTROLLER_DEPENDENCIES
   controller_interface
   hardware_interface
   realtime_tools
+  control_msgs
 )
 
 find_package(ament_cmake REQUIRED)
