@@ -70,7 +70,6 @@ namespace space_control
 
         void callback_trajectory(const geometry_msgs::msg::TwistStamped & msg);
         void callback_gripper(const std_msgs::msg::Bool & msg);
-        void callback_pos(const sensor_msgs::msg::JointState & msg);
         void timer_callback();
         void send_Command();
         void publishDebugTopic_();
