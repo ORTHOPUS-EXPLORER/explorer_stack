@@ -3,7 +3,7 @@
 ### Install ROS2 Control packages
 
 ```
-sudo apt install ros-humble-ros2-control 
+sudo apt install ros-humble-ros2-control
 sudo apt install ros-humble-ros2-controllers
 ```
 
@@ -122,3 +122,34 @@ To start the wheelchair in the simulators, open a terminal, source your ROS2-wor
 ```
 ros2 launch explorer_on_wheelchair simulation.launch.py gui:=true
 ```
+
+
+## Demo use of ROS2 hardware interface for Explorer
+
+1. Setup virtual can interface for simulator
+
+```
+modprobe vcan
+ip link add dev vcan0 type vcan
+ip link set mtu 16 up dev vcan0
+```
+
+2. Launch Simulator
+```
+ros2 run pyvesc_explorer app_sim
+```
+
+3. Launch Robot controller (and Explorer Comm bridge)
+```
+ros2 launch ros2_control_explorer explorer.launch.py use_bridge:=true
+```
+
+4. Publish some commands
+```
+ros2 launch ros2_control_explorer explorer_publish.launch.py
+```
+
+Notes:
+- Setup should be quite similar for actual robot, just edit the config files.
+- Only position interface is supported for now
+- The bridge only supports position commands for now.

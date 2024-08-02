@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_joints.xacro" />
+
+  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false">
+
+  <!-- ROS2 Control -->
+  <ros2_control name="${name}_joint_1" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <!--param name="my_super_param">2.0</param-->
+    </hardware>
+    <xacro:explorer_joint_1 />
+  </ros2_control>
+
+  <ros2_control name="${name}_joint_2" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+    </hardware>
+    <xacro:explorer_joint_2 />
+  </ros2_control>
+
+  <ros2_control name="${name}_joint_3" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+    </hardware>
+    <xacro:explorer_joint_3 />
+  </ros2_control>
+
+  <ros2_control name="${name}_joint_4" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+    </hardware>
+    <xacro:explorer_joint_4 />
+  </ros2_control>
+
+  <ros2_control name="${name}_joint_5" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+    </hardware>
+    <xacro:explorer_joint_5 />
+  </ros2_control>
+
+  <ros2_control name="${name}_joint_6" type="actuator">
+    <hardware>
+      <plugin>orthopus_ros_interface/HwInterface</plugin>
+    </hardware>
+    <xacro:explorer_joint_6 />
+  </ros2_control>
+
+  <ros2_control name="${name}_gripper" type="system">
+    <hardware>
+      <xacro:if value="${use_ignition}">
+        <plugin>gazebo_ros2_control/IgnitionSystem</plugin>
+      </xacro:if>
+      <xacro:unless value="${use_ignition}">
+        <plugin>ros2_control_explorer/RobotSystem</plugin>
+      </xacro:unless>
+    </hardware>
+    <xacro:explorer_gripper_joints />
+  </ros2_control>
+
+  </xacro:macro>
+
+</robot>

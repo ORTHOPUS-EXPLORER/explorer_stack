@@ -35,8 +35,17 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_bridge",
+            default_value="true",
+            description="Start Explorer PyVESC Bridge (and use Actuators HW Interfaces)",
+        )
+    )
+
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
+    run_bridge = LaunchConfiguration("use_bridge")
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -50,6 +59,8 @@ def generate_launch_description():
                     "explorer.urdf.xacro",
                 ]
             ),
+            " ",
+            "use_actuator_interface:=",run_bridge
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -117,12 +128,33 @@ def generate_launch_description():
         )
     )
 
+    # Explorer bridge
+    explorer_bridge_params = PathJoinSubstitution(
+        [
+            FindPackageShare("ros2_control_explorer"),
+            "config",
+            "explorer_vesc.yaml",
+        ]
+    )
+
+    explorer_bridge = Node(
+        package="pyvesc_explorer",
+        executable="ros_explorer_bridge",
+        parameters=[explorer_bridge_params],
+        output="both",
+        remappings=[],
+        arguments=['--non-interactive','--ros-args'],#, '--log-level', 'DEBUG']
+        #prefix=['xterm -e gdb -ex run --args'],
+        condition=IfCondition(run_bridge),
+    )
+
     nodes = [
         control_node,
         robot_state_pub_node,
         joint_state_broadcaster_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        explorer_bridge,
     ]
 
     return LaunchDescription(declared_arguments + nodes)

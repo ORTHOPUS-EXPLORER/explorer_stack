@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="explorer">
   <xacro:arg name="use_ignition" default="false" />
+  <xacro:arg name="use_actuator_interface" default="false" />
 
   <!-- Import explorer macro -->
   <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_old_description.urdf.xacro"/>
-
   <xacro:include filename="$(find gripper_pincette)/description/urdf/gripper_pincette_description.urdf.xacro"/>
 
   <!-- create link fixed to the "world" -->
@@ -43,9 +43,14 @@
   <xacro:gripper_pincette/>
 
   <!-- Import explorer ros2_control description -->
-  <xacro:include filename="$(find ros2_control_explorer)/description/ros2_control/explorer.ros2_control.xacro" />
-
-  <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)"/>
+  <xacro:unless value="$(arg use_actuator_interface)">
+    <xacro:include filename="$(find ros2_control_explorer)/description/ros2_control/explorer.ros2_control.xacro" />
+    <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)"/>
+  </xacro:unless>
+  <xacro:if value="$(arg use_actuator_interface)">
+    <xacro:include filename="$(find ros2_control_explorer)/description/ros2_control/explorer_actuators.ros2_control.xacro" />
+    <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)" />
+  </xacro:if>
 
   <xacro:if value="$(arg use_ignition)">
     <!-- Import Gazebo definitions + plugin -->

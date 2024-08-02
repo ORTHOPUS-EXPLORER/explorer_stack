@@ -1,3 +1,6 @@
 [submodule "libs/trac_ik"]
 	path = libs/trac_ik
 	url = git@github.com:ARMMS-ORTHOPUS/trac_ik.git
+[submodule "libs/pyvesc"]
+	path = libs/pyvesc
+	url = ../pyvesc.git
