@@ -4,7 +4,7 @@
   <xacro:include filename="$(find gripper_pincette)/description/urdf/gripper_pincette_description.urdf.xacro" />
 
   <!-- Import gripper_pincette ros2_control description -->
-  <xacro:include filename="$(find gripper_pincette)/description/ros2_control/gripper_pincette.ros2_control.xacro" />
+  <xacro:include filename="$(find gripper_pincette)/description/ros2_control/gripper_pincette_ign.ros2_control.xacro" />
 
   <xacro:gripper_pincette/>
 
@@ -19,10 +19,11 @@
     <axis xyz="0 0 1"/>
   </joint>
 
-  <xacro:gripper_pincette_ros2_control name="gripper_pincette"/>
+  <xacro:gripper_pincette_ros2_control_ign name="gripper_pincette"/>
 
-  <xacro:include filename="$(find gripper_pincette)/description/gazebo/gripper_pincette.gazebo.xacro" />
-  <xacro:gripper_pincette_gazebo/>
+  <xacro:include filename="$(find gripper_pincette)/description/gazebo/gripper_pincette_ign.gazebo.xacro" />
+  <xacro:gripper_pincette_gazebo_ign/>
 
   
 </robot>
+

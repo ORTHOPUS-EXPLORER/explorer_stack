@@ -37,11 +37,11 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
 
-    gazebo = IncludeLaunchDescription(
+    ignition = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [PathJoinSubstitution([FindPackageShare("gazebo_ros"), "launch", "gazebo.launch.py"])]
+            [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={"verbose": "false"}.items(),
+        launch_arguments={"gz_args": " -r -v 4 empty.sdf"}.items(),
     )
 
     # Get URDF via xacro
@@ -50,7 +50,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("gripper_pincette"), "description/urdf", "gripper_pincette.urdf.xacro"]
+                [FindPackageShare("gripper_pincette"), "description/urdf", "gripper_pincette_ign.urdf.xacro"]
             ),
         ]
     )
@@ -66,11 +66,18 @@ def generate_launch_description():
         parameters=[robot_description],
     )
 
-    spawn_entity = Node(
-         package="gazebo_ros",
-        executable="spawn_entity.py",
-        arguments=["-topic", "robot_description", "-entity", "gripper_pincette"],
+    gz_spawn_entity = Node(
+        package="ros_gz_sim",
+        executable="create",
         output="screen",
+        arguments=[
+            "-topic",
+            "/robot_description",
+            "-name",
+            "gripper_pincette",
+            "-allow_renaming",
+            "true",
+        ],
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -96,9 +103,9 @@ def generate_launch_description():
 
 
     nodes = [
-        gazebo,
+        ignition,
         node_robot_state_publisher,
-        spawn_entity,
+        gz_spawn_entity,
         joint_state_broadcaster_spawner,
         joint_trajectory_controller_spawner,
         rviz_node,
