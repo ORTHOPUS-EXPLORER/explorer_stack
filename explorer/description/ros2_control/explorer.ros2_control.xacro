@@ -20,6 +20,7 @@
       <xacro:explorer_joint_4 />
       <xacro:explorer_joint_5 />
       <xacro:explorer_joint_6 />
+      <xacro:explorer_gripper_servo_joint />
       <xacro:explorer_gripper_joints />
 
     </ros2_control>

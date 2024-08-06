@@ -15,13 +15,24 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
   _expl_ref_pub = this->create_publisher<control_msgs::msg::DynamicJointState>("/explorer_ref", rclcpp::SystemDefaultsQoS());
 
     // Prepare pub message
-  _expl_ref_msg.joint_names.emplace_back(_parent._joint_name);
-  _expl_ref_msg.interface_values.resize(1);
-  auto& ifv = _expl_ref_msg.interface_values[0];
-  for (const auto& intf: {HW_IF_POSITION}) // FIXME! Support more interfaces
+  for(auto& joint: _parent._hw_joints)
+    _expl_ref_msg.joint_names.emplace_back(joint.name);
+
+  const std::array<std::string,4> intfs{
+    HW_IF_POSITION,
+    HW_IF_VELOCITY,
+    HW_IF_ACCELERATION,
+    HW_IF_EFFORT
+  };
+
+  _expl_ref_msg.interface_values.resize(_expl_ref_msg.joint_names.size());
+  for(auto& ifv: _expl_ref_msg.interface_values)
   {
-    ifv.interface_names.emplace_back(intf);
-    ifv.values.emplace_back(std::numeric_limits<double>::quiet_NaN());
+    for (const auto& intf: intfs)
+    {
+      ifv.interface_names.emplace_back(intf);
+      ifv.values.emplace_back(std::numeric_limits<double>::quiet_NaN());
+    }
   }
 
   // From ros_explorer_bridge
@@ -33,9 +44,22 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
     const auto jsz = _expl_meas_msg.joint_names.size();
     for(size_t i=0;i<jsz;i++)
     {
-      auto& jname = _expl_meas_msg.joint_names[i];
-      if(jname != _parent._joint_name)
+      const auto& jname = _expl_meas_msg.joint_names[i];
+      const auto hjsz = _parent._hw_joints.size();
+      size_t j;
+      for(j=0;j<hjsz;j++)
+      {
+        const auto& hwjname = _parent._hw_joints[j].name;
+        if(jname == hwjname)
+          break;
+      }
+      if(j >= hjsz)
+      {
+        //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s] Unknown joint: %s", _parent._name.c_str(), jname.c_str());
         continue;
+      }
+      auto& hwjst = _parent._hw_joints[j].state;
+
       auto& ifv = _expl_meas_msg.interface_values[i];
       const auto& ifsz = ifv.interface_names.size();
       for(size_t j=0;j<ifsz;j++)
@@ -43,8 +67,17 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
         auto& ifval = ifv.values[j];
         const auto& ifn = ifv.interface_names[j];
         if(ifn == HW_IF_POSITION)
-          _parent.hw_pos_state_ = ifval;
-        // FIXME! Support more interfaces
+          hwjst.pos = ifval;
+        else if(ifn == HW_IF_VELOCITY)
+          hwjst.vel = ifval;
+        else if(ifn == HW_IF_ACCELERATION)
+          hwjst.acc = ifval;
+        else if(ifn == HW_IF_EFFORT)
+          hwjst.eff = ifval;
+        else
+        {
+          //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s][%s] Unknown interface: %s", _parent._name.c_str(), _parent._hw_joints[j].name.c_str(),ifn.c_str());
+        }
       }
     }
   });
@@ -52,23 +85,49 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
   // Create a ROS timer for publishing refs
   _expl_ref_pub_tmr = this->create_wall_timer(std::chrono::milliseconds(100), [this](void)
   {
-    // Skip if value hasn't changed
-    if(!_parent._expl_ref_pub_new)
-      return;
-    // Pub
-    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Publish !", _parent._name.c_str());
-    auto& ifv = _expl_ref_msg.interface_values[0];
-    const auto sz = ifv.interface_names.size();
-    for (size_t i=0;i<sz;i++)
+    bool pub = false;
+
+    size_t j = 0;
+    for(auto& ifv: _expl_ref_msg.interface_values)
     {
-      const auto& intf_name = ifv.interface_names[i];
-      auto& intf_val = ifv.values[i];
-      if(intf_name == HW_IF_POSITION)
-        intf_val = _parent.hw_pos_command_;
-      // FIXME! Support more interfaces
+      auto& hw_ref = _parent._hw_joints[j].ref;
+      const auto sz = ifv.interface_names.size();
+      for (size_t i=0;i<sz;i++)
+      {
+        const auto& intf_name = ifv.interface_names[i];
+        auto& intf_val = ifv.values[i];
+        bool jpub = true;
+        if(intf_name == HW_IF_POSITION && hw_ref.nwpos)
+        {
+          intf_val = hw_ref.pos;
+          hw_ref.nwpos = false;
+        }
+        else if(intf_name == HW_IF_VELOCITY && hw_ref.nwvel)
+        {
+          intf_val = hw_ref.vel;
+          hw_ref.nwvel = false;
+        }
+        else if(intf_name == HW_IF_ACCELERATION && hw_ref.nwacc)
+        {
+          intf_val = hw_ref.acc;
+          hw_ref.nwacc = false;
+        }
+        else if(intf_name == HW_IF_EFFORT && hw_ref.nweff)
+        {
+          intf_val = hw_ref.eff;
+          hw_ref.nweff = false;
+        }
+        else
+          jpub = false;
+        pub = pub || jpub;
+      }
+      j++;
     }
-    _parent._expl_ref_pub_new = false;
-    _expl_ref_pub->publish(_expl_ref_msg);
+    if(pub)
+    {
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Publish !", _parent._name.c_str());
+      _expl_ref_pub->publish(_expl_ref_msg);
+    }
   });
 
 }
@@ -84,65 +143,81 @@ CallbackReturn HwInterface::on_init(const HardwareInfo& info)
   if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS)
     return CallbackReturn::ERROR;
 
-  hw_pos_state_ = std::numeric_limits<double>::quiet_NaN();
-  hw_vel_state_ = std::numeric_limits<double>::quiet_NaN();
-  hw_acc_state_ = std::numeric_limits<double>::quiet_NaN();
-  hw_eff_state_ = std::numeric_limits<double>::quiet_NaN();
-  hw_pos_command_ = std::numeric_limits<double>::quiet_NaN();
-  hw_vel_command_ = std::numeric_limits<double>::quiet_NaN();
-  hw_acc_command_ = std::numeric_limits<double>::quiet_NaN();
-  hw_eff_command_ = std::numeric_limits<double>::quiet_NaN();
-
   // Hw
   _name = info_.name;
-
-  // Joint
-  if(info_.joints.size() > 1)
+  for(auto& hw_j: _hw_joints)
   {
-    RCLCPP_FATAL(rclcpp::get_logger("HwInterface"), "[%s] Can't control more than 1 joint, got %ld", _name.c_str(), info_.joints.size());
+    hw_j.enable = false;
+    hw_j.state.pos = std::numeric_limits<double>::quiet_NaN();
+    hw_j.state.vel = std::numeric_limits<double>::quiet_NaN();
+    hw_j.state.acc = std::numeric_limits<double>::quiet_NaN();
+    hw_j.state.eff = std::numeric_limits<double>::quiet_NaN();
+    hw_j.ref.ppos = hw_j.ref.pos = std::numeric_limits<double>::quiet_NaN();
+    hw_j.ref.pvel = hw_j.ref.vel = std::numeric_limits<double>::quiet_NaN();
+    hw_j.ref.pacc = hw_j.ref.acc = std::numeric_limits<double>::quiet_NaN();
+    hw_j.ref.peff = hw_j.ref.eff = std::numeric_limits<double>::quiet_NaN();
+    hw_j.ref.nwpos = false;
+    hw_j.ref.nwvel = false;
+    hw_j.ref.nwacc = false;
+    hw_j.ref.nweff = false;
+  }
+
+  // Joints
+  if(info_.joints.size() > _hw_joints.size())
+  {
+    RCLCPP_FATAL(rclcpp::get_logger("HwInterface"), "[%s] Can't control more than %ld joints, got %ld", _name.c_str(), _hw_joints.size(), info_.joints.size());
     return CallbackReturn::ERROR;
   }
-  const auto& joint = info_.joints[0];
-  _joint_name = joint.name;
-
-  // Command interfaces
-  // _command_interfaces can't be a class item, else build fails on export_command_interfaces
-  //_command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_POSITION, &hw_pos_command_));
-  //_command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_VELOCITY, &hw_vel_command_));
-  //_command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_ACCELERATION, &hw_acc_command_));
-  //_command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_EFFORT, &hw_eff_command_));
-
-  if (joint.command_interfaces.size() > 4)
+  size_t i=0;
+  for(auto& joint: info_.joints)
   {
-    RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"Joint '%s' has %zu command interfaces found. max 4 expected.", joint.name.c_str(),joint.command_interfaces.size());
-    return CallbackReturn::ERROR;
-  }
-  for(const auto& intf: joint.command_interfaces)
-  {
-    if (intf.name != HW_IF_POSITION && intf.name != HW_IF_VELOCITY)
+    auto& hw_j = _hw_joints[i++];
+    hw_j.name = joint.name;
+    hw_j.enable = true;
+
+    // Command interfaces
+    // _command_interfaces can't be a class item, else build fails on export_command_interfaces
+
+    if (joint.command_interfaces.size() > 4)
     {
-      RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"[%s][%s] Unsupported command interface '%s'", _name.c_str(), _joint_name.c_str(), intf.name.c_str());
+      RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"Joint '%s' has %zu command interfaces found. max 4 expected.", hw_j.name.c_str(),joint.command_interfaces.size());
       return CallbackReturn::ERROR;
     }
-  }
-
-  // State interfaces
-  _state_interfaces.emplace_back(hardware_interface::StateInterface(_joint_name, hardware_interface::HW_IF_POSITION, &hw_pos_state_));
-  _state_interfaces.emplace_back(hardware_interface::StateInterface(_joint_name, hardware_interface::HW_IF_VELOCITY, &hw_vel_state_));
-  _state_interfaces.emplace_back(hardware_interface::StateInterface(_joint_name, hardware_interface::HW_IF_ACCELERATION, &hw_acc_state_));
-  _state_interfaces.emplace_back(hardware_interface::StateInterface(_joint_name, hardware_interface::HW_IF_EFFORT, &hw_eff_state_));
-
-  if (joint.state_interfaces.size() > _state_interfaces.size())
-  {
-    RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"Joint '%s' has %zu state interfaces found. max %ld expected.", joint.name.c_str(),joint.state_interfaces.size(), _state_interfaces.size());
-    return CallbackReturn::ERROR;
-  }
-  for(const auto& intf: joint.state_interfaces)
-  {
-    if (intf.name != HW_IF_POSITION && intf.name != HW_IF_VELOCITY)
+    for(const auto& intf: joint.command_interfaces)
     {
-      RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"[%s][%s] Unsupported state interface '%s'", _name.c_str(), _joint_name.c_str(), intf.name.c_str());
+      if(    intf.name != HW_IF_POSITION
+          && intf.name != HW_IF_VELOCITY
+          && intf.name != HW_IF_ACCELERATION
+          && intf.name != HW_IF_EFFORT
+        )
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"[%s][%s] Unsupported command interface '%s'", _name.c_str(), hw_j.name.c_str(), intf.name.c_str());
+        return CallbackReturn::ERROR;
+      }
+    }
+
+    // State interfaces
+    _state_interfaces.emplace_back(hardware_interface::StateInterface(hw_j.name, hardware_interface::HW_IF_POSITION, &hw_j.state.pos));
+    _state_interfaces.emplace_back(hardware_interface::StateInterface(hw_j.name, hardware_interface::HW_IF_VELOCITY, &hw_j.state.vel));
+    _state_interfaces.emplace_back(hardware_interface::StateInterface(hw_j.name, hardware_interface::HW_IF_ACCELERATION, &hw_j.state.acc));
+    _state_interfaces.emplace_back(hardware_interface::StateInterface(hw_j.name, hardware_interface::HW_IF_EFFORT, &hw_j.state.eff));
+
+    if (joint.state_interfaces.size() > _state_interfaces.size())
+    {
+      RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"Joint '%s' has %zu state interfaces found. max %ld expected.", hw_j.name.c_str(),joint.state_interfaces.size(), _state_interfaces.size());
       return CallbackReturn::ERROR;
+    }
+    for(const auto& intf: joint.state_interfaces)
+    {
+      if(    intf.name != HW_IF_POSITION
+          && intf.name != HW_IF_VELOCITY
+          && intf.name != HW_IF_ACCELERATION
+          && intf.name != HW_IF_EFFORT
+        )
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("HwInterface"),"[%s][%s] Unsupported state interface '%s'", _name.c_str(), hw_j.name.c_str(), intf.name.c_str());
+        return CallbackReturn::ERROR;
+      }
     }
   }
 
@@ -151,7 +226,13 @@ CallbackReturn HwInterface::on_init(const HardwareInfo& info)
   _executor.add_node(_comm);
   _comm_th = std::thread([this]() { this->_executor.spin(); });
 
-  RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Successfully initialized!", _name.c_str(), _joint_name.c_str());
+  //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Successfully initialized!", _name.c_str());
+  for(auto& joint: _hw_joints)
+  {
+    if(!joint.enable)
+      continue;
+    RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Successfully initialized!", _name.c_str(),joint.name.c_str());
+  }
   return CallbackReturn::SUCCESS;
 }
 
@@ -169,11 +250,16 @@ std::vector<hardware_interface::StateInterface> HwInterface::export_state_interf
 std::vector<hardware_interface::CommandInterface> HwInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> _command_interfaces;
-  _command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_POSITION, &hw_pos_command_));
-  _command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_VELOCITY, &hw_vel_command_));
-  _command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_ACCELERATION, &hw_acc_command_));
-  _command_interfaces.emplace_back(hardware_interface::CommandInterface(_joint_name, hardware_interface::HW_IF_EFFORT, &hw_eff_command_));
-
+  for(auto& joint: _hw_joints)
+  {
+    if(!joint.enable)
+      continue;
+    const auto& joint_name = joint.name;
+    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_POSITION, &joint.ref.pos));
+    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_VELOCITY, &joint.ref.vel));
+    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_ACCELERATION, &joint.ref.acc));
+    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_EFFORT, &joint.ref.eff));
+  }
   return _command_interfaces;
 }
 
@@ -182,17 +268,28 @@ return_type HwInterface::prepare_command_mode_switch([[maybe_unused]] const std:
 {
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Starting Interfaces:");
-  const auto jnsz = _joint_name.length();
   for(const auto& st_if: start_if)
   {
-    if(!st_if.compare(0,jnsz,_joint_name)) // Check only for us
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    for(const auto& joint: _hw_joints)
+    {
+      if(!joint.enable)
+        continue;
+      const auto jnsz = joint.name.length();
+      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
+        RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    }
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    if(!st_if.compare(0,jnsz,_joint_name)) // Check only for us
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    for(const auto& joint: _hw_joints)
+    {
+      if(!joint.enable)
+        continue;
+      const auto jnsz = joint.name.length();
+      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
+        RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    }
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Command mode switch prepared!", _name.c_str());
   return return_type::OK;
@@ -203,17 +300,28 @@ return_type HwInterface::perform_command_mode_switch([[maybe_unused]] const std:
 {
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Performing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Starting Interfaces:");
-  const auto jnsz = _joint_name.length();
   for(const auto& st_if: start_if)
   {
-    if(!st_if.compare(0,jnsz,_joint_name)) // Check only for us
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    for(const auto& joint: _hw_joints)
+    {
+      if(!joint.enable)
+        continue;
+      const auto jnsz = joint.name.length();
+      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
+        RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    }
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    if(!st_if.compare(0,jnsz,_joint_name)) // Check only for us
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    for(const auto& joint: _hw_joints)
+    {
+      if(!joint.enable)
+        continue;
+      const auto jnsz = joint.name.length();
+      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
+        RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "   - %s",st_if.c_str());
+    }
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Command mode switch performed!", _name.c_str());
   return return_type::OK;
@@ -222,16 +330,19 @@ return_type HwInterface::perform_command_mode_switch([[maybe_unused]] const std:
 CallbackReturn HwInterface::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Activating ...please wait...", _name.c_str());
-  if (std::isnan(hw_pos_state_))
+  for(auto& joint: _hw_joints)
   {
-    hw_pos_state_ = 0;
-    hw_vel_state_ = 0;
-    hw_acc_state_ = 0;
-    hw_eff_state_ = 0;
-    hw_pos_command_ = 0;
-    hw_vel_command_ = 0;
-    hw_acc_command_ = 0;
-    hw_eff_command_ = 0;
+    if(!joint.enable)
+      continue;
+    joint.state.pos = 0.0;
+    joint.state.vel = 0.0;
+    joint.state.acc = 0.0;
+    joint.state.eff = 0.0;
+
+    joint.ref.ppos = joint.ref.pos = 0.0;
+    joint.ref.pvel = joint.ref.vel = 0.0;
+    joint.ref.pacc = joint.ref.acc = 0.0;
+    joint.ref.peff = joint.ref.eff = 0.0;
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Successfully activated!", _name.c_str());
 
@@ -254,29 +365,36 @@ return_type HwInterface::read([[maybe_unused]] const rclcpp::Time& time, [[maybe
 
 return_type HwInterface::write([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-
-  if(!std::isnan(hw_pos_command_) && hw_pos_command_ != prev_hw_pos_command_)
+  for(auto& joint: _hw_joints)
   {
-    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Writing new pos command: %f...", _name.c_str(), hw_pos_command_);
-    prev_hw_pos_command_ = hw_pos_command_;
-    _expl_ref_pub_new = true;
+    if(!joint.enable)
+      continue;
+    auto& hw_ref = joint.ref;
+    if(!std::isnan(hw_ref.pos) && hw_ref.pos != hw_ref.ppos)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new pos command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.pos);
+      hw_ref.ppos = hw_ref.pos;
+      hw_ref.nwpos = true;
+    }
+    if(!std::isnan(hw_ref.vel) && hw_ref.vel != hw_ref.pvel)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new vel command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.vel);
+      hw_ref.pvel = hw_ref.vel;
+      hw_ref.nwvel = true;
+    }
+    if(!std::isnan(hw_ref.acc) && hw_ref.acc != hw_ref.pacc)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new acc command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.acc);
+      hw_ref.pacc = hw_ref.acc;
+      hw_ref.nwacc = true;
+    }
+    if(!std::isnan(hw_ref.eff) && hw_ref.eff != hw_ref.peff)
+    {
+      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new eff command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.eff);
+      hw_ref.peff = hw_ref.eff;
+      hw_ref.nweff = true;
+    }
   }
-  if(!std::isnan(hw_vel_command_) && hw_vel_command_ != prev_hw_vel_command_)
-  {
-    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Writing new vel command: %f...", _name.c_str(), hw_vel_command_);
-    prev_hw_vel_command_ = hw_vel_command_;
-  }
-  if(!std::isnan(hw_acc_command_) && hw_acc_command_ != prev_hw_acc_command_)
-  {
-    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Writing new acc command: %f...", _name.c_str(), hw_acc_command_);
-    prev_hw_acc_command_ = hw_acc_command_;
-  }
-  if(!std::isnan(hw_eff_command_) && hw_eff_command_ != prev_hw_eff_command_)
-  {
-    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Writing new eff command: %f...", _name.c_str(), hw_eff_command_);
-    prev_hw_eff_command_ = hw_eff_command_;
-  }
-
   return return_type::OK;
 }
 

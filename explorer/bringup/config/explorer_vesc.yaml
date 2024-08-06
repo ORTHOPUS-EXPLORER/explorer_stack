@@ -1,6 +1,11 @@
 ros_explorer_bridge:
   ros__parameters:
+    # PyVESC
     can_port: 'vcan0'
     can_id: 40
-    vesc_can_id: [41,42,43,44,45,46]
+    # ROS <=> VESC Mappings
+    vesc_joints_can_ids:  [41,        42,         43,         44,         45,         46,         46                  ]
+    vesc_joint_names:     ['joint_1', 'joint_2',  'joint_3',  'joint_4',  'joint_5',  'joint_6',  'right_finger_joint']
+    vesc_joint_types:     ['motor',   'motor',    'motor',    'motor',    'motor',    'motor',    'servo'             ]
+
     max_pos_setpoint_step: 10.0

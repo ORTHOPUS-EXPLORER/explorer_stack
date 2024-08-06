@@ -27,6 +27,9 @@ class PyFakeVESC(pyvesc.VESC):
     self.current_in = 0.0
     self.pid_pos    = 0.0
     self.pid_ref    = 0.0
+    # Sim servo
+    self.servo_ref  = 0.0
+    self.servo_pos  = 0.0
 
   def stream_status(self):
     b = b''
@@ -41,6 +44,10 @@ class PyFakeVESC(pyvesc.VESC):
     self.pid_ref = v
     print("[0x{:2X}] Set_pos: {}".format(self.can_id,str(v)))
 
+  def set_servo_from_pkt(self, data):
+    v = data.servo_pos
+    self.servo_ref = v
+    print("[0x{:2X}] Set_servo: {}".format(self.can_id,str(v)))
 
   def get_firmware_version(self, timeout=0):
     pkt = FWVersion(0x06,                                     # 'fw_version_major' / Byte
@@ -78,6 +85,13 @@ class PyFakeVESCPktHandlers:
     data = VESCMessage.unpack((VedderCmd.COMM_SET_POS&0xFF).to_bytes(length=1, byteorder="big")+data)
 
     comm.ctrlers[comm.id()].set_pos_from_pkt(data)
+    return True
+
+  @VESCPktDecoder.handler(VedderCmd.COMM_SET_SERVO_POS)
+  def cmd_handle_fw_version(comm, data, src_id):
+    data = VESCMessage.unpack((VedderCmd.COMM_SET_SERVO_POS&0xFF).to_bytes(length=1, byteorder="big")+data)
+
+    comm.ctrlers[comm.id()].set_servo_from_pkt(data)
     return True
 
   @VESCPktDecoder.handler(VedderCmd.COMM_FW_VERSION)
@@ -124,6 +138,7 @@ def MainApp(can_port, can_ids):
       for v in vescs:
         LP_ALPHA = 0.05
         v.pid_pos += LP_ALPHA*(v.pid_ref - v.pid_pos) + random.uniform(-0.01,0.01)
+        v.servo_pos += LP_ALPHA*(v.servo_ref - v.servo_pos) + random.uniform(-0.01,0.01)
         v.stream_status()
       await asyncio.sleep(0.01)
 

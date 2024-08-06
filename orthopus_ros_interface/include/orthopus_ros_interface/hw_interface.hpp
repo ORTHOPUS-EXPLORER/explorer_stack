@@ -78,23 +78,38 @@ public:
   ORTHOPUS_ROS_PUBLIC
   hardware_interface::return_type write(const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
-  const double LP_BETA = 50.0;
+  std::string               _name;
 
-  double hw_pos_state_;
-  double hw_vel_state_;
-  double hw_acc_state_;
-  double hw_eff_state_;
-  double hw_pos_command_;
-  double prev_hw_pos_command_;
-  double hw_vel_command_;
-  double prev_hw_vel_command_;
-  double hw_acc_command_;
-  double prev_hw_acc_command_;
-  double hw_eff_command_;
-  double prev_hw_eff_command_;
+  typedef struct
+  {
+    double pos;
+    double vel;
+    double acc;
+    double eff;
+  } hw_state_t;
 
-  std::string _name;
-  std::string _joint_name;
+  typedef struct
+  {
+    double            pos, ppos;
+    std::atomic<bool> nwpos;
+    double            vel, pvel;
+    std::atomic<bool> nwvel;
+    double            acc, pacc;
+    std::atomic<bool> nwacc;
+    double            eff, peff;
+    std::atomic<bool> nweff;
+  } hw_ref_t;
+
+  typedef struct
+  {
+    std::string name;
+    bool        enable;
+    hw_state_t  state;
+    hw_ref_t    ref;
+  } hw_joint_t;
+
+  static constexpr size_t N_JOINTS = 2;
+  std::array<hw_joint_t, N_JOINTS> _hw_joints;
 
   //std::vector<hardware_interface::CommandInterface> _command_interfaces;
   std::vector<hardware_interface::StateInterface>   _state_interfaces;
@@ -102,7 +117,6 @@ public:
   std::shared_ptr<HwInterfaceComm> _comm;
   rclcpp::executors::SingleThreadedExecutor _executor;  //Executor needed to subscriber
   std::thread _comm_th;
-  std::atomic<bool>                                                                   _expl_ref_pub_new;
 };
 
 }  // namespace orthopus_ros_interface

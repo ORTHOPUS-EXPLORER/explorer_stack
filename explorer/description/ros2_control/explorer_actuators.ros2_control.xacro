@@ -47,6 +47,7 @@
       <plugin>orthopus_ros_interface/HwInterface</plugin>
     </hardware>
     <xacro:explorer_joint_6 />
+    <xacro:explorer_gripper_servo_joint />
   </ros2_control>
 
   <ros2_control name="${name}_gripper" type="system">
