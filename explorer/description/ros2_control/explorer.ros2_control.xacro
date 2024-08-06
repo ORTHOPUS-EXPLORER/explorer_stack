@@ -2,11 +2,11 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false">
-    
+
     <ros2_control name="${name}" type="system">
       <hardware>
         <xacro:if value="${use_ignition}">
-          <plugin>ign_ros2_control/IgnitionSystem</plugin>
+          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
         </xacro:if>
         <xacro:unless value="${use_ignition}">
           <plugin>ros2_control_explorer/RobotSystem</plugin>
@@ -109,7 +109,7 @@
         <state_interface name="velocity"/>
         <state_interface name="effort"/>
       </joint>
-      
+
       <joint name="right_external_rod_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
