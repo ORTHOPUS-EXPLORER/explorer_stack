@@ -26,7 +26,10 @@ import launch_ros.actions
 
 
 def generate_launch_description():
-
+    # Initialize Arguments
+    gui = LaunchConfiguration("gui")
+    use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    spacenav = LaunchConfiguration('spacenav')
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -36,21 +39,25 @@ def generate_launch_description():
             description="Start RViz2 automatically with this launch file.",
         )
     )
+    declared_arguments.append(
+    DeclareLaunchArgument(
+            'use_sim_time',
+            default_value=use_sim_time,
+            description='If true, use simulated clock')
+    )
 
-    # Initialize Arguments
-    gui = LaunchConfiguration("gui")
-    spacenav = LaunchConfiguration('spacenav')
+    
 
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
         default_value='True',
         description='If the spacenav 3D mouse is used')
 
-    gazebo = IncludeLaunchDescription(
+    ignition = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [PathJoinSubstitution([FindPackageShare("gazebo_ros"), "launch", "gazebo.launch.py"])]
+            [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={"verbose": "false"}.items(),
+        launch_arguments={"gz_args": " -r -v 3 empty.sdf"}.items(),
     )
 
     # Get URDF via xacro
@@ -59,10 +66,10 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]
+                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer_ign.urdf.xacro"]
             ),
             " ",
-            "use_gazebo_classic:=true",
+            "use_ignition:=true",
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -133,12 +140,20 @@ def generate_launch_description():
             ],
     )
 
-    spawn_entity = Node(
-        package="gazebo_ros",
-        executable="spawn_entity.py",
-        arguments=["-topic", "robot_description", "-entity", "explorer_system_position"],
+    gz_spawn_entity = Node(
+        package="ros_gz_sim",
+        executable="create",
         output="screen",
+        arguments=[
+            "-topic",
+            "/robot_description",
+            "-name",
+            "explorer",
+            "-allow_renaming",
+            "true",
+        ],
     )
+
 
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
@@ -178,9 +193,9 @@ def generate_launch_description():
         spacenav_arg,
         spacenav_node,
         gui_control_node,
-        gazebo,
+        ignition,
         node_robot_state_publisher,
-        spawn_entity,
+        gz_spawn_entity,
         joint_state_broadcaster_spawner,
         robot_controller_spawner,
         rviz_node,

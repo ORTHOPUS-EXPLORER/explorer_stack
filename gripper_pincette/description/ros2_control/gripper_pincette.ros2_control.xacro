@@ -5,54 +5,59 @@
 
   <ros2_control name="${name}" type="system">
     <hardware>
-      <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      <plugin>ign_ros2_control/IgnitionSystem</plugin>
     </hardware>
-    <joint name="right_finger_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="right_external_rod_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="right_fingertip_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="left_finger_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="left_external_rod_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="left_fingertip_joint">
-      <param name="mimic">right_finger_joint</param>
-      <param name="multiplier">-1</param>
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
+      <joint name="right_finger_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      
+      <joint name="right_external_rod_joint">
+        <param name="mimic">right_finger_joint</param>
+        <param name="multiplier">-1</param>
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <joint name="right_fingertip_joint">
+        <param name="mimic">right_finger_joint</param>
+        <param name="multiplier">-1</param>
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <joint name="left_finger_joint">
+        <param name="mimic">right_finger_joint</param>
+        <param name="multiplier">-1</param>
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <joint name="left_external_rod_joint">
+        <param name="mimic">right_finger_joint</param>
+        <param name="multiplier">-1</param>
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <joint name="left_fingertip_joint">
+        <param name="mimic">right_finger_joint</param>
+        <param name="multiplier">-1</param>
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
   </ros2_control>
 
   </xacro:macro>

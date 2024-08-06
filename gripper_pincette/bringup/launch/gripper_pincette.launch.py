@@ -13,12 +13,13 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, RegisterEventHandler
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.event_handlers import OnProcessExit
 
 
 def generate_launch_description():
@@ -36,11 +37,11 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
 
-    gazebo = IncludeLaunchDescription(
+    ignition = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [PathJoinSubstitution([FindPackageShare("gazebo_ros"), "launch", "gazebo.launch.py"])]
+            [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={"verbose": "false"}.items(),
+        launch_arguments={"gz_args": " -r -v 4 empty.sdf"}.items(),
     )
 
     # Get URDF via xacro
@@ -49,15 +50,13 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]
+                [FindPackageShare("gripper_pincette"), "description/urdf", "gripper_pincette.urdf.xacro"]
             ),
-            " ",
-            "use_gazebo_classic:=true",
         ]
     )
     robot_description = {"robot_description": robot_description_content}
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"]
+        [FindPackageShare("gripper_pincette"), "description/rviz", "view_robot.rviz"]
     )
 
     node_robot_state_publisher = Node(
@@ -67,11 +66,18 @@ def generate_launch_description():
         parameters=[robot_description],
     )
 
-    spawn_entity = Node(
-        package="gazebo_ros",
-        executable="spawn_entity.py",
-        arguments=["-topic", "robot_description", "-entity", "explorer_system_position"],
+    gz_spawn_entity = Node(
+        package="ros_gz_sim",
+        executable="create",
         output="screen",
+        arguments=[
+            "-topic",
+            "/robot_description",
+            "-name",
+            "gripper_pincette",
+            "-allow_renaming",
+            "true",
+        ],
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -80,10 +86,10 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    robot_controller_spawner = Node(
+    joint_trajectory_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["explorer_controller", "--controller-manager", "/controller_manager"],
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
     )
     
     rviz_node = Node(
@@ -95,13 +101,16 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
+
     nodes = [
-        gazebo,
+        ignition,
         node_robot_state_publisher,
-        spawn_entity,
+        gz_spawn_entity,
         joint_state_broadcaster_spawner,
-        robot_controller_spawner,
+        joint_trajectory_controller_spawner,
         rviz_node,
     ]
+
+    
 
     return LaunchDescription(declared_arguments + nodes)
