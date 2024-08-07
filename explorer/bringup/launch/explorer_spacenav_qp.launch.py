@@ -66,7 +66,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer_ign.urdf.xacro"]
+                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]
             ),
             " ",
             "use_ignition:=true",
