@@ -9,7 +9,6 @@ set(REF_GEN_DEPENDENCIES
   sensor_msgs
   std_srvs
   geometry_msgs
-  trac_ik_lib
   # required to build with explorer_robot_manager
   moveit_core
   moveit_ros_planning
@@ -32,22 +31,6 @@ PUBLIC
 )
 
 ament_target_dependencies(spacenav_trajectory
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
-# spacenav_trajectory_ik
-add_executable(spacenav_trajectory_ik
-  spacenav_trajectory_ik.cpp
-)
-
-target_include_directories(spacenav_trajectory_ik
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(spacenav_trajectory_ik
 PUBLIC
   ${REF_GEN_DEPENDENCIES}
 )
@@ -92,7 +75,6 @@ PUBLIC
 
 #  Install !
 install(TARGETS spacenav_trajectory
-                spacenav_trajectory_ik
                 spacenav_trajectory_qp
                 send_trajectory
         DESTINATION lib/ros2_control_explorer
