@@ -34,7 +34,6 @@
   <depend>moveit_ros_planning</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>qpoases_ros2</depend> <!-- Imported as submodule -->
-  <depend>trac_ik_lib</depend> <!-- Imported as submodule -->
 
 
   <exec_depend>controller_manager</exec_depend>
