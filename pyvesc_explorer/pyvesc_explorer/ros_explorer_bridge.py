@@ -110,6 +110,8 @@ class PyVESCExplorerBridge(Node):
                 if j >= len(ifv.interface_names):
                     continue
                 pos_ref = ifv.values[j]
+                if pos_ref is None:
+                    continue
                 if jit['type'] == 'motor':
                     pos_meas = jit['posmeas']
                     delta = pos_meas-pos_ref
