@@ -110,7 +110,9 @@ class PyVESCExplorerBridge(Node):
                 if j >= len(ifv.interface_names):
                     continue
                 pos_ref = ifv.values[j]
-                if pos_ref is None:
+                # Check for None and NaN
+                if pos_ref is None or pos_ref != pos_ref:
+                    self.get_logger().error("[{:s}] Did not send the command, setpoint is None or NaN".format(jit['name']))
                     continue
                 if jit['type'] == 'motor':
                     pos_meas = jit['posmeas']
@@ -121,7 +123,7 @@ class PyVESCExplorerBridge(Node):
                         v.set_pos(pos_ref)
                         jit['posref'] = pos_ref
                     else:
-                        self.get_logger().info('Axis %d, did not send the command, setpoint too far away' %(axis))
+                        self.get_logger().warning("[{:s}] Did not send the command, setpoint '{:f}' too far away from current meas '{:f}'".format(jit['name'],pos_ref,pos_meas))
                 elif jit['type'] == 'servo':
                     v.set_servo(pos_ref)
 
