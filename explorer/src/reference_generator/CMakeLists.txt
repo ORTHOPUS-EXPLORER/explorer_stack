@@ -56,31 +56,13 @@ PRIVATE
   explorer_robot_manager
 )
 
-# send_trajectory
-add_executable(send_trajectory
-  send_trajectory.cpp
-)
-
-
-target_include_directories(send_trajectory
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(send_trajectory
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
 #  Install !
 install(TARGETS spacenav_trajectory
                 spacenav_trajectory_qp
-                send_trajectory
         DESTINATION lib/ros2_control_explorer
 )
 
 ament_export_dependencies(${REF_GEN_DEPENDENCIES}
 )
 
-#
+
