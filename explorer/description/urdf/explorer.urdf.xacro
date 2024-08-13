@@ -21,7 +21,7 @@
   <joint name="joint_6" type="revolute">
     <parent link="link_5"/>
     <child link="structure"/>
-    <origin xyz="0 0.090 0.083" rpy="${-(65*pi)/180} 0 0"/>
+    <origin xyz="0 0.090 0.083" rpy="0 ${(65*pi)/180} ${pi/2}"/>
     <axis xyz="0 0 1"/>
     <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
   </joint>
