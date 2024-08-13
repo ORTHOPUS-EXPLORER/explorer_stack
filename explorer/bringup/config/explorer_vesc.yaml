@@ -8,4 +8,4 @@ ros_explorer_bridge:
     vesc_joint_names:     ['joint_1', 'joint_2',  'joint_3',  'joint_4',  'joint_5',  'joint_6',  'right_finger_joint']
     vesc_joint_types:     ['motor',   'motor',    'motor',    'motor',    'motor',    'motor',    'servo'             ]
 
-    max_pos_setpoint_step: 10.0
+    max_pos_setpoint_step: 300.0 #deg

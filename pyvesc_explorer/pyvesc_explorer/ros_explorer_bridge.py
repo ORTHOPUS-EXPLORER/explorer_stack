@@ -17,6 +17,7 @@ import asyncio
 
 import time
 import random
+import math
 
 class ROSExplorerPub(Node):
 
@@ -118,9 +119,9 @@ class PyVESCExplorerBridge(Node):
                     pos_meas = jit['posmeas']
                     delta = pos_meas-pos_ref
                     if abs(delta) < self.max_pos_setpoint_step or \
-                    abs(delta - 360) < self.max_pos_setpoint_step or \
-                    abs(delta + 360) < self.max_pos_setpoint_step:  #TODO: allow moving in the direction that reduces delta
-                        v.set_pos(pos_ref)
+                    abs(delta - math.radians(360)) < self.max_pos_setpoint_step or \
+                    abs(delta + math.radians(360)) < self.max_pos_setpoint_step:  #TODO: allow moving in the direction that reduces delta
+                        v.set_pos(math.degrees(pos_ref))
                         jit['posref'] = pos_ref
                     else:
                         self.get_logger().warning("[{:s}] Did not send the command, setpoint '{:f}' too far away from current meas '{:f}'".format(jit['name'],pos_ref,pos_meas))
@@ -217,7 +218,7 @@ class PyVESCExplorerBridge(Node):
                 if j is None:
                     m['joints'].append(jointv)
 
-        self.max_pos_setpoint_step = self.get_parameter('max_pos_setpoint_step').get_parameter_value().double_value
+        self.max_pos_setpoint_step = math.radians(self.get_parameter('max_pos_setpoint_step').get_parameter_value().double_value)
 
         # Setup ROS pub/sub
         self.pos_meas = self.create_publisher(DynamicJointState,"/explorer_meas", QoSPresetProfiles.SYSTEM_DEFAULT.value)
@@ -253,10 +254,10 @@ class PyVESCExplorerBridge(Node):
             v = m['vesc']
             # Get data from PyVESC
             # Filter and handle errors
-            pid_pos = v.pid_pos
+            pid_pos = math.radians(v.pid_pos)
             if pid_pos is not None:
-                if pid_pos > 180:
-                    pid_pos -= 360 #TODO: check, probably not always coherent
+                if pid_pos > math.radians(180):
+                    pid_pos -= math.radians(360) #TODO: check, probably not always coherent
             # FIXME: Also publish velocity, accel, torque
             for t,v in [('motor',pid_pos)]:#,('servo':-1.0)]
                 for jit in m['joints']:
