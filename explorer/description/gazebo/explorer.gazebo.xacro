@@ -117,6 +117,28 @@
       </visual>
     </gazebo>
 
+    <gazebo reference="camera_explorer">
+      <sensor name="camera" type="camera">
+        <camera>
+          <optical_frame_id>camera_explorer</optical_frame_id>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+              <width>640</width>
+              <height>400</height>
+          </image>
+          <clip>
+              <near>0.05</near>
+              <far>100</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+        <topic>camera</topic>
+        <enable_metrics>false</enable_metrics>
+      </sensor>
+    </gazebo>
+
   </xacro:macro>
 
 </robot>

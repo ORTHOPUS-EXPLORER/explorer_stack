@@ -10,6 +10,8 @@
   <!-- create link fixed to the "world" -->
   <link name="world"/>
 
+  <link name="camera_explorer"/>
+
   <!-- base_joint fixes base_link to the environment -->
   <joint name="base_joint" type="fixed">
     <parent link="world"/>
@@ -32,6 +34,11 @@
     <origin xyz="0.011 0 0.15" rpy="0 0 0"/>
   </joint>
 
+  <joint name="camera_joint" type="fixed">
+    <parent link="structure"/>
+    <child link="camera_explorer"/>
+    <origin xyz="0.011 0 0.105" rpy="0 ${-pi/2} 0"/>
+  </joint>
 
   <joint name="joint-tool" type="fixed">
     <parent link="ft_frame"/>
