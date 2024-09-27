@@ -105,7 +105,7 @@ def generate_launch_description():
     )
 
     config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_forward.yaml"]
+        [FindPackageShare("ros2_control_explorer"), "config", "settings_pos_only.yaml"]
     )
 
     control_node = Node(
@@ -173,7 +173,7 @@ def generate_launch_description():
 
     spacenav_trajectory_qp_node = Node(
         package="ros2_control_explorer",
-        executable="spacenav_trajectory_qp_forward",
+        executable="spacenav_trajectory_qp_pos_only",
         parameters=[
             config,
             robot_description,
