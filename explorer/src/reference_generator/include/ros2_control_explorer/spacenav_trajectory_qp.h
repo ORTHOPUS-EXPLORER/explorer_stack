@@ -50,6 +50,10 @@ namespace space_control
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_debug_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_debug_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_debug_pub_;
+        rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr q_command_debug_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr q_current_debug_pub_;
+
+        rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub;
                         
         JointPosition q_command_;
         JointPosition q_command_explorer_;
@@ -59,6 +63,10 @@ namespace space_control
         SpacePosition x_current_;
         SpacePosition x_desired_;
         SpaceVelocity dx_desired_;
+
+        sensor_msgs::msg::JointState current_pos_;
+        sensor_msgs::msg::JointState commands_debug_;
+        std_msgs::msg::Float64MultiArray q_current_debug;
         
         trajectory_msgs::msg::JointTrajectoryPoint trajectory_point_prec;
 
@@ -67,8 +75,12 @@ namespace space_control
         float max_vel_;
         double sampling_period_;
         bool trajectory_tracking ;
+        bool init;
+
+        int joint_order[18];
 
         void callback_trajectory(const geometry_msgs::msg::TwistStamped & msg);
+        void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
         void callback_gripper(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void send_Command();

@@ -19,7 +19,7 @@ namespace space_control
     {
 
         max_vel_ = 0.05;
-        sampling_period_ = 0.001;
+        sampling_period_ = 0.01;
 
         trajectory_point_msg.positions.resize(6);
         trajectory_point_msg.velocities.resize(6);
@@ -32,17 +32,31 @@ namespace space_control
 
         trajectory_tracking = true;
 
+        q_current_debug.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+        current_pos_.name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint", "right_external_rod_joint", "right_fingertip_joint", "left_finger_joint", "left_external_rod_joint", "left_fingertip_joint", "left_wheel_joint", "right_wheel_joint","left_front_wheel","right_front_wheel","left_rear_wheel","right_rear_wheel"};
+        current_pos_.position = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        current_pos_.velocity = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        current_pos_.effort = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+        commands_debug_.name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint"};
+        commands_debug_.position = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        commands_debug_.velocity = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        commands_debug_.effort = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
         command_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>("/explorer_controller/joint_trajectory", 10);
         gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
         trajectory_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&SpacenavTrajectoryQP::callback_trajectory, this, std::placeholders::_1));
         gripper_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/gripper_command", 10, std::bind(&SpacenavTrajectoryQP::callback_gripper, this, std::placeholders::_1));
-        timer_ = n_->create_wall_timer(1ms, std::bind(&SpacenavTrajectoryQP::timer_callback, this));
+        current_pos_sub = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&SpacenavTrajectoryQP::callback_current_pos_, this, std::placeholders::_1));
+        timer_ = n_->create_wall_timer(10ms, std::bind(&SpacenavTrajectoryQP::timer_callback, this));
 
         x_current_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controller/debug/x_current", 10);
         x_desired_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controller/debug/x_desired", 10);
         dx_desired_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controller/debug/dx_desired", 10);
-
+        q_command_debug_pub_ = n_->create_publisher<sensor_msgs::msg::JointState>("/explorer_controller/debug/q_command", 10);
+        q_current_debug_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/explorer_controller/debug/q_current", 10);
     }
 
     void SpacenavTrajectoryQP::callback_trajectory(const geometry_msgs::msg::TwistStamped & msg)
@@ -73,9 +87,30 @@ namespace space_control
         gripper_command_pub_->publish(commands);
     }
 
+    void SpacenavTrajectoryQP::callback_current_pos_(const sensor_msgs::msg::JointState & msg)
+    {   
+        int j;
+        if(init ==false){
+            for (int i=0; i< 18; i++){
+                j=0;
+                while (current_pos_.name[i]!=msg.name[j] && j<18 ){
+                    j++;
+                }
+                if(current_pos_.name[i]== msg.name[j]){
+                    joint_order[i] = j;
+                }
+            }
+            init = true;
+        }
+        current_pos_ = msg;
+    }
+
     void SpacenavTrajectoryQP::timer_callback()
     {
-        q_current_ = q_command_;
+        for(int i=0; i< 6; i++){
+            q_current_[i] = current_pos_.position[joint_order[i]];
+        }
+        //q_current_ = q_command_;
 
         //RCLCPP_INFO(n_->get_logger(), "=== Start FK computation...");
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Input joint position :");
@@ -105,14 +140,12 @@ namespace space_control
 
         send_Command();
         publishDebugTopic_();
-
     }
 
     void SpacenavTrajectoryQP::send_Command()
     {
         trajectory_msgs::msg::JointTrajectory trajectory_msg;
 
-        
         trajectory_msg.header.stamp = n_->now();
         
         trajectory_msg.joint_names = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
@@ -127,7 +160,7 @@ namespace space_control
 
         trajectory_point_prec.time_from_start.sec = 0;
         trajectory_point_prec.time_from_start.nanosec = 0;
-        trajectory_point_msg.time_from_start.nanosec = 100000000;
+        trajectory_point_msg.time_from_start.nanosec = sampling_period_*1000000000;
 
         trajectory_msg.points.push_back(trajectory_point_prec);
         trajectory_msg.points.push_back(trajectory_point_msg);
@@ -135,7 +168,6 @@ namespace space_control
         command_pub_->publish(trajectory_msg);
                         
         trajectory_point_prec = trajectory_point_msg;
-
     }
 
     void SpacenavTrajectoryQP::publishDebugTopic_()
@@ -173,6 +205,18 @@ namespace space_control
     dx_desired_pose.orientation.y = dx_desired_.orientation.y();
     dx_desired_pose.orientation.z = dx_desired_.orientation.z();
     dx_desired_debug_pub_->publish(dx_desired_pose);
+
+    for(int i=0; i< 6; i++){
+        commands_debug_.position[i] = q_command_[i];
+        commands_debug_.velocity[i] = dq_desired_[i];
+    }
+    q_command_debug_pub_->publish(commands_debug_);
+
+    for(int i=0; i< 18; i++){
+        q_current_debug.data[i] = q_current_[i];
+    }
+    q_current_debug_pub_->publish(q_current_debug);
+
     }
 
 
