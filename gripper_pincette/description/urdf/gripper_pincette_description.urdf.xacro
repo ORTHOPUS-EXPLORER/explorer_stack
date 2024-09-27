@@ -54,7 +54,7 @@
       izz="0.00001416083"
   />
 
-  <xacro:create_link
+  <!-- <xacro:create_link
       link_name="right_finger_first_phalanx"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
@@ -68,7 +68,29 @@
       iyy="0.00000988018"
       iyz="0"
       izz="0.00001059"
-  />
+  /> -->
+
+  <link name="right_finger_first_phalanx">
+      <collision>
+        <origin xyz="0.022 -0.021 0.002" rpy="0 0 -0.5"/>
+        <geometry>
+          <box size="0.05 0.027 0.032"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find gripper_pincette)/description/meshes/visual/right_finger_first_phalanx.dae" />
+        </geometry>
+      </visual>
+
+      <inertial>
+        <origin xyz="0.02 -0.02 0.004" rpy="0 0 0"/>
+        <mass value="0.02"/>
+        <inertia ixx="0.00000267533" ixy="0.00000142249" ixz="0" iyy="0.00000988018" iyz="0" izz="0.00001059"/>
+      </inertial>
+  </link>
 
   <xacro:create_link
       link_name="right_external_rod"
@@ -86,7 +108,7 @@
       izz="0.00000155121"
   />
 
-  <xacro:create_link
+  <!-- <xacro:create_link
       link_name="right_finger_last_phalanx"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
@@ -100,9 +122,32 @@
       iyy="0.00000457"
       iyz="0"
       izz="0.00000457"
-  />
+  /> -->
 
-  <xacro:create_link
+  <link name="right_finger_last_phalanx">
+      <collision>
+        <origin xyz="0.018 0.014 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.045 0.03 0.032"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find gripper_pincette)/description/meshes/visual/finger_last_phalanx.dae" />
+        </geometry>
+      </visual>
+
+      <inertial>
+        <origin xyz="0.015 0.01 0" rpy="0 0 0"/>
+        <mass value="0.015"/>
+        <inertia ixx="0.00000289" ixy="0" ixz="0" iyy="0.00000457" iyz="0" izz="0.00000457"/>
+      </inertial>
+  </link>
+
+
+  <!-- <xacro:create_link
       link_name="left_finger_first_phalanx"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
@@ -116,7 +161,29 @@
       iyy="0.00000988018"
       iyz="0"
       izz="0.00001059"
-  />
+  /> -->
+
+    <link name="left_finger_first_phalanx">
+      <collision>
+        <origin xyz="0.022 0.020 0.002" rpy="0 0 0.5"/>
+        <geometry>
+          <box size="0.05 0.03 0.032"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find gripper_pincette)/description/meshes/visual/left_finger_first_phalanx.dae" />
+        </geometry>
+      </visual>
+
+      <inertial>
+        <origin xyz="0.02 0.02 0.004" rpy="0 0 0"/>
+        <mass value="0.02"/>
+        <inertia ixx="0.00000267533" ixy="-0.00000142249" ixz="0" iyy="0.00000988018" iyz="0" izz="0.00001059"/>
+      </inertial>
+  </link>
 
   <xacro:create_link
       link_name="left_external_rod"
@@ -134,7 +201,7 @@
       izz="0.00000155121"
   />
 
-  <xacro:create_link
+  <!-- <xacro:create_link
       link_name="left_finger_last_phalanx"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
@@ -148,7 +215,29 @@
       iyy="0.00000457"
       iyz="0"
       izz="0.00000457"
-  />
+  /> -->
+
+  <link name="left_finger_last_phalanx">
+      <collision>
+        <origin xyz="0.018 0.014 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.045 0.03 0.032"/>
+        </geometry>
+      </collision>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find gripper_pincette)/description/meshes/visual/finger_last_phalanx.dae" />
+        </geometry>
+      </visual>
+
+      <inertial>
+        <origin xyz="0.015 0.01 0" rpy="0 0 0"/>
+        <mass value="0.015"/>
+        <inertia ixx="0.00000289" ixy="0" ixz="0" iyy="0.00000457" iyz="0" izz="0.00000457"/>
+      </inertial>
+  </link>
 
   <joint name="structure_motor" type="fixed">
     <parent link="structure"/>
