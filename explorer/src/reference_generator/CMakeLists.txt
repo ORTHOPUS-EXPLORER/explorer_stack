@@ -56,9 +56,31 @@ PRIVATE
   explorer_robot_manager
 )
 
+# spacenav_trajectory_qp_pos_only
+add_executable(spacenav_trajectory_qp_pos_only
+  spacenav_trajectory_qp_pos_only.cpp
+)
+
+target_include_directories(spacenav_trajectory_qp_pos_only
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/ros2_control_explorer>
+)
+
+ament_target_dependencies(spacenav_trajectory_qp_pos_only
+PUBLIC
+  ${REF_GEN_DEPENDENCIES}
+)
+
+target_link_libraries(spacenav_trajectory_qp_pos_only
+PRIVATE
+  explorer_robot_manager
+)
+
 #  Install !
 install(TARGETS spacenav_trajectory
                 spacenav_trajectory_qp
+                spacenav_trajectory_qp_pos_only
         DESTINATION lib/ros2_control_explorer
 )
 
