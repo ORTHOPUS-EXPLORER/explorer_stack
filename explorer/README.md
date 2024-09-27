@@ -14,21 +14,6 @@ With the `joint_state_publisher_gui` you can now change the position of every jo
 
 ## Launch the simulation
 
-### Cartesian control with KDL Solver
-
-To launch the simulation in Gazebo, open a terminal and launch the `explorer_spacenav.launch.py`.  
-
-```
-ros2 launch ros2_control_explorer explorer_spacenav.launch.py
-```
-
-You can run the simulation with some arguments :
-
-* `gui:=true` to activate RViz
-* `spacenav:=false` to deactivate spacenav
-
-To control the explorer you can use the GUI or a space mouse.
-
 ### Cartesian control with moveit and qpOASES
 
 To launch the simulation in Gazebo, open a terminal and launch the `explorer_spacenav_qp.launch.py`.  
@@ -43,4 +28,41 @@ You can run the simulation with some arguments :
 * `spacenav:=false` to deactivate spacenav
 
 To control the explorer you can use the GUI or a space mouse.
+
+### Cartesian control with moveit and qpOASES using command position only
+
+To launch the simulation in Gazebo, open a terminal and launch the `explorer_spacenav_qp_pos_only.launch.py`.  
+
+```
+ros2 launch ros2_control_explorer explorer_spacenav_qp_pos_only.launch.py
+```
+
+You can run the simulation with some arguments :
+
+* `gui:=true` to activate RViz
+* `spacenav:=false` to deactivate spacenav
+
+To control the explorer you can use the GUI or a space mouse.
+
+### Cartesian control with moveit and qpOASES using VESC simulation
+
+First launch 
+
+```
+ros2 run pyvesc_explorer app_sim
+```
+
+Then open a terminal and launch the `explorer_real.launch.py`.  
+
+```
+ros2 launch ros2_control_explorer explorer_real.launch.py use_bridge:=true
+```
+
+You can run the simulation with some arguments :
+
+* `gui:=true` to activate RViz
+* `spacenav:=false` to deactivate spacenav
+
+To control the explorer you can use the GUI or a space mouse.
+
 
