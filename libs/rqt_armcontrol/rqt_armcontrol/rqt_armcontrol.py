@@ -23,6 +23,7 @@ from rqt_gui.main import Main
 from rqt_gui_py.plugin import Plugin
 
 from geometry_msgs.msg import TwistStamped
+from std_msgs.msg import Float64
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose
 from std_srvs.srv import Empty
@@ -78,6 +79,9 @@ class RqtCartesianController(Plugin):
         self.cartesian_vel.twist.angular.y = 0.0
         self.cartesian_vel.twist.angular.z = 0.0
 
+        self.gripper_pos= Float64()
+        self.gripper_pos.data = 0.0
+
         self.slider_released = True
         self.prev_slider_released = True
 
@@ -85,6 +89,7 @@ class RqtCartesianController(Plugin):
         self.setUpEventHandlers()
 
         self.publisher_ = self._context.node.create_publisher(TwistStamped, "/ros2_control_explorer/input_device_velocity", 1)
+        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_position", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -98,15 +103,7 @@ class RqtCartesianController(Plugin):
             self.cartesian_vel.header.stamp = self._context.node.get_clock().now().to_msg();
             self.publisher_.publish(self.cartesian_vel)
         self.prev_slider_released = self.slider_released
-
-    def pose_sub_callback(self, msg):
-        self.pose[0] = msg.position.x
-        self.pose[1] = msg.position.y
-        self.pose[2] = msg.position.z
-        self.pose[3] = msg.orientation.w
-        self.pose[4] = msg.orientation.x
-        self.pose[5] = msg.orientation.y
-        self.pose[6] = msg.orientation.z
+        self.publisher_gripper_.publish(self.gripper_pos)
 
     def setUpEventHandlers(self):
         self._widget.pos_x.valueChanged.connect(self.onXMove)
@@ -115,6 +112,8 @@ class RqtCartesianController(Plugin):
         self._widget.or_roll.valueChanged.connect(self.onRoMove)
         self._widget.or_pitch.valueChanged.connect(self.onPiMove)
         self._widget.or_yaw.valueChanged.connect(self.onYaMove)
+
+        self._widget.gripper.valueChanged.connect(self.onGripperMove)
 
         self._widget.pos_x.sliderReleased.connect(self.onSliderReleased)
         self._widget.pos_y.sliderReleased.connect(self.onSliderReleased)
@@ -147,6 +146,9 @@ class RqtCartesianController(Plugin):
     def onYaMove(self, value):
         self.cartesian_vel.twist.angular.z = float(value) / self.scale
         self.slider_released = False
+
+    def onGripperMove(self, value):
+        self.gripper_pos.data = float(value) / self.scale
 
     def onSliderReleased(self):
         self._widget.pos_x.setSliderPosition(0)

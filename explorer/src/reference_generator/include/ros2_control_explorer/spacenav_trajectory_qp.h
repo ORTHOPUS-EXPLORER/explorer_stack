@@ -42,6 +42,7 @@ namespace space_control
         VelocityIntegrator vi_;
         rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr trajectory_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_sub_;
+        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_pos_sub_;
         rclcpp::TimerBase::SharedPtr timer_;
         
         rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr command_pub_;
@@ -82,6 +83,7 @@ namespace space_control
         void callback_trajectory(const geometry_msgs::msg::TwistStamped & msg);
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
         void callback_gripper(const std_msgs::msg::Bool & msg);
+        void callback_gripper_pos(const std_msgs::msg::Float64 & msg);
         void timer_callback();
         void send_Command();
         void publishDebugTopic_();

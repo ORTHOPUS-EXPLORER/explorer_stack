@@ -49,6 +49,7 @@ namespace space_control
 
         trajectory_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&SpacenavTrajectoryQP::callback_trajectory, this, std::placeholders::_1));
         gripper_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/gripper_command", 10, std::bind(&SpacenavTrajectoryQP::callback_gripper, this, std::placeholders::_1));
+        gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/input_gripper_position", 10, std::bind(&SpacenavTrajectoryQP::callback_gripper_pos, this, std::placeholders::_1));
         current_pos_sub = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&SpacenavTrajectoryQP::callback_current_pos_, this, std::placeholders::_1));
         timer_ = n_->create_wall_timer(10ms, std::bind(&SpacenavTrajectoryQP::timer_callback, this));
 
@@ -83,6 +84,16 @@ namespace space_control
         {
             commands.data.push_back(0);
         }
+
+        //gripper_command_pub_->publish(commands);
+    }
+
+    void SpacenavTrajectoryQP::callback_gripper_pos(const std_msgs::msg::Float64 & msg)
+    {   
+        std_msgs::msg::Float64MultiArray commands;
+
+        commands.data.push_back(msg.data);
+        
 
         gripper_command_pub_->publish(commands);
     }
