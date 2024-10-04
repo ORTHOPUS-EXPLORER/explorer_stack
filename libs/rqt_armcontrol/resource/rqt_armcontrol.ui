@@ -67,10 +67,10 @@
      <item row="1" column="4">
       <widget class="QSlider" name="or_pitch">
        <property name="minimum">
-        <number>-100</number>
+        <number>-467</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>467</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>
@@ -113,10 +113,10 @@
      <item row="1" column="1">
       <widget class="QSlider" name="pos_y">
        <property name="minimum">
-        <number>-100</number>
+        <number>-1869</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>1869</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>
@@ -149,10 +149,10 @@
      <item row="3" column="1">
       <widget class="QSlider" name="pos_z">
        <property name="minimum">
-        <number>-100</number>
+        <number>-1869</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>1869</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>
@@ -165,10 +165,10 @@
      <item row="0" column="1">
       <widget class="QSlider" name="pos_x">
        <property name="minimum">
-        <number>-100</number>
+        <number>-1869</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>1869</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>
@@ -181,10 +181,10 @@
      <item row="0" column="4">
       <widget class="QSlider" name="or_roll">
        <property name="minimum">
-        <number>-100</number>
+        <number>-467</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>467</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>
@@ -207,10 +207,10 @@
      <item row="3" column="4">
       <widget class="QSlider" name="or_yaw">
        <property name="minimum">
-        <number>-100</number>
+        <number>-467</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>467</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>

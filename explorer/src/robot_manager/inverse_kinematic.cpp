@@ -377,7 +377,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
   std::vector<double> ubA(joint_number_);
   computeConstraints_(A, lbA, ubA, jacobian);
 
-  RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_snap = " << x_snap);
+  //RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_snap = " << x_snap);
   // checkConstraintsDebug_(ubA, lbA, A);
 
   /* Solve QP */
@@ -409,7 +409,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
 
   if (qp_return == qpOASES::SUCCESSFUL_RETURN)
   {
-    RCLCPP_DEBUG_STREAM(n_->get_logger(),"qpOASES : succesfully return");
+    //RCLCPP_DEBUG_STREAM(n_->get_logger(),"qpOASES : succesfully return");
 
     /* Get solution of the QP */
     QP_->getPrimalSolution(xOpt);

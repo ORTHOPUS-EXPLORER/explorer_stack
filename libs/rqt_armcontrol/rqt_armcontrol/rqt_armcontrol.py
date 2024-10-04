@@ -69,7 +69,7 @@ class RqtCartesianController(Plugin):
             self._widget.window().setWindowTitle(self.title)
 
 
-        self.scale = 100.0 # Slider values between -scale and +scale
+        self.scale = 1000.0 # Slider values between -scale and +scale
 
         self.cartesian_vel = TwistStamped()
         self.cartesian_vel.twist.linear.x = 0.0
