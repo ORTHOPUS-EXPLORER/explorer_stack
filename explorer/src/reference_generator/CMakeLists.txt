@@ -119,12 +119,56 @@ PRIVATE
   explorer_robot_manager
 )
 
+# output_integrator
+add_executable(output_integrator
+  output_integrator.cpp
+)
+
+target_include_directories(output_integrator
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/ros2_control_explorer>
+)
+
+ament_target_dependencies(output_integrator
+PUBLIC
+  ${REF_GEN_DEPENDENCIES}
+)
+
+target_link_libraries(output_integrator
+PRIVATE
+  explorer_robot_manager
+)
+
+# test_output_integrator
+add_executable(test_output_integrator
+  test_output_integrator.cpp
+)
+
+target_include_directories(test_output_integrator
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/ros2_control_explorer>
+)
+
+ament_target_dependencies(test_output_integrator
+PUBLIC
+  ${REF_GEN_DEPENDENCIES}
+)
+
+target_link_libraries(test_output_integrator
+PRIVATE
+  explorer_robot_manager
+)
+
 #  Install !
 install(TARGETS spacenav_trajectory
                 spacenav_trajectory_qp
                 spacenav_trajectory_qp_pos_only
                 input_integrator
                 qp_solving
+                output_integrator
+                test_output_integrator
         DESTINATION lib/ros2_control_explorer
 )
 
