@@ -57,11 +57,6 @@ PRIVATE
   explorer_robot_manager
 )
 
-# spacenav_trajectory_qp_pos_only
-add_executable(spacenav_trajectory_qp_pos_only
-  spacenav_trajectory_qp_pos_only.cpp
-)
-
 # input_integrator
 add_executable(input_integrator
   input_integrator.cpp
