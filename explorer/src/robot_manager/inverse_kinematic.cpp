@@ -33,9 +33,9 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   //rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
   RCLCPP_DEBUG_STREAM(n_->get_logger(), "InverseKinematic constructor");
 
-  std::vector<double> alpha_weight_vec;
-  std::vector<double> beta_weight_vec;
-  std::vector<double> gamma_weight_vec;
+  n_->get_parameter("alpha_multiplier", alpha_multiplier);
+  n_->get_parameter("beta_multiplier", beta_multiplier);
+  n_->get_parameter("gamma_multiplier", gamma_multiplier);
 
   n_->get_parameter("alpha_weight", alpha_weight_vec);
   n_->get_parameter("beta_weight", beta_weight_vec);
@@ -43,9 +43,9 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   //n_->get_parameter("lambda_weight", lambda_weight_);
   //n_->get_parameter("q_natural", q_natural_);
 
-  setAlphaWeight_(alpha_weight_vec);
-  setBetaWeight_(beta_weight_vec);
-  setGammaWeight_(gamma_weight_vec);
+  setAlphaWeight_(alpha_weight_vec, alpha_multiplier);
+  setBetaWeight_(beta_weight_vec, beta_multiplier);
+  setGammaWeight_(gamma_weight_vec, gamma_multiplier);
   //setLambdaWeight_(lambda_weight_vec);
 
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Setting up bounds on joint position (q) of the QP");
@@ -90,6 +90,45 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   kinematic_state_ = std::make_shared<moveit::core::RobotState>(kinematic_model_);
   kinematic_state_->setToDefaultValues();
   joint_model_group_ = kinematic_model_->getJointModelGroup(model_group_name);
+
+  param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(n_);
+  
+  auto callback_alpha_weight = [this](const rclcpp::Parameter & p) {
+    alpha_weight_vec = p.as_double_array();
+    setAlphaWeight_(alpha_weight_vec, alpha_multiplier);
+  };
+
+  auto callback_alpha_multiplier = [this](const rclcpp::Parameter & p) {
+    alpha_multiplier = p.as_int();
+    setAlphaWeight_(alpha_weight_vec, alpha_multiplier);
+  };
+
+  auto callback_beta_weight = [this](const rclcpp::Parameter & p) {
+    beta_weight_vec = p.as_double_array();
+    setBetaWeight_(beta_weight_vec, beta_multiplier);
+  };
+
+  auto callback_beta_multiplier = [this](const rclcpp::Parameter & p) {
+    beta_multiplier = p.as_int();
+    setBetaWeight_(beta_weight_vec, beta_multiplier);
+  };
+
+  auto callback_gamma_weight = [this](const rclcpp::Parameter & p) {
+    gamma_weight_vec = p.as_double_array();
+    setGammaWeight_(gamma_weight_vec, gamma_multiplier);
+  };
+
+  auto callback_gamma_multiplier = [this](const rclcpp::Parameter & p) {
+    gamma_multiplier = p.as_int();
+    setGammaWeight_(gamma_weight_vec, gamma_multiplier);
+  };
+
+  cb_handle_alpha_weight = param_subscriber_->add_parameter_callback("alpha_weight", callback_alpha_weight);
+  cb_handle_alpha_multiplier = param_subscriber_->add_parameter_callback("alpha_multiplier", callback_alpha_multiplier);
+  cb_handle_beta_weight = param_subscriber_->add_parameter_callback("beta_weight", callback_beta_weight);
+  cb_handle_beta_multiplier = param_subscriber_->add_parameter_callback("beta_multiplier", callback_beta_multiplier);
+  cb_handle_gamma_weight = param_subscriber_->add_parameter_callback("gamma_weight", callback_gamma_weight);
+  cb_handle_gamma_multiplier = param_subscriber_->add_parameter_callback("gamma_multiplier", callback_gamma_multiplier);
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
@@ -98,41 +137,41 @@ void InverseKinematic::init(const std::string end_effector_link, const double sa
   sampling_period_ = sampling_period;
 }
 
-void InverseKinematic::setAlphaWeight_(const std::vector<double>& alpha_weight)
+void InverseKinematic::setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier)
 {
   // Minimize cartesian velocity (dx) weight
   alpha_weight_ = MatrixXd::Identity(space_dimension_, space_dimension_);
   for (int i = 0; i < space_dimension_; i++)
   {
-    alpha_weight_(i, i) = alpha_weight[i];
+    alpha_weight_(i, i) = alpha_multiplier * alpha_weight[i];
   }
 
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set alpha weight to : \n" << alpha_weight_ << "\n");
 }
 
-void InverseKinematic::setBetaWeight_(const std::vector<double>& beta_weight)
+void InverseKinematic::setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier)
 {
   // Minimize joint velocity (dq) weight
   beta_weight_ = MatrixXd::Identity(joint_number_, joint_number_);
   for (int i = 0; i < joint_number_; i++)
   {
-    beta_weight_(i, i) = beta_weight[i];
+    beta_weight_(i, i) = beta_multiplier * beta_weight[i];
   }
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set beta weight to : \n" << beta_weight_ << "\n");
 }
 
-void InverseKinematic::setGammaWeight_(const std::vector<double>& gamma_weight)
+void InverseKinematic::setGammaWeight_(const std::vector<double>& gamma_weight, const int gamma_multiplier)
 {
   // Minimize cartesian position drift on non-driven axes
   gamma_pos_weight_ = Matrix3d::Identity();
   gamma_or_weight_ = Matrix4d::Identity();
   for (int i = 0; i < 3; i++)
   {
-    gamma_pos_weight_(i, i) = gamma_weight[i];
+    gamma_pos_weight_(i, i) = gamma_multiplier * gamma_weight[i];
   }
   for (int i = 0; i < 4; i++)
   {
-    gamma_or_weight_(i, i) = gamma_weight[i+3];
+    gamma_or_weight_(i, i) = gamma_multiplier * gamma_weight[i+3];
   }
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set gamma position weight to : \n" << gamma_pos_weight_ << "\n");
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set gamma orientation weight to : \n" << gamma_or_weight_ << "\n");

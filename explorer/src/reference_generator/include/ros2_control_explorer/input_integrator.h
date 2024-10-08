@@ -14,6 +14,8 @@
 #include "ros2_control_explorer/types/space_position.h"
 #include "ros2_control_explorer/types/space_velocity.h"
 
+#include "custom_interfaces/srv/pose.hpp"
+
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -33,25 +35,36 @@ namespace space_control
         rclcpp::Node::SharedPtr n_;
     
         rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr input_sub_;
-        rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  x_init_sub_;
 
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_pub_;
+
+        rclcpp::Client<custom_interfaces::srv::Pose>::SharedPtr x_init_client_;
 
         rclcpp::TimerBase::SharedPtr timer_;
 
         geometry_msgs::msg::TwistStamped dx_input_;
 
+        geometry_msgs::msg::Pose x_init_pose_;
+
         SpacePosition x_desired_;
         SpacePosition x_init_;
         SpaceVelocity dx_desired_;
 
-        float max_vel_;
-        float max_vel_orientation_;
+        double max_vel_;
+        double max_vel_orientation_;
         double sampling_period_;
 
+        bool error_;
+        bool end_init_;
+        int nb_loop_;
+
+        std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
+  
+        std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_max_vel;
+        std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_max_vel_orientation;
+
         void callback_input(const geometry_msgs::msg::TwistStamped & msg);
-        void callback_x_init(const geometry_msgs::msg::Pose & msg);
         void timer_callback();
         void send_input();
 

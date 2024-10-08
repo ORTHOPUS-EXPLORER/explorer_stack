@@ -74,7 +74,6 @@ private:
   ControlFrame orientation_ctrl_frame_;
 
   Quaterniond jacobian_quat_prev_;
-  std::vector<double> gamma_weight_vec;
 
   JointPosition q_current_;  /*!< Current joint position */
   SpacePosition x_current_;  /*!< Current space position */
@@ -96,6 +95,14 @@ private:
 
   double x_min_limit[7]; /*!< Space min limit used in lower constraints bound vector lbA */
   double x_max_limit[7]; /*!< Space max limit used in upper constraints bound vector ubA */
+
+  std::vector<double> alpha_weight_vec;
+  std::vector<double> beta_weight_vec;
+  std::vector<double> gamma_weight_vec;
+
+  int alpha_multiplier;
+  int beta_multiplier;
+  int gamma_multiplier;
 
   MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
   MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
@@ -123,10 +130,19 @@ private:
   const double eps_pos = 0.001;
   const double eps_orientation = 0.001;
   const double inf = 10.0;
+  
+  std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
+  
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_alpha_weight;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_alpha_multiplier;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_beta_weight;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_beta_multiplier;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_gamma_weight;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_gamma_multiplier;
 
-  void setAlphaWeight_(const std::vector<double>& alpha_weight);
-  void setBetaWeight_(const std::vector<double>& beta_weight);
-  void setGammaWeight_(const std::vector<double>& gamma_weight);
+  void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
+  void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
+  void setGammaWeight_(const std::vector<double>& gamma_weight, const int gamma_multiplier);
   void setLambdaWeight_(const std::vector<double>& lambda_weight);
   void setDqBounds_(const JointVelocity& dq_bound);
 

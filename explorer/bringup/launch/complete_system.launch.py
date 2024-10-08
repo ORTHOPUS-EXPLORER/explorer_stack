@@ -17,6 +17,8 @@ import xacro
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
@@ -35,7 +37,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "gui",
-            default_value="false",
+            default_value="true",
             description="Start RViz2 automatically with this launch file.",
         )
     )
@@ -45,8 +47,6 @@ def generate_launch_description():
             default_value=use_sim_time,
             description='If true, use simulated clock')
     )
-
-    
 
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
@@ -112,7 +112,7 @@ def generate_launch_description():
     )
 
     config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_pos_only.yaml"]
+        [FindPackageShare("ros2_control_explorer"), "config", "settings_qp.yaml"]
     )
     
     spacenav_node = Node(
@@ -143,15 +143,27 @@ def generate_launch_description():
         parameters=[robot_description],
     )
 
-    
-    spacenav_trajectory_qp_node = Node(
+    input_integrator_node = Node(
         package="ros2_control_explorer",
-        executable="spacenav_trajectory_qp_pos_only",
+        executable="input_integrator",
+        name="input_integrator",
+    )
+
+    
+    qp_solving_node = Node(
+        package="ros2_control_explorer",
+        executable="qp_solving",
         parameters=[
             config,
             robot_description,
             robot_description_semantic
             ],
+    )
+
+    output_integrator_node = Node(
+        package="ros2_control_explorer",
+        executable="output_integrator",
+        name="output_integrator",
     )
 
     gz_spawn_entity = Node(
@@ -213,6 +225,32 @@ def generate_launch_description():
         ],
         output='screen',
     )
+
+    register_event_handler = []
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=gz_spawn_entity,
+                    on_exit=[joint_state_broadcaster_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[input_integrator_node],
+                )
+        )
+    )
     
  # Bridge
     bridge = Node(
@@ -230,13 +268,12 @@ def generate_launch_description():
         ignition_client,
         node_robot_state_publisher,
         gz_spawn_entity,
-        joint_state_broadcaster_spawner,
         robot_controller_spawner,
         rviz_node,
         spacenav_driver_node,
-        spacenav_trajectory_qp_node,
+        output_integrator_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription(declared_arguments + nodes + register_event_handler)

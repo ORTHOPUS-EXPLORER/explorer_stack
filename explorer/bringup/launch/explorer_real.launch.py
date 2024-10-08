@@ -1,4 +1,4 @@
-# Copyright 2021 Stogl Robotics Consulting UG (haftungsbeschränkt)
+# Copyright 2021 Open Source Robotics Foundation, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import os
+import xacro
+from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
-
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+import launch_ros.actions
 
 
 def generate_launch_description():
+    # Initialize Arguments
+    gui = LaunchConfiguration("gui")
+    use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    spacenav = LaunchConfiguration('spacenav')
+    run_bridge = LaunchConfiguration("use_bridge")
 
     # Declare arguments
     declared_arguments = []
@@ -34,7 +43,12 @@ def generate_launch_description():
             description="Start RViz2 automatically with this launch file.",
         )
     )
-
+    declared_arguments.append(
+    DeclareLaunchArgument(
+            'use_sim_time',
+            default_value=use_sim_time,
+            description='If true, use simulated clock')
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_bridge",
@@ -43,16 +57,11 @@ def generate_launch_description():
         )
     )
 
-
-    # Initialize Arguments
-    gui = LaunchConfiguration("gui")
-    run_bridge = LaunchConfiguration("use_bridge")
-    spacenav = LaunchConfiguration('spacenav')
-
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
         default_value='True',
         description='If the spacenav 3D mouse is used')
+    
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -72,6 +81,7 @@ def generate_launch_description():
             "use_actuator_interface:=",run_bridge
         ]
     )
+
     robot_description = {"robot_description": robot_description_content}
 
     # Get SRDF via xacro
@@ -87,7 +97,7 @@ def generate_launch_description():
     )
 
     robot_description_semantic = {"robot_description_semantic": semantic_content}
-
+    
     robot_controllers = PathJoinSubstitution(
         [
             FindPackageShare("ros2_control_explorer"),
@@ -95,61 +105,20 @@ def generate_launch_description():
             "explorer_controller.yaml",
         ]
     )
+
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"]
     )
 
-     ## Declare SpaceNav nodes (driver & input_device)
+    ## Declare SpaceNav nodes (driver & input_device)
     spacenav_config =  PathJoinSubstitution(
         [FindPackageShare("ros2_control_explorer"), "config", "spacenav_settings.yaml"]
     )
 
     config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_pos_only.yaml"]
+        [FindPackageShare("ros2_control_explorer"), "config", "settings_qp.yaml"]
     )
-
-    control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[robot_controllers],
-        output="both",
-        remappings=[
-            ("~/robot_description", "/robot_description"),
-        ],
-    )
-    robot_state_pub_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="both",
-        parameters=[robot_description],
-    )
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config_file],
-        condition=IfCondition(gui),
-    )
-
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
-    )
-
-    robot_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
-    )
-
-    # gripper_controller_spawner = Node(
-    #     package="controller_manager",
-    #     executable="spawner",
-    #     arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
-    # )
-
+    
     spacenav_node = Node(
         package='ros2_control_explorer',
         executable='spacenav',
@@ -171,9 +140,33 @@ def generate_launch_description():
         condition=IfCondition(spacenav),
     )
 
-    spacenav_trajectory_qp_node = Node(
+    control_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[robot_controllers],
+        output="both",
+        remappings=[
+            ("~/robot_description", "/robot_description"),
+        ],
+    )
+
+    node_robot_state_publisher = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        output="screen",
+        parameters=[robot_description],
+    )
+
+    input_integrator_node = Node(
         package="ros2_control_explorer",
-        executable="spacenav_trajectory_qp_pos_only",
+        executable="input_integrator",
+        name="input_integrator_node",
+    )
+
+    
+    qp_solving_node = Node(
+        package="ros2_control_explorer",
+        executable="qp_solving",
         parameters=[
             config,
             robot_description,
@@ -181,23 +174,83 @@ def generate_launch_description():
             ],
     )
 
-    # Delay rviz start after `joint_state_broadcaster`
-    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[rviz_node],
-        )
+    output_integrator_node = Node(
+        package="ros2_control_explorer",
+        executable="output_integrator",
+        name="output_integrator_node",
     )
 
-    # Delay start of robot_controller after `joint_state_broadcaster`
-    delay_robot_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[robot_controller_spawner],
-        )
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    # Explorer bridge
+    robot_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+    )
+
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="log",
+        arguments=["-d", rviz_config_file],
+        condition=IfCondition(gui),
+    )
+    
+    # Declare GUI controller node
+    gui_control_node = Node(
+        package='rqt_armcontrol',
+        executable='rqt_armcontrol',
+        condition=IfCondition(gui)
+    )
+    
+    bridge_config = os.path.join(
+        get_package_share_directory('ros2_control_explorer'),
+        'config',
+        'bridge.yaml'
+    )
+
+    start_gazebo_ros_bridge_cmd = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=[
+            '--ros-args',
+            '-p',
+            f'config_file:={bridge_config}',
+        ],
+        output='screen',
+    )
+
+    register_event_handler = []
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[input_integrator_node],
+                )
+        )
+    )
+    
+ # Bridge
+    bridge = Node(
+        package='ros_gz_image',
+        executable='image_bridge',
+        arguments=['camera', 'depth_camera', 'rgbd_camera/image', 'rgbd_camera/depth_image'],
+        output='screen'
+    )
+
     explorer_bridge_params = PathJoinSubstitution(
         [
             FindPackageShare("ros2_control_explorer"),
@@ -217,26 +270,20 @@ def generate_launch_description():
         condition=IfCondition(run_bridge),
     )
 
-    # Declare GUI controller node
-    gui_control_node = Node(
-        package='rqt_armcontrol',
-        executable='rqt_armcontrol',
-        condition=IfCondition(gui)
-        )
-
     nodes = [
         spacenav_arg,
         spacenav_node,
         control_node,
-        robot_state_pub_node,
-        joint_state_broadcaster_spawner,
-        delay_rviz_after_joint_state_broadcaster_spawner,
-        delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
-        explorer_bridge,
-        spacenav_driver_node,
-        spacenav_trajectory_qp_node,
-        #gripper_controller_spawner,
         gui_control_node,
+        joint_state_broadcaster_spawner,
+        node_robot_state_publisher,
+        robot_controller_spawner,
+        rviz_node,
+        spacenav_driver_node,
+        output_integrator_node,
+        start_gazebo_ros_bridge_cmd,
+        bridge,
+        explorer_bridge,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription(declared_arguments + nodes + register_event_handler)

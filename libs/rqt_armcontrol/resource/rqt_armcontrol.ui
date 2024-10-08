@@ -271,7 +271,7 @@
         <number>0</number>
        </property>
        <property name="maximum">
-        <number>105</number>
+        <number>1050</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>

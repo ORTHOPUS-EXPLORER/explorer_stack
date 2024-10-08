@@ -15,6 +15,8 @@
 #include "ros2_control_explorer/types/space_position.h"
 #include "ros2_control_explorer/types/space_velocity.h"
 
+#include "custom_interfaces/srv/pose.hpp"
+
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -41,7 +43,9 @@ namespace space_control
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  dx_input_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_init_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_debug_pub_;
+        
+        rclcpp::Service<custom_interfaces::srv::Pose>::SharedPtr x_init_service_;
 
         rclcpp::TimerBase::SharedPtr timer_;
         
@@ -61,6 +65,7 @@ namespace space_control
 
         double sampling_period_;
         bool init;
+        bool end_init_;
 
         int joint_order[18];
 
@@ -68,7 +73,10 @@ namespace space_control
         void callback_dx_input_(const geometry_msgs::msg::Pose & msg);
         void callback_x_input_(const geometry_msgs::msg::Pose & msg);
         void timer_callback();
+        void callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req, std::shared_ptr<custom_interfaces::srv::Pose::Response> res);
         void send_output();
+        void publishDebugTopic_();
+
     };
 }
 #endif 

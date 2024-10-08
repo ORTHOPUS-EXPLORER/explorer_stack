@@ -21,6 +21,7 @@ namespace space_control
         //init settings
         sampling_period_ = 0.01;
         init = false;
+        end_init_ = false;
 
         //init inverse and forward kinematic 
         ik_.init("tool0", sampling_period_);
@@ -29,7 +30,7 @@ namespace space_control
         //init variables
         dq_output_.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-        current_pos_.name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "left_finger_joint_mimic", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_wheel_joint", "right_wheel_joint","left_front_wheel_joint","right_front_wheel_joint","left_rear_wheel_joint","right_rear_wheel_joint"};
+        current_pos_.name = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
         current_pos_.position = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         current_pos_.velocity = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         current_pos_.effort = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -41,11 +42,13 @@ namespace space_control
         
         //init publishers
         dq_output_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10);
-        x_init_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_init", 10);
+        x_current_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/debug/x_current", 10);
+
+        x_init_service_ = n_->create_service<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
 
-        for(int i=0; i< 7; i++){
+        for(int i=0; i< 18; i++){
             q_current_[i] = current_pos_.position[joint_order[i]];
         }
         fk_.setQCurrent(q_current_);
@@ -60,22 +63,51 @@ namespace space_control
         x_init_.orientation.y = x_current_.orientation.y();
         x_init_.orientation.z = x_current_.orientation.z();
         
-        x_init_pub_->publish(x_init_);
+        end_init_ = true;   
     }
 
     void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg)
     {   
-        int j;
+        int j = 0;
+        bool wheelchair = false;
+
         if(init ==false){
-            for (int i=0; i< 18; i++){
-                j=0;
-                while (current_pos_.name[i]!=msg.name[j] && j<18 ){
-                    j++;
-                }
-                if(current_pos_.name[i]== msg.name[j]){
-                    joint_order[i] = j;
+
+            //Identify if there is the wheelchair or not
+            while (current_pos_.name[0]!=msg.name[j] && j<18 ){
+                j++;
+                if(current_pos_.name[0]== msg.name[j]){
+                    wheelchair = true;  
                 }
             }
+
+            //Get the order of the joint state for the simulation with the wheelchair
+            if(wheelchair){
+                for (int i=0; i< 18; i++){
+                    j=0;
+                    while (current_pos_.name[i]!=msg.name[j] && j<18 ){
+                        j++;
+                    }
+                    if(current_pos_.name[i]== msg.name[j]){
+                        //RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i] << ": " << j);
+                        joint_order[i] = j;
+                    }
+                }
+            }
+            //Get the order of the joint state for the simulation of the Explorer only
+            else{
+                for (int i=0; i< 12; i++){
+                    j=0;
+                    while (current_pos_.name[i+6]!=msg.name[j] && j<18 ){
+                        j++;
+                    }
+                    if(current_pos_.name[i+6]== msg.name[j]){
+                        //RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i+6] << ": " << j);
+                        joint_order[i] = j;
+                    }
+                }
+            }
+            
             init = true;
         }
        
@@ -103,12 +135,11 @@ namespace space_control
         x_input_.orientation.y() = msg.orientation.y;
         x_input_.orientation.z() = msg.orientation.z;
     }
-    
 
     void QPSolving::timer_callback()
     {
 
-        for(int i=0; i< 7; i++){
+        for(int i=0; i< 18; i++){
             q_current_[i] = current_pos_.position[joint_order[i]];
         }
 
@@ -131,7 +162,16 @@ namespace space_control
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Inverse kinematic computes joint velocity :");
         //RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_          : " << dq_desired_);
 
+        publishDebugTopic_();
         send_output();
+    }
+
+     void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
+                                           std::shared_ptr<custom_interfaces::srv::Pose::Response> res)
+    {
+        //wait for the end of the initialisation
+        while( end_init_ == false );
+        res->pose = x_init_;
     }
 
     void QPSolving::send_output()
@@ -140,6 +180,21 @@ namespace space_control
                 dq_output_.data[i]=dq_desired_[i];
         }
         dq_output_pub_->publish(dq_output_);
+    }
+
+    void QPSolving::publishDebugTopic_()
+    {
+        // debug current space position (result of forward kinematic)
+        geometry_msgs::msg::Pose x_current_pose;
+        x_current_pose.position.x = x_current_.position.x();
+        x_current_pose.position.y = x_current_.position.y();
+        x_current_pose.position.z = x_current_.position.z();
+        x_current_pose.orientation.w = x_current_.orientation.w();
+        x_current_pose.orientation.x = x_current_.orientation.x();
+        x_current_pose.orientation.y = x_current_.orientation.y();
+        x_current_pose.orientation.z = x_current_.orientation.z();
+        x_current_debug_pub_->publish(x_current_pose);
+
     }
  
 }

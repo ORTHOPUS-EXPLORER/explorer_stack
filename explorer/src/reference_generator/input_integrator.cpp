@@ -8,11 +8,18 @@ namespace space_control
     , x_desired_()
     , dx_desired_()
     {
-        
+        rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        max_vel_ = 0.05; 
-        max_vel_orientation_ = 1; 
+        max_vel_ = 0.025; 
+        max_vel_orientation_ = 0.5; 
         sampling_period_ = 0.01;
+
+        n_->declare_parameter("max_vel", max_vel_);
+        n_->declare_parameter("max_vel_orientation", max_vel_orientation_);
+
+        error_ = false;
+        end_init_ = false;
+        nb_loop_ = 0;
 
         //init variables
         x_desired_.position.x() = 0.0;
@@ -33,7 +40,8 @@ namespace space_control
 
         //init suscribers
         input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
-        x_init_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_init", 10, std::bind(&InputIntegrator::callback_x_init, this, std::placeholders::_1));
+    
+        x_init_client_ = n_->create_client<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init");
         
         //init publishers
         dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
@@ -41,8 +49,57 @@ namespace space_control
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&InputIntegrator::timer_callback, this));
 
+        param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(n_);
+
+        auto callback_max_vel = [this](const rclcpp::Parameter & p) {
+            max_vel_ = p.as_double();
+        };
+
+        auto callback_max_vel_orientation = [this](const rclcpp::Parameter & p) {
+            max_vel_orientation_ = p.as_double();
+        };
+
+        cb_handle_max_vel = param_subscriber_->add_parameter_callback("max_vel", callback_max_vel);
+        cb_handle_max_vel_orientation = param_subscriber_->add_parameter_callback("max_vel_orientation", callback_max_vel_orientation);
+
+        auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
+        request->ready = true;
+        
+        while (!x_init_client_->wait_for_service(1s) && error_ == false && nb_loop_ < 10) {
+            if (!rclcpp::ok()) {
+                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+                error_ = true;
+
+            }
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+            nb_loop_ = nb_loop_ + 1;
+        }
+
+        if(nb_loop_ < 10){
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service available");
+            auto result = x_init_client_->async_send_request(request);
+            if (rclcpp::spin_until_future_complete(n_, result) ==
+                rclcpp::FutureReturnCode::SUCCESS)
+            {
+               x_init_pose_ = result.get()->pose;
+                x_init_.position.x() = x_init_pose_.position.x;
+                x_init_.position.y() = x_init_pose_.position.y;
+                x_init_.position.z() = x_init_pose_.position.z;
+                x_init_.orientation.w() = x_init_pose_.orientation.w;
+                x_init_.orientation.x() = x_init_pose_.orientation.x;
+                x_init_.orientation.y() = x_init_pose_.orientation.y;
+                x_init_.orientation.z() = x_init_pose_.orientation.z;
+            } else {
+                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
+            }
+        }
+        else{
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available");
+        }
         //init x_desired with the simulation
         x_desired_ = x_init_;
+
+        end_init_ = true;
     }
 
     void InputIntegrator::callback_input(const geometry_msgs::msg::TwistStamped & msg)
@@ -50,53 +107,44 @@ namespace space_control
         dx_input_ = msg;   
     }
 
-    void InputIntegrator::callback_x_init(const geometry_msgs::msg::Pose & msg)
-    {   
-        x_init_.position.x() = msg.position.x;
-        x_init_.position.y() = msg.position.y;
-        x_init_.position.z() = msg.position.z;
-        x_init_.orientation.w()= msg.orientation.w;
-        x_init_.orientation.x() = msg.orientation.x;
-        x_init_.orientation.y() = msg.orientation.y;
-        x_init_.orientation.z() = msg.orientation.z;            
-    }
-
     void InputIntegrator::timer_callback()
     {
-        tf2::Quaternion q_orig, q_rot, q_new;
+        if(end_init_ == true){
+            tf2::Quaternion q_orig, q_rot, q_new;
 
-        dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
-        dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
-        dx_desired_.position.z() = (dx_input_.twist.linear.z * max_vel_);
-        dx_desired_.orientation.w() = (0.0);
-        dx_desired_.orientation.x() = (dx_input_.twist.angular.x * max_vel_orientation_);
-        dx_desired_.orientation.y() = (dx_input_.twist.angular.y * max_vel_orientation_);
-        dx_desired_.orientation.z() = (dx_input_.twist.angular.z * max_vel_orientation_);
+            dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
+            dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
+            dx_desired_.position.z() = (dx_input_.twist.linear.z * max_vel_);
+            dx_desired_.orientation.w() = (0.0);
+            dx_desired_.orientation.x() = (dx_input_.twist.angular.x * max_vel_orientation_);
+            dx_desired_.orientation.y() = (dx_input_.twist.angular.y * max_vel_orientation_);
+            dx_desired_.orientation.z() = (dx_input_.twist.angular.z * max_vel_orientation_);
+            
+
+            //Integrates cartesian velocities to get cartesian positions
+            x_desired_.position.x() = (x_desired_.position.x() + dx_desired_.position.x() * sampling_period_ );
+            x_desired_.position.y() = (x_desired_.position.y() + dx_desired_.position.y() * sampling_period_ );
+            x_desired_.position.z() = (x_desired_.position.z() + dx_desired_.position.z() * sampling_period_);
+
+            //converts in quaternion
+            q_orig[0]=x_desired_.orientation.x();
+            q_orig[1]=x_desired_.orientation.y();
+            q_orig[2]=x_desired_.orientation.z();
+            q_orig[3]=x_desired_.orientation.w();
+
+            q_rot.setRPY(dx_desired_.orientation.x() * sampling_period_ , dx_desired_.orientation.y() * sampling_period_, dx_desired_.orientation.z() * sampling_period_ );
+                    
+            q_new = q_rot * q_orig;
+            q_new.normalize();
+
+            x_desired_.orientation.x() = (q_new[0]);
+            x_desired_.orientation.y() = (q_new[1]);
+            x_desired_.orientation.z() = (q_new[2]);
+            x_desired_.orientation.w() = (q_new[3]);
+
+            send_input();
+        }
         
-
-        //Integrates cartesian velocities to get cartesian positions
-        x_desired_.position.x() = (x_desired_.position.x() + dx_desired_.position.x() * sampling_period_ );
-        x_desired_.position.y() = (x_desired_.position.y() + dx_desired_.position.y() * sampling_period_ );
-        x_desired_.position.z() = (x_desired_.position.z() + dx_desired_.position.z() * sampling_period_);
-
-        //converts in quaternion
-        q_orig[0]=x_desired_.orientation.x();
-        q_orig[1]=x_desired_.orientation.y();
-        q_orig[2]=x_desired_.orientation.z();
-        q_orig[3]=x_desired_.orientation.w();
-
-        q_rot.setRPY(dx_desired_.orientation.x() * sampling_period_ , dx_desired_.orientation.y() * sampling_period_, dx_desired_.orientation.z() * sampling_period_ );
-                
-        q_new = q_rot * q_orig;
-        q_new.normalize();
-
-        x_desired_.orientation.x() = (q_new[0]);
-        x_desired_.orientation.y() = (q_new[1]);
-        x_desired_.orientation.z() = (q_new[2]);
-        x_desired_.orientation.w() = (q_new[3]);
-
-        send_input();
-
     }
 
     void InputIntegrator::send_input()
