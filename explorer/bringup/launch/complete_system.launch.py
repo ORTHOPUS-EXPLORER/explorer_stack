@@ -143,29 +143,6 @@ def generate_launch_description():
         parameters=[robot_description],
     )
 
-    input_integrator_node = Node(
-        package="ros2_control_explorer",
-        executable="input_integrator",
-        name="input_integrator",
-    )
-
-    
-    qp_solving_node = Node(
-        package="ros2_control_explorer",
-        executable="qp_solving",
-        parameters=[
-            config,
-            robot_description,
-            robot_description_semantic
-            ],
-    )
-
-    output_integrator_node = Node(
-        package="ros2_control_explorer",
-        executable="output_integrator",
-        name="output_integrator",
-    )
-
     gz_spawn_entity = Node(
         package="ros_gz_sim",
         executable="create",
@@ -191,6 +168,28 @@ def generate_launch_description():
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+    )
+
+    input_integrator_node = Node(
+        package="ros2_control_explorer",
+        executable="input_integrator",
+        name="input_integrator",
+    )
+
+    qp_solving_node = Node(
+        package="ros2_control_explorer",
+        executable="qp_solving",
+        parameters=[
+            config,
+            robot_description,
+            robot_description_semantic
+            ],
+    )
+
+    output_integrator_node = Node(
+        package="ros2_control_explorer",
+        executable="output_integrator",
+        name="output_integrator",
     )
 
     rviz_node = Node(
@@ -226,12 +225,28 @@ def generate_launch_description():
         output='screen',
     )
 
+ # Bridge
+    bridge = Node(
+        package='ros_gz_image',
+        executable='image_bridge',
+        arguments=['camera', 'depth_camera', 'rgbd_camera/image', 'rgbd_camera/depth_image'],
+        output='screen'
+    )
+
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=gz_spawn_entity,
                     on_exit=[joint_state_broadcaster_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=joint_state_broadcaster_spawner,
+                    on_exit=[robot_controller_spawner],
                 )
         )
     )
@@ -251,27 +266,26 @@ def generate_launch_description():
                 )
         )
     )
-    
- # Bridge
-    bridge = Node(
-        package='ros_gz_image',
-        executable='image_bridge',
-        arguments=['camera', 'depth_camera', 'rgbd_camera/image', 'rgbd_camera/depth_image'],
-        output='screen'
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[rviz_node],
+                )
+        )
     )
+    
 
     nodes = [
         spacenav_arg,
-        spacenav_node,
-        gui_control_node,
         ignition_server,
         ignition_client,
+        spacenav_node,
+        spacenav_driver_node,
         node_robot_state_publisher,
         gz_spawn_entity,
-        robot_controller_spawner,
-        rviz_node,
-        spacenav_driver_node,
         output_integrator_node,
+        gui_control_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]

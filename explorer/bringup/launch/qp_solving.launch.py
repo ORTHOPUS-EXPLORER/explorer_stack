@@ -17,6 +17,8 @@ import xacro
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
@@ -45,8 +47,6 @@ def generate_launch_description():
             default_value=use_sim_time,
             description='If true, use simulated clock')
     )
-
-    
 
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
@@ -228,22 +228,59 @@ def generate_launch_description():
         output='screen'
     )
 
+    register_event_handler = []
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=gz_spawn_entity,
+                    on_exit=[joint_state_broadcaster_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=joint_state_broadcaster_spawner,
+                    on_exit=[robot_controller_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[input_integrator_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[rviz_node],
+                )
+        )
+    )
+
     nodes = [
         spacenav_arg,
-        spacenav_node,
-        gui_control_node,
         ignition_server,
         ignition_client,
+        spacenav_node,
+        spacenav_driver_node,
         node_robot_state_publisher,
         gz_spawn_entity,
-        joint_state_broadcaster_spawner,
-        robot_controller_spawner,
-        rviz_node,
-        spacenav_driver_node,
-        qp_solving_node,
-        input_integrator_node,
+        gui_control_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription(declared_arguments + nodes + register_event_handler)

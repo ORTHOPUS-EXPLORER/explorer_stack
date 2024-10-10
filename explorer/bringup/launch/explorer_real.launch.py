@@ -30,7 +30,7 @@ import launch_ros.actions
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    use_sim_time = LaunchConfiguration('use_sim_time', default=False)
     spacenav = LaunchConfiguration('spacenav')
     run_bridge = LaunchConfiguration("use_bridge")
 
@@ -225,24 +225,6 @@ def generate_launch_description():
         output='screen',
     )
 
-    register_event_handler = []
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[qp_solving_node],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[input_integrator_node],
-                )
-        )
-    )
-    
  # Bridge
     bridge = Node(
         package='ros_gz_image',
@@ -270,17 +252,42 @@ def generate_launch_description():
         condition=IfCondition(run_bridge),
     )
 
+    register_event_handler = []
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[input_integrator_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[rviz_node],
+                )
+        )
+    )
+
     nodes = [
         spacenav_arg,
         spacenav_node,
-        control_node,
-        gui_control_node,
-        joint_state_broadcaster_spawner,
-        node_robot_state_publisher,
-        robot_controller_spawner,
-        rviz_node,
         spacenav_driver_node,
+        control_node,
+        node_robot_state_publisher,
         output_integrator_node,
+        joint_state_broadcaster_spawner,
+        robot_controller_spawner,
+        gui_control_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
         explorer_bridge,
