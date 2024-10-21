@@ -15,7 +15,7 @@ controller_manager:
       type: "joint_trajectory_controller/JointTrajectoryController"
 
     gripper_controller:
-       type: forward_command_controller/ForwardCommandController
+      type: forward_command_controller/ForwardCommandController
 
 explorer_controller:
   ros__parameters:

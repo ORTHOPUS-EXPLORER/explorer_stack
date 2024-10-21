@@ -6,9 +6,9 @@ namespace space_control
     QPSolving::QPSolving(rclcpp::Node::SharedPtr n)
     : n_(n)
     , ik_(n, 6)
-    , fk_(n, 18)
+    , fk_(n, 20)
     , sampling_period_(0.0)
-    , q_current_(18)
+    , q_current_(20)
     , dq_desired_(6)
     , x_current_()
     , x_input_()
@@ -22,6 +22,7 @@ namespace space_control
         sampling_period_ = 0.01;
         init = false;
         end_init_ = false;
+        wheelchair = false;
 
         //init inverse and forward kinematic 
         ik_.init("tool0", sampling_period_);
@@ -30,10 +31,10 @@ namespace space_control
         //init variables
         dq_output_.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-        current_pos_.name = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
-        current_pos_.position = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        current_pos_.velocity = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        current_pos_.effort = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        current_pos_.name = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint", "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
+        current_pos_.position = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        current_pos_.velocity = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        current_pos_.effort = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         //init subscribers
         current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&QPSolving::callback_current_pos_, this, std::placeholders::_1));
@@ -48,7 +49,7 @@ namespace space_control
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
 
-        for(int i=0; i< 18; i++){
+        for(int i=0; i< 20; i++){
             q_current_[i] = current_pos_.position[joint_order[i]];
         }
         fk_.setQCurrent(q_current_);
@@ -69,27 +70,26 @@ namespace space_control
     void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg)
     {   
         int j = 0;
-        bool wheelchair = false;
 
         if(init ==false){
 
             //Identify if there is the wheelchair or not
-            while (current_pos_.name[0]!=msg.name[j] && j<18 ){
+            while (current_pos_.name[0]!=msg.name[j] && j<20 ){
                 j++;
                 if(current_pos_.name[0]== msg.name[j]){
                     wheelchair = true;  
-                }
+                } 
             }
 
             //Get the order of the joint state for the simulation with the wheelchair
             if(wheelchair){
-                for (int i=0; i< 18; i++){
+                for (int i=0; i< 20; i++){
                     j=0;
-                    while (current_pos_.name[i]!=msg.name[j] && j<18 ){
+                    while (current_pos_.name[i]!=msg.name[j] && j<20 ){
                         j++;
                     }
                     if(current_pos_.name[i]== msg.name[j]){
-                        //RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i] << ": " << j);
+                        RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i] << ": " << j);
                         joint_order[i] = j;
                     }
                 }
@@ -98,11 +98,11 @@ namespace space_control
             else{
                 for (int i=0; i< 12; i++){
                     j=0;
-                    while (current_pos_.name[i+6]!=msg.name[j] && j<18 ){
+                    while (current_pos_.name[i+8]!=msg.name[j] && j<20 ){
                         j++;
                     }
-                    if(current_pos_.name[i+6]== msg.name[j]){
-                        //RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i+6] << ": " << j);
+                    if(current_pos_.name[i+8]== msg.name[j]){
+                        RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i+8] << ": " << j);
                         joint_order[i] = j;
                     }
                 }
@@ -139,9 +139,9 @@ namespace space_control
     void QPSolving::timer_callback()
     {
 
-        for(int i=0; i< 18; i++){
+        for(int i=0; i< 20; i++){
             q_current_[i] = current_pos_.position[joint_order[i]];
-        }
+        }     
 
         x_desired_ = x_input_;
         dx_desired_ = dx_input_;
@@ -158,7 +158,7 @@ namespace space_control
         //RCLCPP_INFO(n_->get_logger(), "=== Start IK computation...");
         ik_.setQCurrent(q_current_);
         ik_.setXCurrent(x_current_);
-        ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, true);
+        ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, wheelchair);
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Inverse kinematic computes joint velocity :");
         //RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_          : " << dq_desired_);
 

@@ -66,8 +66,9 @@ namespace space_control
         double sampling_period_;
         bool init;
         bool end_init_;
+        bool wheelchair;
 
-        int joint_order[18];
+        int joint_order[20];
 
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
         void callback_dx_input_(const geometry_msgs::msg::Pose & msg);

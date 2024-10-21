@@ -243,7 +243,7 @@ void InverseKinematic::reset()
 
 void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
                         const SpaceVelocity& dx_desired, const SpacePosition& x_desired,
-                        bool path_tracking_mode)
+                        bool path_tracking_mode, bool wheelchair)
 {
   /*
    * Setup IK inputs according to selected control frame
@@ -414,8 +414,14 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
   MatrixXdRowMaj A;
   std::vector<double> lbA(joint_number_);
   std::vector<double> ubA(joint_number_);
-  computeConstraints_(A, lbA, ubA, jacobian);
+  computeConstraints_(A, lbA, ubA, jacobian, wheelchair);
 
+  // for(int i=4; i< 6; i++){
+  //           RCLCPP_DEBUG_STREAM(n_->get_logger(), "lba = " << lbA[i]);
+  //       }
+  //  for(int i=4; i< 6; i++){
+  //           RCLCPP_DEBUG_STREAM(n_->get_logger(), "uba = " << ubA[i]);
+  //       }
   //RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_snap = " << x_snap);
   // checkConstraintsDebug_(ubA, lbA, A);
 
@@ -573,7 +579,7 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
 }
 
 void InverseKinematic::computeConstraints_(MatrixXdRowMaj& A, std::vector<double>& lbA,
-                                          std::vector<double>& ubA, const MatrixXd& jacobian)
+                                          std::vector<double>& ubA, const MatrixXd& jacobian, bool wheelchair)
 {
   A.resize(joint_number_, joint_number_);
 
@@ -581,8 +587,15 @@ void InverseKinematic::computeConstraints_(MatrixXdRowMaj& A, std::vector<double
 
   for (int i=0; i < joint_number_; i++){
     if (q_has_limit_[i] == 1){
-      lbA[i] = (q_lower_limit_[i] - q_current_[i]);
-      ubA[i] = (q_upper_limit_[i] - q_current_[i]);
+      if (wheelchair){
+        lbA[i] = (q_lower_limit_[i] - q_current_[i+8]);
+        ubA[i] = (q_upper_limit_[i] - q_current_[i+8]);
+      }
+      else{
+        lbA[i] = (q_lower_limit_[i] - q_current_[i]);
+        ubA[i] = (q_upper_limit_[i] - q_current_[i]);
+      }
+
     }
     else
     {

@@ -135,7 +135,7 @@ namespace space_control
         // RCLCPP_INFO(n_->get_logger(), "=== Start IK computation...");
         ik_.setQCurrent(q_current_);
         ik_.setXCurrent(x_current_);
-        ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, trajectory_tracking);
+        ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, trajectory_tracking, false);
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Inverse kinematic computes joint velocity :");
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_          : " << dq_desired_);
 

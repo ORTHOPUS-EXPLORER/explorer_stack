@@ -53,7 +53,7 @@ public:
   void reset();
   void resolveInverseKinematic(JointVelocity& dq_computed,
                           const SpaceVelocity& dx_desired, const SpacePosition& x_desired,
-                          bool path_tracking_mode);
+                          bool path_tracking_mode, bool wheelchair);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
   void setPositionControlFrame(const ControlFrame frame);
@@ -161,7 +161,7 @@ private:
                                 const SpaceVelocity& dx_des, const SpacePosition& x_des,
                                 const MatrixXd& jacobian, bool path_tracking);
   void computeConstraints_(MatrixXdRowMaj& A, std::vector<double>& lbA,
-                          std::vector<double>& ubA, const MatrixXd& jacobian);
+                          std::vector<double>& ubA, const MatrixXd& jacobian, bool wheelchair);
   /**
   * \brief Compute jacobian
   *
