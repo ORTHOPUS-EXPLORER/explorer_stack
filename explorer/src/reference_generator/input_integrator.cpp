@@ -94,7 +94,7 @@ namespace space_control
             }
         }
         else{
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available");
+            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
         }
         //init x_desired with the simulation
         x_desired_ = x_init_;

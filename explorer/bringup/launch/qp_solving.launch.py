@@ -112,7 +112,7 @@ def generate_launch_description():
     )
 
     config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_qp.yaml"]
+        [FindPackageShare("ros2_control_explorer"), "config", "settings.yaml"]
     )
     
     spacenav_node = Node(

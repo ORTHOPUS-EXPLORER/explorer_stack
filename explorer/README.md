@@ -14,32 +14,17 @@ With the `joint_state_publisher_gui` you can now change the position of every jo
 
 ## Launch the simulation
 
-### Cartesian control with moveit and qpOASES
-
-To launch the simulation in Gazebo, open a terminal and launch the `explorer_spacenav_qp.launch.py`.  
-
-```
-ros2 launch ros2_control_explorer explorer_spacenav_qp.launch.py
-```
-
-You can run the simulation with some arguments :
-
-* `gui:=true` to activate RViz
-* `spacenav:=false` to deactivate spacenav
-
-To control the explorer you can use the GUI or a space mouse.
-
 ### Cartesian control with moveit and qpOASES using command position only
 
-To launch the simulation in Gazebo, open a terminal and launch the `explorer_spacenav_qp_pos_only.launch.py`.  
+To launch the simulation in Gazebo, open a terminal and launch the `complete_system.launch.py`.  
 
 ```
-ros2 launch ros2_control_explorer explorer_spacenav_qp_pos_only.launch.py
+ros2 launch ros2_control_explorer complete_system.launch.py
 ```
 
 You can run the simulation with some arguments :
 
-* `gui:=true` to activate RViz
+* `gui:=false` to deactivate RViz
 * `spacenav:=false` to deactivate spacenav
 
 To control the explorer you can use the GUI or a space mouse.

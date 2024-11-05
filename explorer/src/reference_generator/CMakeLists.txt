@@ -20,43 +20,6 @@ foreach(Dependency IN ITEMS ${REF_GEN_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-# spacenav_trajectory
-add_executable(spacenav_trajectory
-  spacenav_trajectory.cpp
-)
-
-target_include_directories(spacenav_trajectory
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(spacenav_trajectory
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
-# spacenav_trajectory_qp
-add_executable(spacenav_trajectory_qp
-  spacenav_trajectory_qp.cpp
-)
-
-target_include_directories(spacenav_trajectory_qp
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(spacenav_trajectory_qp
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
-target_link_libraries(spacenav_trajectory_qp
-PRIVATE
-  explorer_robot_manager
-)
-
 # input_integrator
 add_executable(input_integrator
   input_integrator.cpp
@@ -142,9 +105,7 @@ PRIVATE
 )
 
 #  Install !
-install(TARGETS spacenav_trajectory
-                spacenav_trajectory_qp
-                input_integrator
+install(TARGETS input_integrator
                 qp_solving
                 output_integrator
                 test_output_integrator

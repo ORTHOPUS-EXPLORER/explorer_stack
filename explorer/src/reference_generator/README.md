@@ -1,23 +1,31 @@
-# spacenav_trajectory
+# input_integrator
 
-* Use `kdl_parser` to extract the kinematic chain from the URDF
+* Ask for initial cartesian positions of the end effector
 
-* Subscribe to a topic to get cartesian velocities from the space mouse or the GUI using
+* Subscribe to topics to get the desired cartesian velocities
 
-* Use `KDL::ChainIkSolverVel_pinv` to get joint positions and velocities from the desired cartesian velocities
+* Integrate the cartesian velocities to get cartesian positions
 
-* Publish the result in a topic for the explorer_controller (custom controller)
+* Publish the desired cartesian positions
 
-# spacenav_trajectory_qp
+# qp_solving
 
-* Subscribe to a topic to get cartesian velocities and the gripper state from the space mouse or the GUI
+* Use "forward_kinematic to get the initial cartesian positions of the end effector and send it to "input_integrator"
 
-* Use `forward_kinematic` to get the cartesian position of the effector from the robot's joint positions
+* Subscribe to topics to get the desired cartesian positions and velocities, actual joints positions and previous desired joints position
 
-* Use `inverse_kinematic` to get the desired joint velocities from the desired cartesian effector velocities, the actual cartesian position of the effector and the robot's actual joint positions
+* Use "inverse_kinematic" to get desired joints velocities 
 
-* Use `velocity_integrator` to get the desired joint positions from the desired joint velocities.
+* Publish desired joints velocities
 
-* Publish the result in a topic for the explorer_controller (custom controller)
+# output_integrator
 
-* Publish the gripper state in a topic for the gripper_controller (`forward_command_controller`)
+* Subscribe to a topic to get desired joints velocities
+
+* Integrate joints velocities to get joints positions
+
+* Publish desired joints positions 
+
+# test_output_integrator
+
+* Subscribe to the cartesian velocities topic and publish it as joints velocities
