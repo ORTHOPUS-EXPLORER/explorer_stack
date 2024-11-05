@@ -41,9 +41,11 @@ namespace space_control
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  x_input_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  dx_input_sub_;
+        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr  q_command_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_debug_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr q_current_debug_pub_;
         
         rclcpp::Service<custom_interfaces::srv::Pose>::SharedPtr x_init_service_;
 
@@ -59,6 +61,8 @@ namespace space_control
         SpaceVelocity dx_desired_;
 
         std_msgs::msg::Float64MultiArray dq_output_;
+        std_msgs::msg::Float64MultiArray q_current_debug;
+        std_msgs::msg::Float64MultiArray q_command_prec_;
         sensor_msgs::msg::JointState current_pos_;
 
         geometry_msgs::msg::Pose x_init_;
@@ -67,10 +71,12 @@ namespace space_control
         bool init;
         bool end_init_;
         bool wheelchair;
+        bool first_use;
 
         int joint_order[20];
 
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
+        void callback_q_command_prec_(const std_msgs::msg::Float64MultiArray & msg);
         void callback_dx_input_(const geometry_msgs::msg::Pose & msg);
         void callback_x_input_(const geometry_msgs::msg::Pose & msg);
         void timer_callback();

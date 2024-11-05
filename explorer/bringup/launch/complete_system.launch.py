@@ -44,7 +44,7 @@ def generate_launch_description():
     declared_arguments.append(
     DeclareLaunchArgument(
             'use_sim_time',
-            default_value=use_sim_time,
+            default_value= use_sim_time,
             description='If true, use simulated clock')
     )
 
@@ -140,7 +140,7 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="screen",
-        parameters=[robot_description],
+        parameters=[robot_description, {'use_sim_time': use_sim_time}],
     )
 
     gz_spawn_entity = Node(
@@ -174,6 +174,9 @@ def generate_launch_description():
         package="ros2_control_explorer",
         executable="input_integrator",
         name="input_integrator",
+        parameters=[
+            {'use_sim_time': use_sim_time}
+        ],
     )
 
     qp_solving_node = Node(
@@ -182,14 +185,19 @@ def generate_launch_description():
         parameters=[
             config,
             robot_description,
-            robot_description_semantic
-            ],
+            robot_description_semantic,
+            {'use_sim_time': use_sim_time}
+        ],
     )
 
     output_integrator_node = Node(
         package="ros2_control_explorer",
         executable="output_integrator",
         name="output_integrator",
+        parameters=[
+            {'use_sim_time': use_sim_time}
+        ],
+
     )
 
     rviz_node = Node(
