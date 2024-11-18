@@ -21,16 +21,17 @@ namespace space_control
         //init settings
         sampling_period_ = 0.01;
         init = false;
-        end_init_ = false;
         wheelchair = false;
         first_use = true;
-
         //init inverse and forward kinematic 
         ik_.init("tool0", sampling_period_);
         fk_.init("tool0");
 
         //init variables
-        dq_output_.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        q_command_prec_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+        q_init_={0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         q_current_debug.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -50,26 +51,11 @@ namespace space_control
         x_current_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/debug/x_current", 10);
         q_current_debug_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/debug/q_current", 10);
 
-        x_init_service_ = n_->create_service<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
-
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
 
-        for(int i=0; i< 20; i++){
-            q_current_[i] = current_pos_.position[joint_order[i]];
-        }
-        fk_.setQCurrent(q_current_);
-        fk_.resolveForwardKinematic();
-        fk_.getXCurrent(x_current_);
+        x_init_service_ = n_->create_service<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
 
-        x_init_.position.x = x_current_.position.x();
-        x_init_.position.y = x_current_.position.y();
-        x_init_.position.z = x_current_.position.z();
-        x_init_.orientation.w = x_current_.orientation.w();
-        x_init_.orientation.x = x_current_.orientation.x();
-        x_init_.orientation.y = x_current_.orientation.y();
-        x_init_.orientation.z = x_current_.orientation.z();
-        
-        end_init_ = true;   
+        q_init_service_ = n_->create_service<custom_interfaces::srv::Float64>("/ros2_control_explorer/q_init", std::bind(&QPSolving::callback_q_init_, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg)
@@ -107,17 +93,21 @@ namespace space_control
                         j++;
                     }
                     if(current_pos_.name[i+8]== msg.name[j]){
-                        //RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i+8] << ": " << j);
+                        RCLCPP_DEBUG_STREAM(n_->get_logger(), current_pos_.name[i+8] << ": " << j);
                         joint_order[i] = j;
                     }
                 }
             }
-            
+
+            current_pos_ = msg;
             init = true;
         }
-       
-        current_pos_ = msg;
+        else{
+            current_pos_ = msg;
+        }
     }
+       
+        
 
     void QPSolving::callback_q_command_prec_(const std_msgs::msg::Float64MultiArray & msg)
     {   
@@ -148,6 +138,7 @@ namespace space_control
 
     void QPSolving::timer_callback()
     {
+        while(init==false);
         for(int i=0; i< 20; i++){
            q_current_[i] = current_pos_.position[joint_order[i]];
         }
@@ -190,12 +181,55 @@ namespace space_control
         send_output();
     }
 
-     void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
+    void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
                                            std::shared_ptr<custom_interfaces::srv::Pose::Response> res)
     {
-        //wait for the end of the initialisation
-        while( end_init_ == false );
+        
+        if(init == true){
+            for(int i=0; i< 20; i++){
+                q_current_[i] = current_pos_.position[joint_order[i]];
+            }
+            fk_.setQCurrent(q_current_);
+            fk_.resolveForwardKinematic();
+            fk_.getXCurrent(x_current_);
+
+            x_init_.position.x = x_current_.position.x();
+            x_init_.position.y = x_current_.position.y();
+            x_init_.position.z = x_current_.position.z();
+            x_init_.orientation.w = x_current_.orientation.w();
+            x_init_.orientation.x = x_current_.orientation.x();
+            x_init_.orientation.y = x_current_.orientation.y();
+            x_init_.orientation.z = x_current_.orientation.z();
+        
+            res->code_error = 0;
+        }
+        else{
+            res->code_error = 1;
+        }
         res->pose = x_init_;
+    }
+
+    void QPSolving::callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req,
+                                           std::shared_ptr<custom_interfaces::srv::Float64::Response> res)
+    {
+        if(init == true){ 
+            if(wheelchair){  
+                for(int i=0; i< 6; i++){
+                    q_init_[i] = current_pos_.position[joint_order[i+8]];
+                }
+            }
+            else{
+                for(int i=0; i< 6; i++){
+                    q_init_[i] = current_pos_.position[joint_order[i]];
+                }
+            }
+            res->code_error = 0;
+        }
+        else{
+            res->code_error = 1;
+        }
+
+        res->data = q_init_;
     }
 
     void QPSolving::send_output()

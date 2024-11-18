@@ -57,7 +57,9 @@ namespace space_control
 
         bool error_;
         bool end_init_;
-        int nb_loop_;
+        int call_service_attempt_;
+        int init_attempt_;
+        bool success_init_;
 
         std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
   

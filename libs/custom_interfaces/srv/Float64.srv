@@ -1,4 +1,4 @@
 bool ready
 ---
 int64 code_error
-geometry_msgs/Pose pose
+float64[] data
