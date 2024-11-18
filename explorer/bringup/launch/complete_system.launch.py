@@ -16,7 +16,7 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
@@ -24,7 +24,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import launch_ros.actions
 
 
 def generate_launch_description():
@@ -208,6 +207,8 @@ def generate_launch_description():
         arguments=["-d", rviz_config_file],
         condition=IfCondition(gui),
     )
+
+    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
     
     # Declare GUI controller node
     gui_control_node = Node(
@@ -278,7 +279,16 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[rviz_node],
+                    on_exit=[output_integrator_node],
+                )
+        )
+    )
+
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[delayed_rviz],
                 )
         )
     )
@@ -292,7 +302,6 @@ def generate_launch_description():
         spacenav_driver_node,
         node_robot_state_publisher,
         gz_spawn_entity,
-        output_integrator_node,
         gui_control_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
