@@ -16,7 +16,7 @@ import os
 import xacro
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
@@ -200,6 +200,8 @@ def generate_launch_description():
         arguments=["-d", rviz_config_file],
         condition=IfCondition(gui),
     )
+
+    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
     
     # Declare GUI controller node
     gui_control_node = Node(
@@ -256,6 +258,14 @@ def generate_launch_description():
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
+                    target_action=joint_state_broadcaster_spawner,
+                    on_exit=[robot_controller_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
                     on_exit=[qp_solving_node],
                 )
@@ -273,7 +283,15 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[rviz_node],
+                    on_exit=[output_integrator_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[delayed_rviz],
                 )
         )
     )
@@ -284,9 +302,7 @@ def generate_launch_description():
         spacenav_driver_node,
         control_node,
         node_robot_state_publisher,
-        output_integrator_node,
         joint_state_broadcaster_spawner,
-        robot_controller_spawner,
         gui_control_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
