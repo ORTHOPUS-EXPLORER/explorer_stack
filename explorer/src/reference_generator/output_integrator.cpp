@@ -8,7 +8,6 @@ namespace space_control
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
         sampling_period_ = 0.01;
-        init = false;
         error_ = false;
         call_service_attempt_ = 0;
         init_attempt_ = 0;
@@ -32,7 +31,7 @@ namespace space_control
 
         auto request = std::make_shared<custom_interfaces::srv::Float64::Request>();
 
-        while(init_attempt_< 5 && call_service_attempt_< 10 && success_init_ == false){
+        while(init_attempt_< 10 && call_service_attempt_< 10 && success_init_ == false){
         request->ready = true;
         
             while (!q_init_client_->wait_for_service(1s) && error_ == false && call_service_attempt_ < 10) {
@@ -68,7 +67,7 @@ namespace space_control
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
             }
         }
-        if( init_attempt_>= 5){
+        if( init_attempt_>= 10){
             RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
             exit(0);
         }

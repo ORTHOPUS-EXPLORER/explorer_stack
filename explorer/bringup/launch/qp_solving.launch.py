@@ -13,8 +13,7 @@
 # limitations under the License.
 
 import os
-import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
+from ament_index_python.packages import  get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.actions import RegisterEventHandler
@@ -24,8 +23,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import launch_ros.actions
-
 
 def generate_launch_description():
     # Initialize Arguments

@@ -64,7 +64,7 @@ namespace space_control
 
         auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
 
-        while(init_attempt_< 5 && call_service_attempt_< 10 && success_init_ == false){
+        while(init_attempt_< 10 && call_service_attempt_< 10 && success_init_ == false){
             request->ready = true;
         
             while (!x_init_client_->wait_for_service(1s) && error_ == false && call_service_attempt_< 10) {
@@ -107,7 +107,7 @@ namespace space_control
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
             }
         }
-        if( init_attempt_>= 5){
+        if( init_attempt_>= 10){
             RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
             exit(0);
         }

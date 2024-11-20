@@ -12,20 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import launch_ros.actions
-
 
 def generate_launch_description():
     # Initialize Arguments
@@ -209,31 +203,7 @@ def generate_launch_description():
         executable='rqt_armcontrol',
         condition=IfCondition(gui)
     )
-    
-    bridge_config = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
-        'config',
-        'bridge.yaml'
-    )
 
-    start_gazebo_ros_bridge_cmd = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=[
-            '--ros-args',
-            '-p',
-            f'config_file:={bridge_config}',
-        ],
-        output='screen',
-    )
-
- # Bridge
-    bridge = Node(
-        package='ros_gz_image',
-        executable='image_bridge',
-        arguments=['camera', 'depth_camera', 'rgbd_camera/image', 'rgbd_camera/depth_image'],
-        output='screen'
-    )
 
     explorer_bridge_params = PathJoinSubstitution(
         [
@@ -304,8 +274,6 @@ def generate_launch_description():
         node_robot_state_publisher,
         joint_state_broadcaster_spawner,
         gui_control_node,
-        start_gazebo_ros_bridge_cmd,
-        bridge,
         explorer_bridge,
     ]
 

@@ -14,7 +14,6 @@
 #include <memory>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <limits>
 
 using namespace std::chrono_literals;
 
@@ -44,13 +43,10 @@ namespace space_control
         std::vector<double> q_init_;
 
         double sampling_period_;
-        bool init;
         bool error_;
         int call_service_attempt_;
         int init_attempt_;
         bool success_init_;
-
-        const float epsilon = std::numeric_limits<float>::epsilon();
 
         void callback_dq_output(const std_msgs::msg::Float64MultiArray & msg);
         void callback_gripper_pos(const std_msgs::msg::Float64 & msg);

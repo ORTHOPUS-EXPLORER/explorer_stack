@@ -4,12 +4,9 @@
  *  All rights reserved.
 
 '''
-import contextlib
-import io
 import os
 import sys
-from datetime import datetime
-import csv
+
 
 from ament_index_python import get_resource
 
@@ -24,14 +21,6 @@ from rqt_gui_py.plugin import Plugin
 
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import Float64
-from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Pose
-from std_srvs.srv import Empty
-from std_srvs.srv import SetBool
-
-
-import rclpy
-from rclpy.node import Node
 
 
 class RqtCartesianController(Plugin):
@@ -92,8 +81,6 @@ class RqtCartesianController(Plugin):
         self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_position", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
-
-        self.pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         self._context.node.get_logger().info("RQT Init Finished")
 
