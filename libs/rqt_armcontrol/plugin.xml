@@ -1,6 +1,6 @@
 <library path="src">
   <class name="Cartesian Controller" type="rqt_armcontrol.rqt_armcontrol.RqtCartesianController" base_class_type="rqt_gui_py::Plugin">
-    <description>rqt GUI plugin to visualize dot graphs.</description>
+    <description>rqt GUI plugin to to control the Explorer.</description>
     <qtgui>
       <group>
         <label>Custom</label>
@@ -13,6 +13,22 @@
       <label>Cartesian Controller</label>
       <icon type="theme">applications-science</icon>
       <statustip>Cartesian Controller</statustip>
+    </qtgui>
+  </class>
+  <class name="Joint Controller" type="rqt_armcontrol.rqt_jointcontrol.RqtJointController" base_class_type="rqt_gui_py::Plugin">
+    <description>rqt GUI plugin to control the Explorer's joints</description>
+    <qtgui>
+      <group>
+        <label>Custom</label>
+      </group>
+      <!-- subgroup, i'm not sure it's needed yet.
+      <group>
+        <label>ROS 2 Planning System</label>
+      </group>
+      -->
+      <label>Joint Controller</label>
+      <icon type="theme">applications-science</icon>
+      <statustip>Joint Controller</statustip>
     </qtgui>
   </class>
 </library>

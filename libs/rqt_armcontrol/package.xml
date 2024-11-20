@@ -7,6 +7,8 @@
   <maintainer email="come.butin@hotmail.fr">come</maintainer>
   <license>TODO: License declaration</license>
 
+  <depend>ros2_control_explorer</depend>
+
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>python_qt_binding</exec_depend>
   <exec_depend version_gte="1.1.2">qt_dotgraph</exec_depend>
