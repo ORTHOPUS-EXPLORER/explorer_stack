@@ -214,7 +214,6 @@ def generate_launch_description():
     gui_control_node = Node(
         package='rqt_armcontrol',
         executable='rqt_armcontrol',
-        condition=IfCondition(gui)
     )
     
     bridge_config = os.path.join(

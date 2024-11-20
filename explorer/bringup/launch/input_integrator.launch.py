@@ -23,18 +23,6 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
 
-    # Declare arguments
-    declared_arguments = []
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gui",
-            default_value="true",
-            description="Start GUI automatically with this launch file.",
-        )
-    )
-
-    # Initialize Arguments
-    gui = LaunchConfiguration("gui")
     spacenav = LaunchConfiguration('spacenav')
 
     spacenav_arg = DeclareLaunchArgument(
@@ -79,7 +67,6 @@ def generate_launch_description():
     gui_control_node = Node(
         package='rqt_armcontrol',
         executable='rqt_armcontrol',
-        condition=IfCondition(gui)
     )
 
     nodes = [
@@ -90,4 +77,4 @@ def generate_launch_description():
         gui_control_node,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription(nodes)

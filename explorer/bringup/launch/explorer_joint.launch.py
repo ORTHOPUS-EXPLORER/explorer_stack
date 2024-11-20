@@ -135,7 +135,6 @@ def generate_launch_description():
     gui_control_node = Node(
         package='rqt_armcontrol',
         executable='rqt_jointcontrol',
-        condition=IfCondition(gui)
     )
 
     explorer_bridge_params = PathJoinSubstitution(

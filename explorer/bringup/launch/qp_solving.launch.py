@@ -15,7 +15,7 @@
 import os
 from ament_index_python.packages import  get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
@@ -186,12 +186,13 @@ def generate_launch_description():
         arguments=["-d", rviz_config_file],
         condition=IfCondition(gui),
     )
+
+    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
     
     # Declare GUI controller node
     gui_control_node = Node(
         package='rqt_armcontrol',
         executable='rqt_armcontrol',
-        condition=IfCondition(gui)
     )
 
     input_integrator_node = Node(
@@ -262,7 +263,7 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[rviz_node],
+                    on_exit=[delayed_rviz],
                 )
         )
     )
