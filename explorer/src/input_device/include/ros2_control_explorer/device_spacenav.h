@@ -26,7 +26,6 @@ public:
   DeviceSpacenav(rclcpp::Node::SharedPtr n);
 
 private:
-  bool gripper_toggle_;
   int control_mode_select_;
   double debounce_button_time_;
   rclcpp::Time debounce_button_left_, debounce_button_right_;

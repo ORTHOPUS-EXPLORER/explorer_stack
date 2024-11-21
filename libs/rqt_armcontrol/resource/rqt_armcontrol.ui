@@ -268,10 +268,10 @@
      <item>
       <widget class="QSlider" name="gripper">
        <property name="minimum">
-        <number>0</number>
+        <number>-500</number>
        </property>
        <property name="maximum">
-        <number>1050</number>
+        <number>500</number>
        </property>
        <property name="sliderPosition">
         <number>0</number>

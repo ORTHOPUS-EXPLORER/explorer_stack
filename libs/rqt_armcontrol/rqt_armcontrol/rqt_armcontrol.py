@@ -78,7 +78,7 @@ class RqtCartesianController(Plugin):
         self.setUpEventHandlers()
 
         self.publisher_ = self._context.node.create_publisher(TwistStamped, "/ros2_control_explorer/input_device_velocity", 1)
-        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_position", 1)
+        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_velocity", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -89,8 +89,8 @@ class RqtCartesianController(Plugin):
         if (not self.slider_released) or (not self.prev_slider_released) :
             self.cartesian_vel.header.stamp = self._context.node.get_clock().now().to_msg();
             self.publisher_.publish(self.cartesian_vel)
+            self.publisher_gripper_.publish(self.gripper_pos)
         self.prev_slider_released = self.slider_released
-        self.publisher_gripper_.publish(self.gripper_pos)
 
     def setUpEventHandlers(self):
         self._widget.pos_x.valueChanged.connect(self.onXMove)
@@ -108,6 +108,7 @@ class RqtCartesianController(Plugin):
         self._widget.or_roll.sliderReleased.connect(self.onSliderReleased)
         self._widget.or_pitch.sliderReleased.connect(self.onSliderReleased)
         self._widget.or_yaw.sliderReleased.connect(self.onSliderReleased)
+        self._widget.gripper.sliderReleased.connect(self.onSliderReleased)
 
 
     def onXMove(self, value):
@@ -136,6 +137,7 @@ class RqtCartesianController(Plugin):
 
     def onGripperMove(self, value):
         self.gripper_pos.data = float(value) / self.scale
+        self.slider_released = False
 
     def onSliderReleased(self):
         self._widget.pos_x.setSliderPosition(0)
@@ -144,12 +146,14 @@ class RqtCartesianController(Plugin):
         self._widget.or_roll.setSliderPosition(0)
         self._widget.or_pitch.setSliderPosition(0)
         self._widget.or_yaw.setSliderPosition(0)
+        self._widget.gripper.setSliderPosition(0)
         self.cartesian_vel.twist.linear.x = 0.0
         self.cartesian_vel.twist.linear.y = 0.0
         self.cartesian_vel.twist.linear.z = 0.0
         self.cartesian_vel.twist.angular.x = 0.0
         self.cartesian_vel.twist.angular.y = 0.0
         self.cartesian_vel.twist.angular.z = 0.0
+        self.gripper_pos.data = 0.0
         self.slider_released = True
 
 

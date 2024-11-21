@@ -3,4 +3,4 @@
 #
 device_spacenav:
   ros__parameters:
-    debounce_button_time        : 0.2
+    debounce_button_time        : 0.0

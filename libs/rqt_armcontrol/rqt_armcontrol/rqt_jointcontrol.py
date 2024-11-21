@@ -128,6 +128,7 @@ class RqtJointController(Plugin):
 
     def onGripperMove(self, value):
         self.joint_vel.data[6] = float(value) / self.scale
+        self.slider_released = False
     
     def onSliderReleased(self):
         self._widget.J1.setSliderPosition(0)

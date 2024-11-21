@@ -38,7 +38,7 @@ namespace space_control
 
         std_msgs::msg::Float64MultiArray q_command_;
         std_msgs::msg::Float64MultiArray dq_output_;
-        std_msgs::msg::Float64 gripper_pos_;
+        std_msgs::msg::Float64 gripper_vel_;
 
         std::vector<double> q_init_;
 
@@ -49,7 +49,7 @@ namespace space_control
         bool success_init_;
 
         void callback_dq_output(const std_msgs::msg::Float64MultiArray & msg);
-        void callback_gripper_pos(const std_msgs::msg::Float64 & msg);
+        void callback_gripper_vel(const std_msgs::msg::Float64 & msg);
         void timer_callback();
     };
 }

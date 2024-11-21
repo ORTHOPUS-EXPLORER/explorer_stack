@@ -31,7 +31,7 @@ namespace space_control
         dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         q_command_prec_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-        q_init_={0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        q_init_={0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         q_current_debug.data={0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -217,11 +217,13 @@ namespace space_control
                 for(int i=0; i< 6; i++){
                     q_init_[i] = current_pos_.position[joint_order[i+8]];
                 }
+                q_init_[6] = current_pos_.position[joint_order[19]];
             }
             else{
                 for(int i=0; i< 6; i++){
                     q_init_[i] = current_pos_.position[joint_order[i]];
                 }
+                q_init_[6] = current_pos_.position[joint_order[11]];
             }
             res->code_error = 0;
         }

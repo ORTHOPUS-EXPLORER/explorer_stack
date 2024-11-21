@@ -21,7 +21,6 @@ DeviceSpacenav::DeviceSpacenav(rclcpp::Node::SharedPtr n) : Device(n)
   button_left_ = 0;
   button_right_ = 0;
 
-  gripper_toggle_ = false;
   control_mode_select_ = 0;
 
   rot_x_ = 0.0;
@@ -145,19 +144,21 @@ void DeviceSpacenav::debounceButtons_(const sensor_msgs::msg::Joy::SharedPtr msg
 
 void DeviceSpacenav::updateGripperCmd_()
 {
-  std_msgs::msg::Bool gripper_cmd;
+  std_msgs::msg::Float64 gripper_cmd;
   // Use A to toggle gripper state (open/close)
-  if (button_left_ == 1 && gripper_toggle_ == false)
+  if (button_left_ == 1)
   {
-    gripper_toggle_ = true;
+    gripper_cmd.data = 0.5;
     //openGripper_();
   }
-  else if (button_left_ == 1 && gripper_toggle_ == true)
+  else if (button_right_ == 1)
   {
-    gripper_toggle_ = false;
+    gripper_cmd.data = -0.5;
     //closeGripper_();
   }
-  gripper_cmd.data = gripper_toggle_;
+  else{
+    gripper_cmd.data = 0.0;
+  }
   gripper_cmd_pub_->publish(gripper_cmd);
 }
 
@@ -166,7 +167,7 @@ void DeviceSpacenav::updateControlMode_()
   // Use A to toggle gripper state (open/close)
   if (button_right_ == 1)
   {
-    control_mode_select_ ++;
+    control_mode_select_ = 0;
   }
   if (control_mode_select_ > 2)
   {
