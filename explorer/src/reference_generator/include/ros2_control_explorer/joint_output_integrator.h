@@ -33,7 +33,6 @@ namespace space_control
     
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
         rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_sub_;
-        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_pos_sub_;
 
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
     
@@ -41,12 +40,11 @@ namespace space_control
 
         std_msgs::msg::Float64MultiArray q_command_;
         std_msgs::msg::Float64MultiArray dq_output_;
-        std_msgs::msg::Float64 gripper_pos_;
 
         double sampling_period_;
         bool init;
         std::vector<std::string> joint_name;
-        int joint_order[20];
+        int joint_order[7];
 
         JointPosition q_lower_limit_; /*!< Joint lower limit used in lower constraints bound vector lbA */
         JointPosition q_upper_limit_; /*!< Joint upper limit used in upper constraints bound vector ubA */
@@ -54,7 +52,6 @@ namespace space_control
 
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
         void callback_dq_output(const std_msgs::msg::Float64MultiArray & msg);
-        void callback_gripper_pos(const std_msgs::msg::Float64 & msg);
         void timer_callback();
     };
 }

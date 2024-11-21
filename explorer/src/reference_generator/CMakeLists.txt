@@ -14,6 +14,7 @@ set(REF_GEN_DEPENDENCIES
   moveit_ros_planning
   moveit_ros_planning_interface
   custom_interfaces
+  joy
 )
 
 foreach(Dependency IN ITEMS ${REF_GEN_DEPENDENCIES})
@@ -126,12 +127,34 @@ PRIVATE
   explorer_robot_manager
 )
 
+# joystick_input
+add_executable(joystick_input
+  joystick_input.cpp
+)
+
+target_include_directories(joystick_input
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/ros2_control_explorer>
+)
+
+ament_target_dependencies(joystick_input
+PUBLIC
+  ${REF_GEN_DEPENDENCIES}
+)
+
+target_link_libraries(joystick_input
+PRIVATE
+  explorer_robot_manager
+)
+
 #  Install !
 install(TARGETS input_integrator
                 qp_solving
                 output_integrator
                 joint_output_integrator
                 test_output_integrator
+                joystick_input
         DESTINATION lib/ros2_control_explorer
 )
 

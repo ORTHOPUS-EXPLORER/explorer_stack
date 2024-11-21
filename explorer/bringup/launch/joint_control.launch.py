@@ -147,6 +147,17 @@ def generate_launch_description():
         package='rqt_armcontrol',
         executable='rqt_jointcontrol',
     )
+
+    joy_node = Node(
+        package="joy",
+        executable="joy_node",
+        output="screen",
+    )
+
+    joystick_input_node = Node(
+        package="ros2_control_explorer",
+        executable="joystick_input",
+    )
     
     bridge_config = os.path.join(
         get_package_share_directory('ros2_control_explorer'),
@@ -213,6 +224,8 @@ def generate_launch_description():
         node_robot_state_publisher,
         gz_spawn_entity,
         gui_control_node,
+        joy_node,
+        joystick_input_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]

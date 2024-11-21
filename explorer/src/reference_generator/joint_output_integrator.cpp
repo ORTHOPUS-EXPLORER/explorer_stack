@@ -4,8 +4,8 @@ namespace space_control
 {
     JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     : n_(n)
-    , q_lower_limit_(6)
-    , q_upper_limit_(6)
+    , q_lower_limit_(7)
+    , q_upper_limit_(7)
     , q_has_limit_(6)
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
@@ -13,12 +13,11 @@ namespace space_control
         sampling_period_ = 0.01;
         init = false;
 
-        dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        gripper_pos_.data = 0.0;
+        dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         RCLCPP_DEBUG_STREAM(n_->get_logger(),"init joint_name");
-        joint_name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
+        joint_name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint"};
 
         RCLCPP_DEBUG_STREAM(n_->get_logger(),"lecture paramètre");
         for(int i=0; i<6; i++){
@@ -35,11 +34,12 @@ namespace space_control
             }
             RCLCPP_DEBUG_STREAM(n_->get_logger(),"J" << i+1 << " - min:" << q_lower_limit_[i] << " max:" << q_upper_limit_[i]);
         }
+        q_lower_limit_[6] = 0;
+        q_upper_limit_[6] = 1.05;
 
         //init suscriber
         current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&JointOutputIntegrator::callback_current_pos_, this, std::placeholders::_1));
         dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10, std::bind(&JointOutputIntegrator::callback_dq_output, this, std::placeholders::_1));
-        gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/input_gripper_position", 10, std::bind(&JointOutputIntegrator::callback_gripper_pos, this, std::placeholders::_1));
 
         //init publisher
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
@@ -56,7 +56,7 @@ namespace space_control
         if(init ==false){
 
             //Get the order of the joint state for the simulation with the wheelchair
-            for (int i=0; i< 6; i++){
+            for (int i=0; i< 7; i++){
                 j=0;
                 while (joint_name[i]!=msg.name[j] && j<msg.position.size() ){
                     j++;
@@ -67,7 +67,7 @@ namespace space_control
                 }
             }
 
-            for(int i=0; i< 6; i++){
+            for(int i=0; i< 7; i++){
                     q_command_.data[i] = msg.position[joint_order[i]];
             }
             init = true;
@@ -79,15 +79,10 @@ namespace space_control
         dq_output_.data = msg.data;   
     }
 
-    void JointOutputIntegrator::callback_gripper_pos(const std_msgs::msg::Float64 & msg)
-    {   
-        gripper_pos_.data = msg.data;
-    }
-
     void JointOutputIntegrator::timer_callback()
     {
         if(init == true){
-            for(int i=0; i< 6; i++){
+            for(int i=0; i< 7; i++){
                 q_command_.data[i] = q_command_.data[i] + dq_output_.data[i] * sampling_period_;
                 //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
                 if(q_command_.data[i] <= q_lower_limit_[i]){
@@ -97,8 +92,6 @@ namespace space_control
                     q_command_.data[i] = q_upper_limit_[i];
                 }
             }
-              
-            q_command_.data[6] = gripper_pos_.data;
 
             command_pub_->publish(q_command_);
         }

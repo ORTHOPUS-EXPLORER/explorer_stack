@@ -54,6 +54,7 @@
   <exec_depend>spacenav</exec_depend>
   <exec_depend>ros_gz_bridge</exec_depend>
   <exec_depend>ros_gz_image</exec_depend>
+  <exec_depend>joy</exec_depend>
   <!--exec_depend>ros_gz_gazebo</exec_depend-->
 
   <exec_depend>orthopus_ros_interface</exec_depend>

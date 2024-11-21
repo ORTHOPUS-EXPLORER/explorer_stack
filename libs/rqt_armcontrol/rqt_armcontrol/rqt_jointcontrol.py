@@ -64,10 +64,7 @@ class RqtJointController(Plugin):
         self.scale = 1000.0 # Slider values between -scale and +scale
 
         self.joint_vel = Float64MultiArray()
-        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-        self.gripper_pos= Float64()
-        self.gripper_pos.data = 0.0
+        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         self.slider_released = True
         self.prev_slider_released = True
@@ -76,7 +73,6 @@ class RqtJointController(Plugin):
         self.setUpEventHandlers()
 
         self.publisher_ = self._context.node.create_publisher(Float64MultiArray, "/ros2_control_explorer/dq_output", 1)
-        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_position", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -87,8 +83,6 @@ class RqtJointController(Plugin):
         if (not self.slider_released) or (not self.prev_slider_released) :
             self.publisher_.publish(self.joint_vel)
         self.prev_slider_released = self.slider_released
-        self.publisher_gripper_.publish(self.gripper_pos)
-
 
     def setUpEventHandlers(self):
         self._widget.J1.valueChanged.connect(self.OnJ1Move)
@@ -105,6 +99,7 @@ class RqtJointController(Plugin):
         self._widget.J4.sliderReleased.connect(self.onSliderReleased)
         self._widget.J5.sliderReleased.connect(self.onSliderReleased)
         self._widget.J6.sliderReleased.connect(self.onSliderReleased)
+        self._widget.gripper.sliderReleased.connect(self.onSliderReleased)
 
 
     def OnJ1Move(self, value):
@@ -132,7 +127,7 @@ class RqtJointController(Plugin):
         self.slider_released = False
 
     def onGripperMove(self, value):
-        self.gripper_pos.data = float(value) / self.scale
+        self.joint_vel.data[6] = float(value) / self.scale
     
     def onSliderReleased(self):
         self._widget.J1.setSliderPosition(0)
@@ -141,7 +136,8 @@ class RqtJointController(Plugin):
         self._widget.J4.setSliderPosition(0)
         self._widget.J5.setSliderPosition(0)
         self._widget.J6.setSliderPosition(0)
-        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self._widget.gripper.setSliderPosition(0)
+        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.slider_released = True
 
     # Qt methods

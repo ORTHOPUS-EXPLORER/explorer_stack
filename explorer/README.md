@@ -41,7 +41,7 @@ You can run the simulation with some arguments :
 
 * `gui:=false` to deactivate RViz
 
-To control the explorer you can use the GUI.
+To control the explorer you can use the GUI or an Xbox one controller.
 
 ### Cartesian control with moveit and qpOASES using VESC simulation
 
@@ -82,6 +82,6 @@ You can run the simulation with some arguments :
 
 * `gui:=false` to deactivate RViz
 
-To control the explorer you can use the GUI.
+To control the explorer you can use the GUI or a Xbox one controller.
 
 
