@@ -57,6 +57,7 @@ namespace space_control
                     }
                     else{
                         init_attempt_ += 1;
+                        RCLCPP_DEBUG_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
                     }
                 
                 } else {
