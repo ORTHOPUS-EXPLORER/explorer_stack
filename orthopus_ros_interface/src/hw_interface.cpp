@@ -86,7 +86,8 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
   _expl_ref_pub_tmr = this->create_wall_timer(std::chrono::milliseconds(100), [this](void)
   {
     bool pub = false;
-
+    rclcpp::Time start = this->get_clock()->now();
+    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "Début : %f s", start.seconds());
     size_t j = 0;
     for(auto& ifv: _expl_ref_msg.interface_values)
     {
@@ -125,6 +126,9 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
     }
     if(pub)
     {
+      rclcpp::Time end = this->get_clock()->now();
+      auto dure = end-start;
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "Fin : %f s", end.seconds());
       //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Publish !", _parent._name.c_str());
       _expl_ref_pub->publish(_expl_ref_msg);
     }

@@ -7,7 +7,7 @@ namespace space_control
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        sampling_period_ = 0.01;
+        sampling_period_ = 0.02;
         error_ = false;
         call_service_attempt_ = 0;
         init_attempt_ = 0;
@@ -77,7 +77,7 @@ namespace space_control
             q_command_.data[i] = q_init_[i];
         }
 
-        timer_ = n_->create_wall_timer(10ms, std::bind(&OutputIntegrator::timer_callback, this));
+        timer_ = n_->create_wall_timer(20ms, std::bind(&OutputIntegrator::timer_callback, this));
 
     }
 

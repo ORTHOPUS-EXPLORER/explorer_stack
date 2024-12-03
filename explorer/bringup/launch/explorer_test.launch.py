@@ -113,7 +113,7 @@ def generate_launch_description():
 
     output_integrator_node = Node(
         package="ros2_control_explorer",
-        executable="joint_output_integrator",
+        executable="joint_output_test",
         parameters=[
             config,
             {'use_sim_time': use_sim_time}
@@ -137,22 +137,11 @@ def generate_launch_description():
         executable='rqt_jointcontrol',
     )
 
-    joy_node = Node(
-        package="joy",
-        executable="joy_node",
-        output="screen",
-    )
-
-    joystick_input_node = Node(
-        package="ros2_control_explorer",
-        executable="joystick_input",
-    )
-
     explorer_bridge_params = PathJoinSubstitution(
         [
             FindPackageShare("ros2_control_explorer"),
             "config",
-            "explorer_vesc.yaml",
+            "explorer_vesc_hw.yaml",
         ]
     )
 
@@ -199,8 +188,6 @@ def generate_launch_description():
         node_robot_state_publisher,
         joint_state_broadcaster_spawner,
         gui_control_node,
-        joy_node,
-        joystick_input_node,
         explorer_bridge,
     ]
 
