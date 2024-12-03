@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="actuator_description">  
+
+  <link name="fixed_part">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find ros2_control_actuator)/description/meshes/visual/fixed_part.dae" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find ros2_control_actuator)/description/meshes/collision/fixed_part.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1"/>
+        <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+      </inertial>
+  </link>
+
+  <link name="output">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find ros2_control_actuator)/description/meshes/visual/output.dae" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find ros2_control_actuator)/description/meshes/collision/output.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1"/>
+        <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+      </inertial>
+  </link>
+
+  <link name="link1">
+    <collision>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.01" radius="0.016"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.01" radius="0.016"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia
+        ixx="1"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="1"
+        iyz="0.0"
+        izz="1"/>
+    </inertial>
+  </link>
+
+  <link name="link2">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.005"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0.05 0 0.0025" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.025 0.005"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1"/>
+      <inertia
+        ixx="1"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="1"
+        iyz="0.0"
+        izz="1"/>
+    </inertial>
+  </link>
+
+  <joint name="joint" type="continuous">
+    <parent link="fixed_part"/>
+    <child link="output"/>
+    <origin xyz="0.0 0 0.0555" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="0.5"/>
+  </joint>
+
+  <joint name="output_link" type="fixed">
+    <parent link="output"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="link" type="fixed">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+</xacro:macro>
+
+</robot>

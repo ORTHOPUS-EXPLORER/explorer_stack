@@ -27,6 +27,7 @@ setup(
         'console_scripts': [
             'pyvesc_explorer = pyvesc_explorer.pyvesc_explorer:main',
             'ros_explorer_bridge = pyvesc_explorer.ros_explorer_bridge:MainApp',
+            'ros_actuator_bridge = pyvesc_explorer.ros_actuator_bridge:MainApp',
             'app_sim = pyvesc_explorer.app_sim:MainApp',
             #'app_scan = pyvesc_explorer.app_scan:MainApp',
         ],

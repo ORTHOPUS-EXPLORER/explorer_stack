@@ -1,0 +1,11 @@
+ros_actuator_bridge:
+  ros__parameters:
+    # PyVESC
+    can_port: 'can0'
+    can_id: 40
+    # ROS <=> VESC Mappings
+    vesc_joints_can_ids:  [16    ]
+    vesc_joint_names:     ['joint']
+    vesc_joint_types:     ['motor']
+
+    max_pos_setpoint_step: 10.0 #deg

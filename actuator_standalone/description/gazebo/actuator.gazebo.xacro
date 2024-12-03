@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:macro name="actuator_gazebo" params="">
+
+    <!-- ros_control plugin -->
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>$(find ros2_control_actuator)/config/actuator_controller.yaml</parameters>
+      </plugin>
+
+    </gazebo>
+
+    <gazebo reference="fixed_part">
+      <visual>
+          <material>
+              <diffuse>1 1 1 1</diffuse>
+          </material>
+      </visual>
+    </gazebo>
+    <gazebo reference="output">
+      <visual>
+          <material>
+              <diffuse>1 1 1 1</diffuse>
+          </material>
+      </visual>
+    </gazebo>
+    <gazebo reference="link">
+      <visual>
+          <material>
+              <diffuse>1 1 1 1</diffuse>
+          </material>
+      </visual>
+    </gazebo>
+  </xacro:macro>
+
+</robot>

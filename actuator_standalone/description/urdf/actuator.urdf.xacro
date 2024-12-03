@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="actuator">
+  <xacro:arg name="use_ignition" default="false" />
+  <xacro:arg name="use_actuator_interface" default="false" />
+
+  <!-- Import actuator macro -->
+  <xacro:include filename="$(find ros2_control_actuator)/description/urdf/actuator_description.urdf.xacro"/>
+
+  <!-- create link fixed to the "world" -->
+  <link name="world"/>
+
+  <!-- base_joint fixes base_link to the environment -->
+  <joint name="base_joint" type="fixed">
+    <parent link="world"/>
+    <child link="fixed_part"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:actuator_description/>
+
+  <!-- Import actuator ros2_control description -->
+ <xacro:include filename="$(find ros2_control_actuator)/description/ros2_control/actuator.ros2_control.xacro" />
+  <xacro:actuator_ros2_control name="actuator" use_ignition="$(arg use_ignition)" />
+
+  <xacro:if value="$(arg use_ignition)">
+    <!-- Import Gazebo definitions + plugin -->
+    <xacro:include filename="$(find ros2_control_actuator)/description/gazebo/actuator.gazebo.xacro" />
+    <xacro:actuator_gazebo/>
+  </xacro:if>
+
+</robot>
