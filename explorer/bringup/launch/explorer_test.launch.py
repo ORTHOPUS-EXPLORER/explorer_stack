@@ -141,7 +141,7 @@ def generate_launch_description():
         [
             FindPackageShare("ros2_control_explorer"),
             "config",
-            "explorer_vesc_hw.yaml",
+            "explorer_vesc.yaml",
         ]
     )
 
