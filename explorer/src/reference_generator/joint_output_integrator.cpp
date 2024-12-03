@@ -10,7 +10,7 @@ namespace space_control
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        sampling_period_ = 0.01;
+        sampling_period_ = 0.02;
         init = false;
 
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -45,7 +45,7 @@ namespace space_control
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
 
         
-        timer_ = n_->create_wall_timer(10ms, std::bind(&JointOutputIntegrator::timer_callback, this));
+        timer_ = n_->create_wall_timer(20ms, std::bind(&JointOutputIntegrator::timer_callback, this));
 
     }
 

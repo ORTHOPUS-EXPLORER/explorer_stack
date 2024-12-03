@@ -83,7 +83,7 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
   });
 
   // Create a ROS timer for publishing refs
-  _expl_ref_pub_tmr = this->create_wall_timer(std::chrono::milliseconds(100), [this](void)
+  _expl_ref_pub_tmr = this->create_wall_timer(std::chrono::milliseconds(10), [this](void)
   {
     bool pub = false;
     rclcpp::Time start = this->get_clock()->now();
