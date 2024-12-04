@@ -7,33 +7,63 @@ using namespace hardware_interface;
 namespace orthopus_ros_interface
 {
 
-HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
-  : rclcpp::Node(std::string(parent._name+"_comm"))
-  , _parent(parent)
+class HwInterfaceComm
+    : public rclcpp::Node
+{
+public:
+    // Data
+  typedef struct
+  {
+    double pos;
+    double vel;
+    double acc;
+    double eff;
+  } hw_state_t;
+
+  using hw_ref_t = hw_state_t;
+
+  typedef struct
+  {
+    HwInterface* owner;
+    std::string name;
+    bool enable;
+    hw_state_t state;
+    hw_ref_t ref;
+  } hw_joint_t;
+
+  using hw_joints_t = std::vector<hw_joint_t>;
+  std::mutex _lck;
+
+  static HwInterfaceComm& getInstance();
+  std::shared_ptr<hw_joints_t> getJoints();
+  HwInterfaceComm::hw_joint_t& getJoint(HwInterface* owner, const std::string& joint_name);
+private:
+  HwInterfaceComm();
+  std::shared_ptr<HwInterfaceComm> _this_comm;
+  rclcpp::executors::SingleThreadedExecutor _executor; //Executor needed to subscriber
+  std::thread _comm_th;
+
+  //HwInterface &_parent;
+
+  hw_joints_t _hw_joints;
+
+  // From ros_explorer_bridge
+  rclcpp::Subscription<control_msgs::msg::DynamicJointState>::SharedPtr _expl_meas_sub;
+  //realtime_tools::RealtimeBuffer<std::shared_ptr<control_msgs::msg::DynamicJointState>>  _expl_meas_msg_buf;
+  //std::shared_ptr<control_msgs::msg::DynamicJointState>                                  _expl_meas_msg;
+
+  // To ros_explorer_bridge
+  rclcpp::Publisher<control_msgs::msg::DynamicJointState>::SharedPtr _expl_ref_pub;
+  rclcpp::Time _expl_ref_pub_time;
+  control_msgs::msg::DynamicJointState _expl_ref_msg;
+  rclcpp::TimerBase::SharedPtr _expl_ref_pub_tmr;
+  };
+
+HwInterfaceComm::HwInterfaceComm()
+  : rclcpp::Node("orthopus_hw_interface_comm")
 {
   // To ros_explorer_bridge
   _expl_ref_pub = this->create_publisher<control_msgs::msg::DynamicJointState>("/explorer_ref", rclcpp::SystemDefaultsQoS());
-
-    // Prepare pub message
-  for(auto& joint: _parent._hw_joints)
-    _expl_ref_msg.joint_names.emplace_back(joint.name);
-
-  const std::array<std::string,4> intfs{
-    HW_IF_POSITION,
-    HW_IF_VELOCITY,
-    HW_IF_ACCELERATION,
-    HW_IF_EFFORT
-  };
-
-  _expl_ref_msg.interface_values.resize(_expl_ref_msg.joint_names.size());
-  for(auto& ifv: _expl_ref_msg.interface_values)
-  {
-    for (const auto& intf: intfs)
-    {
-      ifv.interface_names.emplace_back(intf);
-      ifv.values.emplace_back(std::numeric_limits<double>::quiet_NaN());
-    }
-  }
 
   // From ros_explorer_bridge
   _expl_meas_sub = this->create_subscription<control_msgs::msg::DynamicJointState>("/explorer_meas", rclcpp::SystemDefaultsQoS(),
@@ -45,20 +75,20 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
     for(size_t i=0;i<jsz;i++)
     {
       const auto& jname = _expl_meas_msg.joint_names[i];
-      const auto hjsz = _parent._hw_joints.size();
+      const auto hjsz = _hw_joints.size();
       size_t j;
       for(j=0;j<hjsz;j++)
       {
-        const auto& hwjname = _parent._hw_joints[j].name;
+        const auto& hwjname = _hw_joints[j].name;
         if(jname == hwjname)
           break;
       }
       if(j >= hjsz)
       {
-        //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s] Unknown joint: %s", _parent._name.c_str(), jname.c_str());
+        //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s] Unknown joint: %s", _name.c_str(), jname.c_str());
         continue;
       }
-      auto& hwjst = _parent._hw_joints[j].state;
+      auto& hwjst = _hw_joints[j].state;
 
       auto& ifv = _expl_meas_msg.interface_values[i];
       const auto& ifsz = ifv.interface_names.size();
@@ -76,7 +106,7 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
           hwjst.eff = ifval;
         else
         {
-          //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s][%s] Unknown interface: %s", _parent._name.c_str(), _parent._hw_joints[j].name.c_str(),ifn.c_str());
+          //RCLCPP_ERROR(rclcpp::get_logger("HwInterface"), "[%s][%s] Unknown interface: %s", _name.c_str(), _hw_joints[j].name.c_str(),ifn.c_str());
         }
       }
     }
@@ -85,38 +115,42 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
   // Create a ROS timer for publishing refs
   _expl_ref_pub_tmr = this->create_wall_timer(std::chrono::milliseconds(10), [this](void)
   {
+    //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "This: %p", this);
     bool pub = false;
     rclcpp::Time start = this->get_clock()->now();
     //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "Début : %f s", start.seconds());
     size_t j = 0;
     for(auto& ifv: _expl_ref_msg.interface_values)
     {
-      auto& hw_ref = _parent._hw_joints[j].ref;
+      _expl_ref_msg.header.stamp.sec = start.seconds();
+      _expl_ref_msg.header.stamp.nanosec = start.nanoseconds();
+
+      auto& hw_ref = _hw_joints[j].ref;
       const auto sz = ifv.interface_names.size();
       for (size_t i=0;i<sz;i++)
       {
         const auto& intf_name = ifv.interface_names[i];
         auto& intf_val = ifv.values[i];
         bool jpub = true;
-        if(intf_name == HW_IF_POSITION && hw_ref.nwpos)
+        if(intf_name == HW_IF_POSITION)// && hw_ref.nwpos)
         {
           intf_val = hw_ref.pos;
-          hw_ref.nwpos = false;
+          //hw_ref.nwpos = false;
         }
-        else if(intf_name == HW_IF_VELOCITY && hw_ref.nwvel)
+        else if(intf_name == HW_IF_VELOCITY)// && hw_ref.nwvel)
         {
           intf_val = hw_ref.vel;
-          hw_ref.nwvel = false;
+          //hw_ref.nwvel = false;
         }
-        else if(intf_name == HW_IF_ACCELERATION && hw_ref.nwacc)
+        else if(intf_name == HW_IF_ACCELERATION)// && hw_ref.nwacc)
         {
           intf_val = hw_ref.acc;
-          hw_ref.nwacc = false;
+          //hw_ref.nwacc = false;
         }
-        else if(intf_name == HW_IF_EFFORT && hw_ref.nweff)
+        else if(intf_name == HW_IF_EFFORT)// && hw_ref.nweff)
         {
           intf_val = hw_ref.eff;
-          hw_ref.nweff = false;
+          //hw_ref.nweff = false;
         }
         else
           jpub = false;
@@ -129,17 +163,76 @@ HwInterfaceComm::HwInterfaceComm(HwInterface& parent)
       rclcpp::Time end = this->get_clock()->now();
       auto dure = end-start;
       //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "Fin : %f s", end.seconds());
-      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Publish !", _parent._name.c_str());
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Publish !", _name.c_str());
       _expl_ref_pub->publish(_expl_ref_msg);
     }
   });
 
+  _this_comm = std::shared_ptr<HwInterfaceComm>(this,[](HwInterfaceComm*){});
+  _executor.add_node(_this_comm);
+  _comm_th = std::thread([this]() { this->_executor.spin(); });
+
+}
+
+HwInterfaceComm& HwInterfaceComm::getInstance()
+{
+  static HwInterfaceComm _comm;
+  return _comm;
+}
+
+HwInterfaceComm::hw_joint_t& HwInterfaceComm::getJoint(HwInterface* owner, const std::string& joint_name)
+{
+  for(auto& hwj: _hw_joints)
+  {
+    if(hwj.owner == owner && hwj.name == joint_name)
+      return hwj;
+  }
+  auto& hwj = _hw_joints.emplace_back(hw_joint_t{
+    /*.owner   = */owner,
+    /*.name    = */joint_name,
+    /*.enable  = */false,
+    /*.state   = */{
+      /* .pos = */0.0,//std::numeric_limits<double>::quiet_NaN(),
+      /* .vel = */0.0,//std::numeric_limits<double>::quiet_NaN(),
+      /* .acc = */0.0,//std::numeric_limits<double>::quiet_NaN(),
+      /* .eff = */0.0,//std::numeric_limits<double>::quiet_NaN(),
+    },
+    /*.ref = */{
+      /* .pos = */std::numeric_limits<double>::quiet_NaN(),
+      /* .vel = */std::numeric_limits<double>::quiet_NaN(),
+      /* .acc = */std::numeric_limits<double>::quiet_NaN(),
+      /* .eff = */std::numeric_limits<double>::quiet_NaN(),
+    },
+  });
+
+  _expl_ref_msg.joint_names.emplace_back(joint_name);
+
+  const std::array<std::string,4> intfs{
+    HW_IF_POSITION,
+    HW_IF_VELOCITY,
+    HW_IF_ACCELERATION,
+    HW_IF_EFFORT
+  };
+
+  auto& ifv = _expl_ref_msg.interface_values.emplace_back(control_msgs::msg::InterfaceValue{});
+  for (const auto& intf: intfs)
+  {
+    ifv.interface_names.emplace_back(intf);
+    ifv.values.emplace_back(std::numeric_limits<double>::quiet_NaN());
+  }
+
+  return hwj;
+}
+
+std::shared_ptr<HwInterfaceComm::hw_joints_t> HwInterfaceComm::getJoints()
+{
+  _lck.lock();
+  return std::shared_ptr<hw_joints_t>(&_hw_joints, [this](hw_joints_t*) { _lck.unlock(); });
 }
 
 HwInterface::~HwInterface()
 {
-  if(_comm_th.joinable())
-    _comm_th.join();
+
 }
 
 CallbackReturn HwInterface::on_init(const HardwareInfo& info)
@@ -147,36 +240,9 @@ CallbackReturn HwInterface::on_init(const HardwareInfo& info)
   if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS)
     return CallbackReturn::ERROR;
 
-  // Hw
-  _name = info_.name;
-  for(auto& hw_j: _hw_joints)
-  {
-    hw_j.enable = false;
-    hw_j.state.pos = std::numeric_limits<double>::quiet_NaN();
-    hw_j.state.vel = std::numeric_limits<double>::quiet_NaN();
-    hw_j.state.acc = std::numeric_limits<double>::quiet_NaN();
-    hw_j.state.eff = std::numeric_limits<double>::quiet_NaN();
-    hw_j.ref.ppos = hw_j.ref.pos = std::numeric_limits<double>::quiet_NaN();
-    hw_j.ref.pvel = hw_j.ref.vel = std::numeric_limits<double>::quiet_NaN();
-    hw_j.ref.pacc = hw_j.ref.acc = std::numeric_limits<double>::quiet_NaN();
-    hw_j.ref.peff = hw_j.ref.eff = std::numeric_limits<double>::quiet_NaN();
-    hw_j.ref.nwpos = false;
-    hw_j.ref.nwvel = false;
-    hw_j.ref.nwacc = false;
-    hw_j.ref.nweff = false;
-  }
-
-  // Joints
-  if(info_.joints.size() > _hw_joints.size())
-  {
-    RCLCPP_FATAL(rclcpp::get_logger("HwInterface"), "[%s] Can't control more than %ld joints, got %ld", _name.c_str(), _hw_joints.size(), info_.joints.size());
-    return CallbackReturn::ERROR;
-  }
-  size_t i=0;
   for(auto& joint: info_.joints)
   {
-    auto& hw_j = _hw_joints[i++];
-    hw_j.name = joint.name;
+    auto& hw_j = HwInterfaceComm::getInstance().getJoint(this, joint.name);
     hw_j.enable = true;
 
     // Command interfaces
@@ -225,18 +291,15 @@ CallbackReturn HwInterface::on_init(const HardwareInfo& info)
     }
   }
 
-  // Comms !
-  _comm = std::make_shared<HwInterfaceComm>(*this);
-  _executor.add_node(_comm);
-  _comm_th = std::thread([this]() { this->_executor.spin(); });
-
   //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Successfully initialized!", _name.c_str());
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   for(auto& joint: _hw_joints)
   {
-    if(!joint.enable)
+    if(!(joint.owner == this && joint.enable))
       continue;
     RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Successfully initialized!", _name.c_str(),joint.name.c_str());
   }
+
   return CallbackReturn::SUCCESS;
 }
 
@@ -254,9 +317,10 @@ std::vector<hardware_interface::StateInterface> HwInterface::export_state_interf
 std::vector<hardware_interface::CommandInterface> HwInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> _command_interfaces;
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   for(auto& joint: _hw_joints)
   {
-    if(!joint.enable)
+    if(!(joint.owner == this && joint.enable))
       continue;
     const auto& joint_name = joint.name;
     _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_POSITION, &joint.ref.pos));
@@ -270,13 +334,14 @@ std::vector<hardware_interface::CommandInterface> HwInterface::export_command_in
 ORTHOPUS_ROS_PUBLIC
 return_type HwInterface::prepare_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Starting Interfaces:");
   for(const auto& st_if: start_if)
   {
     for(const auto& joint: _hw_joints)
     {
-      if(!joint.enable)
+      if(!(joint.owner == this && joint.enable))
         continue;
       const auto jnsz = joint.name.length();
       if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
@@ -288,7 +353,7 @@ return_type HwInterface::prepare_command_mode_switch([[maybe_unused]] const std:
   {
     for(const auto& joint: _hw_joints)
     {
-      if(!joint.enable)
+      if(!(joint.owner == this && joint.enable))
         continue;
       const auto jnsz = joint.name.length();
       if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
@@ -302,13 +367,14 @@ return_type HwInterface::prepare_command_mode_switch([[maybe_unused]] const std:
 ORTHOPUS_ROS_PUBLIC
 return_type HwInterface::perform_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Performing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "  Starting Interfaces:");
   for(const auto& st_if: start_if)
   {
     for(const auto& joint: _hw_joints)
     {
-      if(!joint.enable)
+      if(!(joint.owner == this && joint.enable))
         continue;
       const auto jnsz = joint.name.length();
       if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
@@ -320,7 +386,7 @@ return_type HwInterface::perform_command_mode_switch([[maybe_unused]] const std:
   {
     for(const auto& joint: _hw_joints)
     {
-      if(!joint.enable)
+      if(!(joint.owner == this && joint.enable))
         continue;
       const auto jnsz = joint.name.length();
       if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
@@ -333,20 +399,21 @@ return_type HwInterface::perform_command_mode_switch([[maybe_unused]] const std:
 
 CallbackReturn HwInterface::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Activating ...please wait...", _name.c_str());
   for(auto& joint: _hw_joints)
   {
-    if(!joint.enable)
+    if(!(joint.owner == this && joint.enable))
       continue;
     joint.state.pos = 0.0;
     joint.state.vel = 0.0;
     joint.state.acc = 0.0;
     joint.state.eff = 0.0;
 
-    joint.ref.ppos = joint.ref.pos = 0.0;
-    joint.ref.pvel = joint.ref.vel = 0.0;
-    joint.ref.pacc = joint.ref.acc = 0.0;
-    joint.ref.peff = joint.ref.eff = 0.0;
+    joint.ref.pos = 0.0;
+    joint.ref.vel = 0.0;
+    joint.ref.acc = 0.0;
+    joint.ref.eff = 0.0;
   }
   RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s] Successfully activated!", _name.c_str());
 
@@ -369,41 +436,41 @@ return_type HwInterface::read([[maybe_unused]] const rclcpp::Time& time, [[maybe
 
 return_type HwInterface::write([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
+  auto& _hw_joints = *(HwInterfaceComm::getInstance().getJoints());
   for(auto& joint: _hw_joints)
   {
-    if(!joint.enable)
+    if(!(joint.owner == this && joint.enable))
       continue;
     auto& hw_ref = joint.ref;
-    if(!std::isnan(hw_ref.pos) && hw_ref.pos != hw_ref.ppos)
+    if(!std::isnan(hw_ref.pos))// && hw_ref.pos != hw_ref.ppos)
     {
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new pos command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.pos);
-      hw_ref.ppos = hw_ref.pos;
-      hw_ref.nwpos = true;
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new pos command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.pos);
+      //hw_ref.ppos = hw_ref.pos;
+      //hw_ref.nwpos = true;
     }
-    if(!std::isnan(hw_ref.vel) && hw_ref.vel != hw_ref.pvel)
+    if(!std::isnan(hw_ref.vel))// && hw_ref.vel != hw_ref.pvel)
     {
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new vel command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.vel);
-      hw_ref.pvel = hw_ref.vel;
-      hw_ref.nwvel = true;
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new vel command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.vel);
+      //hw_ref.pvel = hw_ref.vel;
+      //hw_ref.nwvel = true;
     }
-    if(!std::isnan(hw_ref.acc) && hw_ref.acc != hw_ref.pacc)
+    if(!std::isnan(hw_ref.acc))// && hw_ref.acc != hw_ref.pacc)
     {
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new acc command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.acc);
-      hw_ref.pacc = hw_ref.acc;
-      hw_ref.nwacc = true;
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new acc command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.acc);
+      //hw_ref.pacc = hw_ref.acc;
+      //hw_ref.nwacc = true;
     }
-    if(!std::isnan(hw_ref.eff) && hw_ref.eff != hw_ref.peff)
+    if(!std::isnan(hw_ref.eff))// && hw_ref.eff != hw_ref.peff)
     {
-      RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new eff command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.eff);
-      hw_ref.peff = hw_ref.eff;
-      hw_ref.nweff = true;
+      //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "[%s][%s] Writing new eff command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.eff);
+      //hw_ref.peff = hw_ref.eff;
+      //hw_ref.nweff = true;
     }
   }
   return return_type::OK;
 }
 
 }  // namespace orthopus_ros_interface
-
 
 #include "pluginlib/class_list_macros.hpp"
 
