@@ -62,6 +62,9 @@ private:
 HwInterfaceComm::HwInterfaceComm()
   : rclcpp::Node("orthopus_hw_interface_comm")
 {
+  // Reserve some space to avoid vector being moved !
+  _hw_joints.reserve(45);
+
   // To ros_explorer_bridge
   _expl_ref_pub = this->create_publisher<control_msgs::msg::DynamicJointState>("/explorer_ref", rclcpp::SystemDefaultsQoS());
 
@@ -120,11 +123,11 @@ HwInterfaceComm::HwInterfaceComm()
     rclcpp::Time start = this->get_clock()->now();
     //RCLCPP_INFO(rclcpp::get_logger("HwInterface"), "Début : %f s", start.seconds());
     size_t j = 0;
+    _expl_ref_msg.header.stamp.sec = start.seconds();
+    _expl_ref_msg.header.stamp.nanosec = start.nanoseconds();
+
     for(auto& ifv: _expl_ref_msg.interface_values)
     {
-      _expl_ref_msg.header.stamp.sec = start.seconds();
-      _expl_ref_msg.header.stamp.nanosec = start.nanoseconds();
-
       auto& hw_ref = _hw_joints[j].ref;
       const auto sz = ifv.interface_names.size();
       for (size_t i=0;i<sz;i++)
@@ -240,6 +243,7 @@ CallbackReturn HwInterface::on_init(const HardwareInfo& info)
   if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS)
     return CallbackReturn::ERROR;
 
+  _name = info_.name;
   for(auto& joint: info_.joints)
   {
     auto& hw_j = HwInterfaceComm::getInstance().getJoint(this, joint.name);
