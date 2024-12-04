@@ -238,8 +238,8 @@ class PyVESCExplorerBridge(Node):
         for it in self.vesc_mappings:
             id = it['can_id']
             v = self.mvesc(id)
-            v.printHandler = lambda txt,i=id: self.vescPrintHdlr(txt,vesc_id=i)
             if v is not None:
+                v.printHandler = lambda txt,i=id: self.vescPrintHdlr(txt,vesc_id=i)
                 self.vesc.append(self.mvesc(id))
                 it['vesc'] = v
             else:
