@@ -117,14 +117,15 @@ class PyVESCExplorerBridge(Node):
                     continue
                 if jit['type'] == 'motor':
                     pos_meas = jit['posmeas']
-                    delta = pos_meas-pos_ref
-                    if abs(delta) < self.max_pos_setpoint_step or \
-                    abs(delta - math.radians(360)) < self.max_pos_setpoint_step or \
-                    abs(delta + math.radians(360)) < self.max_pos_setpoint_step:  #TODO: allow moving in the direction that reduces delta
-                        v.set_pos(math.degrees(pos_ref))
-                        jit['posref'] = pos_ref
-                    else:
-                        self.get_logger().warning("[{:s}] Did not send the command, setpoint '{:f}' too far away from current meas '{:f}'".format(jit['name'],pos_ref,pos_meas))
+                    if pos_meas is not None:
+                        delta = pos_meas-pos_ref
+                        if abs(delta) < self.max_pos_setpoint_step or \
+                        abs(delta - math.radians(360)) < self.max_pos_setpoint_step or \
+                        abs(delta + math.radians(360)) < self.max_pos_setpoint_step:  #TODO: allow moving in the direction that reduces delta
+                            v.set_pos(math.degrees(pos_ref))
+                            jit['posref'] = pos_ref
+                        else:
+                            self.get_logger().warning("[{:s}] Did not send the command, setpoint '{:f}' too far away from current meas '{:f}'".format(jit['name'],pos_ref,pos_meas))
                 elif jit['type'] == 'servo':
                     v.set_servo(pos_ref)
 
