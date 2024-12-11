@@ -1,0 +1,3 @@
+joy_node:
+  ros__parameters:
+    deadzone        : 0.5
