@@ -114,6 +114,7 @@ namespace space_control
         
         //init x_desired with the simulation
         x_desired_ = x_init_;
+        send_input();
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&InputIntegrator::timer_callback, this));
 

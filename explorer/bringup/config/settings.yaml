@@ -21,12 +21,12 @@ qp_solving:
       max     : 3.14
     j2:
       limits  : 1
-      min     : -1.57
-      max     : 1.57
+      min     : -1.8
+      max     : 1.8
     j3:
       limits  : 1
       min     : -4.71
-      max     : 1.57
+      max     : 1.8
     j4:
       limits  : 1
       min     : -3.14
