@@ -34,8 +34,8 @@ namespace space_control
             }
             RCLCPP_DEBUG_STREAM(n_->get_logger(),"J" << i+1 << " - min:" << q_lower_limit_[i] << " max:" << q_upper_limit_[i]);
         }
-        q_lower_limit_[6] = 0;
-        q_upper_limit_[6] = 1.05;
+        q_lower_limit_[6] = 0.04;
+        q_upper_limit_[6] = 0.5;
 
         //init suscriber
         current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&JointOutputIntegrator::callback_current_pos_, this, std::placeholders::_1));

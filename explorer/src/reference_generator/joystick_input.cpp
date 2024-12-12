@@ -29,12 +29,12 @@ namespace space_control
         else{
             dq_.data[0] =  0.0;
         }
-        dq_.data[1] =  - msg.axes[1] * scale;
-        dq_.data[2] =  - msg.axes[4] * scale;
-        dq_.data[3] =  - msg.axes[0] * scale;
-        dq_.data[4] =  - msg.axes[3] * scale;
-        dq_.data[5] =  msg.axes[7] * scale;
-        dq_.data[6] =  msg.axes[6] * scale;
+        dq_.data[1] =  msg.axes[1] * scale;
+        dq_.data[2] =  msg.axes[4] * scale;
+        dq_.data[3] =  msg.axes[0] * scale;
+        dq_.data[4] =  -msg.axes[3] * scale;
+        dq_.data[5] =  -msg.axes[7] * scale;
+        dq_.data[6] =  -msg.axes[6] * scale;
 
         dq_pub_->publish(dq_);
     }

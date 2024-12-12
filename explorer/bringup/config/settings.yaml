@@ -44,6 +44,6 @@ qp_solving:
     model_group_name            : "arm"
     end_effector_name           : "tool0"
 
-    joint_max_vel               : 0.5 
+    joint_max_vel               : 0.5
 
 

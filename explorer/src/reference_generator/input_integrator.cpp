@@ -10,8 +10,8 @@ namespace space_control
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        max_vel_ = 0.025; 
-        max_vel_orientation_ = 0.5; 
+        max_vel_ = 0.075; 
+        max_vel_orientation_ = 1.5; 
         sampling_period_ = 0.01;
 
         n_->declare_parameter("max_vel", max_vel_);
