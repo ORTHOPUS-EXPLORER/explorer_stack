@@ -14,9 +14,6 @@ namespace space_control
         max_vel_orientation_ = 0.5; 
         sampling_period_ = 0.01;
 
-        // n_->declare_parameter("max_vel", max_vel_);
-        // n_->declare_parameter("max_vel_orientation", max_vel_orientation_);
-
         error_ = false;
         end_init_ = false;
         call_service_attempt_ = 0;
@@ -51,19 +48,6 @@ namespace space_control
         //init publishers
         dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
         x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10);
-
-        //param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(n_);
-
-        // auto callback_max_vel = [this](const rclcpp::Parameter & p) {
-        //     max_vel_ = p.as_double();
-        // };
-
-        // auto callback_max_vel_orientation = [this](const rclcpp::Parameter & p) {
-        //     max_vel_orientation_ = p.as_double();
-        // };
-
-        // cb_handle_max_vel = param_subscriber_->add_parameter_callback("max_vel", callback_max_vel);
-        // cb_handle_max_vel_orientation = param_subscriber_->add_parameter_callback("max_vel_orientation", callback_max_vel_orientation);
 
         auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
 
