@@ -6,6 +6,8 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 
+#include "std_msgs/msg/float64.hpp"
+
 
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -35,6 +37,9 @@ namespace space_control
         rclcpp::Node::SharedPtr n_;
     
         rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr input_sub_;
+        
+        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr linear_speed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr angular_speed_sub_;
 
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_pub_;
@@ -61,12 +66,9 @@ namespace space_control
         int init_attempt_;
         bool success_init_;
 
-        std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
-  
-        std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_max_vel;
-        std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_max_vel_orientation;
-
         void callback_input(const geometry_msgs::msg::TwistStamped & msg);
+        void callback_linear_speed(const std_msgs::msg::Float64 & msg);
+        void callback_angular_speed(const std_msgs::msg::Float64 & msg);
         void timer_callback();
         void send_input();
 

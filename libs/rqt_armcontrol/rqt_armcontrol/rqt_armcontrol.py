@@ -70,6 +70,12 @@ class RqtCartesianController(Plugin):
 
         self.gripper_pos= Float64()
         self.gripper_pos.data = 0.0
+    
+        self.linear_speed= Float64()
+        self.linear_speed.data = 0.025
+
+        self.angular_speed= Float64()
+        self.angular_speed.data = 0.5
 
         self.slider_released = True
         self.prev_slider_released = True
@@ -79,6 +85,8 @@ class RqtCartesianController(Plugin):
 
         self.publisher_ = self._context.node.create_publisher(TwistStamped, "/ros2_control_explorer/input_device_velocity", 1)
         self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/input_gripper_velocity", 1)
+        self.publisher_linear_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_linear_speed", 1)
+        self.publisher_angular_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_angular_speed", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -91,6 +99,8 @@ class RqtCartesianController(Plugin):
             self.publisher_.publish(self.cartesian_vel)
             self.publisher_gripper_.publish(self.gripper_pos)
         self.prev_slider_released = self.slider_released
+        self.publisher_linear_speed_.publish(self.linear_speed)
+        self.publisher_angular_speed_.publish(self.angular_speed)
 
     def setUpEventHandlers(self):
         self._widget.pos_x.valueChanged.connect(self.onXMove)
@@ -101,6 +111,9 @@ class RqtCartesianController(Plugin):
         self._widget.or_yaw.valueChanged.connect(self.onYaMove)
 
         self._widget.gripper.valueChanged.connect(self.onGripperMove)
+
+        self._widget.max_linear_speed.valueChanged.connect(self.onLinearSpeedMove)
+        self._widget.max_angular_speed.valueChanged.connect(self.onAngularSpeedMove)
 
         self._widget.pos_x.sliderReleased.connect(self.onSliderReleased)
         self._widget.pos_y.sliderReleased.connect(self.onSliderReleased)
@@ -138,6 +151,12 @@ class RqtCartesianController(Plugin):
     def onGripperMove(self, value):
         self.gripper_pos.data = float(value) / self.scale
         self.slider_released = False
+    
+    def onLinearSpeedMove(self, value):
+        self.linear_speed.data = float(value) / self.scale
+    
+    def onAngularSpeedMove(self, value):
+        self.angular_speed.data = float(value) / self.scale
 
     def onSliderReleased(self):
         self._widget.pos_x.setSliderPosition(0)

@@ -10,12 +10,12 @@ namespace space_control
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        max_vel_ = 0.075; 
-        max_vel_orientation_ = 1.5; 
+        max_vel_ = 0.025; 
+        max_vel_orientation_ = 0.5; 
         sampling_period_ = 0.01;
 
-        n_->declare_parameter("max_vel", max_vel_);
-        n_->declare_parameter("max_vel_orientation", max_vel_orientation_);
+        // n_->declare_parameter("max_vel", max_vel_);
+        // n_->declare_parameter("max_vel_orientation", max_vel_orientation_);
 
         error_ = false;
         end_init_ = false;
@@ -42,25 +42,28 @@ namespace space_control
 
         //init suscribers
         input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
-    
+
+        linear_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_linear_speed", 10, std::bind(&InputIntegrator::callback_linear_speed, this, std::placeholders::_1));
+        angular_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_angular_speed", 10, std::bind(&InputIntegrator::callback_angular_speed, this, std::placeholders::_1));
+
         x_init_client_ = n_->create_client<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init");
         
         //init publishers
         dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
         x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10);
 
-        param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(n_);
+        //param_subscriber_ = std::make_shared<rclcpp::ParameterEventHandler>(n_);
 
-        auto callback_max_vel = [this](const rclcpp::Parameter & p) {
-            max_vel_ = p.as_double();
-        };
+        // auto callback_max_vel = [this](const rclcpp::Parameter & p) {
+        //     max_vel_ = p.as_double();
+        // };
 
-        auto callback_max_vel_orientation = [this](const rclcpp::Parameter & p) {
-            max_vel_orientation_ = p.as_double();
-        };
+        // auto callback_max_vel_orientation = [this](const rclcpp::Parameter & p) {
+        //     max_vel_orientation_ = p.as_double();
+        // };
 
-        cb_handle_max_vel = param_subscriber_->add_parameter_callback("max_vel", callback_max_vel);
-        cb_handle_max_vel_orientation = param_subscriber_->add_parameter_callback("max_vel_orientation", callback_max_vel_orientation);
+        // cb_handle_max_vel = param_subscriber_->add_parameter_callback("max_vel", callback_max_vel);
+        // cb_handle_max_vel_orientation = param_subscriber_->add_parameter_callback("max_vel_orientation", callback_max_vel_orientation);
 
         auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
 
@@ -123,6 +126,16 @@ namespace space_control
     void InputIntegrator::callback_input(const geometry_msgs::msg::TwistStamped & msg)
     {   
         dx_input_ = msg;   
+    }
+
+    void InputIntegrator::callback_linear_speed(const std_msgs::msg::Float64 & msg)
+    {   
+        max_vel_= msg.data;
+    }
+
+    void InputIntegrator::callback_angular_speed(const std_msgs::msg::Float64 & msg)
+    {   
+        max_vel_orientation_ = msg.data;
     }
 
     void InputIntegrator::timer_callback()
