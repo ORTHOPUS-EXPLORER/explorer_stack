@@ -32,6 +32,9 @@ DeviceSpacenav::DeviceSpacenav(rclcpp::Node::SharedPtr n) : Device(n)
   trans_y_ = 0.0;
   trans_z_ = 0.0;
 
+  gripper_cmd_.data = 0.0;
+  gripper_cmd_prec_.data = 0.0;
+
   n_->get_parameter("debounce_button_time", debounce_button_time_);
   n_->get_parameter("static_trans_deadband", static_trans_deadband_);
   n_->get_parameter("static_rot_deadband_", static_rot_deadband_);
@@ -150,22 +153,26 @@ void DeviceSpacenav::debounceButtons_(const sensor_msgs::msg::Joy::SharedPtr msg
 
 void DeviceSpacenav::updateGripperCmd_()
 {
-  std_msgs::msg::Float64 gripper_cmd;
+  
   // Use A to toggle gripper state (open/close)
   if (button_left_ == 1)
   {
-    gripper_cmd.data = 0.5;
+    gripper_cmd_.data = 0.5;
     //openGripper_();
   }
   else if (button_right_ == 1)
   {
-    gripper_cmd.data = -0.5;
+    gripper_cmd_.data = -0.5;
     //closeGripper_();
   }
   else{
-    gripper_cmd.data = 0.0;
+    gripper_cmd_.data = 0.0;
   }
-  gripper_cmd_pub_->publish(gripper_cmd);
+  
+  if(gripper_cmd_ != gripper_cmd_prec_){
+    gripper_cmd_pub_->publish(gripper_cmd_);
+  }
+  gripper_cmd_prec_ = gripper_cmd_;
 }
 
 }

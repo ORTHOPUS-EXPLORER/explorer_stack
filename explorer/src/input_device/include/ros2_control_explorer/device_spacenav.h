@@ -34,6 +34,9 @@ private:
   double static_trans_deadband_, static_rot_deadband_;
   double trans_x_, trans_y_, trans_z_, rot_x_, rot_y_, rot_z_;
 
+  std_msgs::msg::Float64 gripper_cmd_;
+  std_msgs::msg::Float64 gripper_cmd_prec_;
+
   bool spacenav_is_stopped_ = false;
   bool spacenav_is_stopped_prev_ = false;
 
