@@ -14,6 +14,8 @@ DeviceSpacenav::DeviceSpacenav(rclcpp::Node::SharedPtr n) : Device(n)
 {
   device_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("spacenav/joy", 10,
                   std::bind(&DeviceSpacenav::callbackJoy_, this, std::placeholders::_1));
+  
+  select_sub_ = n_->create_subscription<std_msgs::msg::Int64>("/ros2_control_explorer/spacemouse_select", 10, std::bind(&DeviceSpacenav::callback_spacemouse_select_, this, std::placeholders::_1));
 
   debounce_button_left_ = n_->now();
   debounce_button_right_ = n_->now();
@@ -40,7 +42,6 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::msg::Joy::SharedPtr msg)
   RCLCPP_DEBUG(n_->get_logger(), "Process buttons.");
   processButtons_(msg);
   updateGripperCmd_();
-  updateControlMode_();
 
   RCLCPP_DEBUG_STREAM(n_->get_logger(), "Control mode select : " << control_mode_select_);
 
@@ -110,6 +111,11 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::msg::Joy::SharedPtr msg)
   }
 }
 
+void DeviceSpacenav::callback_spacemouse_select_(const std_msgs::msg::Int64 msg)
+{
+  control_mode_select_ = msg.data;
+}
+
 void DeviceSpacenav::processButtons_(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
   button_left_ = 0;
@@ -162,18 +168,6 @@ void DeviceSpacenav::updateGripperCmd_()
   gripper_cmd_pub_->publish(gripper_cmd);
 }
 
-void DeviceSpacenav::updateControlMode_()
-{
-  // Use A to toggle gripper state (open/close)
-  if (button_right_ == 1)
-  {
-    control_mode_select_ = 0;
-  }
-  if (control_mode_select_ > 2)
-  {
-    control_mode_select_ = 0;
-  }
-}
 }
 
 using namespace input_device;

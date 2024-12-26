@@ -11,6 +11,7 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/int64.hpp"
 
 /* TODO Improve multiple device handling. Currently, all device publish at the
 same time in the same topic device_sub_ which is nor safe nor expected behavior */
@@ -34,6 +35,7 @@ protected:
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_cmd_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_cmd_pub_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr device_sub_;
+  rclcpp::Subscription<std_msgs::msg::Int64>::SharedPtr select_sub_;
   /*
   ros::ServiceClient learning_mode_client_;
   ros::ServiceClient change_tool_srv_;

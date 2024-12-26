@@ -10,6 +10,7 @@
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "std_msgs/msg/int64.hpp"
 
 #include <ros2_control_explorer/device.h>
 
@@ -37,6 +38,7 @@ private:
   bool spacenav_is_stopped_prev_ = false;
 
   void callbackJoy_(const sensor_msgs::msg::Joy::SharedPtr msg);
+  void callback_spacemouse_select_(const std_msgs::msg::Int64 msg);
   void processButtons_(const sensor_msgs::msg::Joy::SharedPtr msg);
   void debounceButtons_(const sensor_msgs::msg::Joy::SharedPtr msg, const int button_id, rclcpp::Time& debounce_timer_ptr,
                         int& button_value_ptr);
