@@ -10,10 +10,10 @@ import sys
 import yaml
 
 from ament_index_python import get_resource
-from ament_index_python.packages import get_package_share_path
+
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QFileDialog, QWidget
+from python_qt_binding.QtWidgets import QWidget
 
 # pylint: enable=no-name-in-module,import-error
 
@@ -21,9 +21,9 @@ from rqt_gui.main import Main
 
 from rqt_gui_py.plugin import Plugin
 
-from std_msgs.msg import Float64
+from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
-from rclpy.node import Node
+
 
 
 class RqtJointController(Plugin):
@@ -72,9 +72,23 @@ class RqtJointController(Plugin):
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
+        self._widget.J1_pos.setText("{:.2f} °".format(0.00))
+        self._widget.J2_pos.setText("{:.2f} °".format(0.00))
+        self._widget.J3_pos.setText("{:.2f} °".format(0.00))
+        self._widget.J4_pos.setText("{:.2f} °".format(0.00))
+        self._widget.J5_pos.setText("{:.2f} °".format(0.00))
+        self._widget.J6_pos.setText("{:.2f} °".format(0.00))
+
+        #joint states
+        self.joint = JointState()
+        self.joint.name = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
+        self.joint.position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
         self.publisher_ = self._context.node.create_publisher(Float64MultiArray, "/ros2_control_explorer/dq_output", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
+
+        self.joint_sub_ = self._context.node.create_subscription(JointState, '/joint_states', self.joint_sub_callback, 1)
 
         self._context.node.get_logger().info("RQT Init Finished")
 
@@ -140,6 +154,22 @@ class RqtJointController(Plugin):
         self._widget.gripper.setSliderPosition(0)
         self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.slider_released = True
+
+    def joint_sub_callback(self, msg):
+        for i in range(0,6):
+            j = 0
+            while (self.joint.name[i]!= msg.name[j] and j<len(msg.name)):
+                j += 1
+            if(self.joint.name[i] == msg.name[j]):    
+                self.joint.position[i] = msg.position[j]
+
+        
+        self._widget.J1_pos.setText("{:.2f} °".format(self.joint.position[0]*(180/3.141592)))
+        self._widget.J2_pos.setText("{:.2f} °".format(self.joint.position[1]*(180/3.141592)))
+        self._widget.J3_pos.setText("{:.2f} °".format(self.joint.position[2]*(180/3.141592)))
+        self._widget.J4_pos.setText("{:.2f} °".format(self.joint.position[3]*(180/3.141592)))
+        self._widget.J5_pos.setText("{:.2f} °".format(self.joint.position[4]*(180/3.141592)))
+        self._widget.J6_pos.setText("{:.2f} °".format(self.joint.position[5]*(180/3.141592)))
 
     # Qt methods
     def shutdown_plugin(self):
