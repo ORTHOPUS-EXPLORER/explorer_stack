@@ -12,7 +12,7 @@ joint_output_integrator:
       max     : 1.8
     j3:
       limits  : 1
-      min     : -4.71
+      min     : -1.8
       max     : 1.8
     j4:
       limits  : 1
