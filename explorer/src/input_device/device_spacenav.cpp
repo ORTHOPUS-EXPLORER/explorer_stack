@@ -95,6 +95,15 @@ void DeviceSpacenav::callbackJoy_(const sensor_msgs::msg::Joy::SharedPtr msg)
       rot_y_ = msg->axes[4];
       rot_z_ = msg->axes[5];
     }
+    else if (control_mode_select_==3)
+    {
+      trans_x_ = msg->axes[0];
+      trans_y_ = msg->axes[1];
+      trans_z_ = msg->axes[2];
+      rot_x_ = 0.0;
+      rot_y_ = 0.0;
+      rot_z_ = msg->axes[5];
+    }
     else
     {
       control_mode_select_ = 0;
