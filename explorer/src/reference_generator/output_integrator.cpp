@@ -19,10 +19,13 @@ namespace space_control
         q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        
+        go_home = false;
 
         //init suscriber
         dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output, this, std::placeholders::_1));
         gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/input_gripper_velocity", 10, std::bind(&OutputIntegrator::callback_gripper_vel, this, std::placeholders::_1));
+        home_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&OutputIntegrator::callback_home, this, std::placeholders::_1));
 
         q_init_client_ = n_->create_client<custom_interfaces::srv::Float64>("/ros2_control_explorer/q_init");
 
@@ -91,11 +94,20 @@ namespace space_control
         gripper_vel_.data = msg.data;
     }
 
+    void OutputIntegrator::callback_home(const std_msgs::msg::Bool & msg)
+    {   
+        go_home = msg.data;
+    }
+
     void OutputIntegrator::timer_callback()
     {
+        if(go_home == true){
+            home(); 
+        }
+
         for(int i=0; i< 6; i++){
-           q_command_.data[i] = q_command_.data[i] + dq_output_.data[i] * sampling_period_;
-           //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
+                q_command_.data[i] = q_command_.data[i] + dq_output_.data[i] * sampling_period_;
+                //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
         }
         
         q_command_.data[6] = q_command_.data[6] + gripper_vel_.data * sampling_period_;
@@ -107,6 +119,53 @@ namespace space_control
         }
 
         command_pub_->publish(q_command_);
+    }
+
+    void OutputIntegrator::home()
+    {
+        
+        if(q_command_.data[5] < -0.001){
+            if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
+                dq_output_.data[5] = 0.5;
+            }
+            else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0) {
+                dq_output_.data[5] =  q_command_.data[5]/sampling_period_;
+            }
+        }else if(q_command_.data[5] > 0.001){
+            if(q_command_.data[5] - 0.5 * sampling_period_ >= 0.0){
+                dq_output_.data[5] = - 0.5;
+            }
+            else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0) {
+                dq_output_.data[5] =  q_command_.data[5]/(-sampling_period_);
+            }
+        }else{
+            dq_output_.data[5] = 0.0;
+        }
+
+        for(int i=4; i >= 0; i--){
+            if(q_command_.data[i+1] <= 0.001 && q_command_.data[i+1] >= -0.001){
+                if(q_command_.data[i] < -0.001){
+                    if(q_command_.data[i] + 0.5 * sampling_period_ <= 0.0){
+                        dq_output_.data[i] = 0.5;
+                    }
+                    else if (q_command_.data[i] + 0.5 * sampling_period_ > 0.0) {
+                        dq_output_.data[i] =  q_command_.data[i]/sampling_period_;
+                    }
+                }else if(q_command_.data[i] > 0.001){
+                    if(q_command_.data[i] - 0.5 * sampling_period_ >= 0.0){
+                        dq_output_.data[i] = - 0.5;
+                    }
+                    else if (q_command_.data[i] - 0.5 * sampling_period_ < 0.0) {
+                        dq_output_.data[i] =  q_command_.data[i]/(-sampling_period_);
+                    }
+                }else{
+                    dq_output_.data[i] = 0.0;
+                }
+            }
+            else{
+                dq_output_.data[i] = 0.0;
+            }
+        }
     }
 
 

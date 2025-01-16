@@ -7,7 +7,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 
 #include "std_msgs/msg/float64.hpp"
-
+#include "std_msgs/msg/bool.hpp"
 
 #include <tf2/LinearMath/Quaternion.h>
 
@@ -40,9 +40,13 @@ namespace space_control
         
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr linear_speed_sub_;
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr angular_speed_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
 
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_pub_;
+        rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr x_des_updated_pub_;
 
         rclcpp::Client<custom_interfaces::srv::Pose>::SharedPtr x_init_client_;
 
@@ -55,6 +59,7 @@ namespace space_control
         SpacePosition x_desired_;
         SpacePosition x_init_;
         SpaceVelocity dx_desired_;
+        SpacePosition x_current_;
 
         double max_vel_;
         double max_vel_orientation_;
@@ -65,10 +70,16 @@ namespace space_control
         int call_service_attempt_;
         int init_attempt_;
         bool success_init_;
+        bool go_home;
+        
+        std_msgs::msg::Bool x_des_updated_;
 
         void callback_input(const geometry_msgs::msg::TwistStamped & msg);
         void callback_linear_speed(const std_msgs::msg::Float64 & msg);
         void callback_angular_speed(const std_msgs::msg::Float64 & msg);
+        void callback_x_current(const geometry_msgs::msg::Pose & msg);
+        void callback_home_released(const std_msgs::msg::Bool & msg);
+        void callback_home_pressed(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void send_input();
 

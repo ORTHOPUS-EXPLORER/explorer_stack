@@ -22,6 +22,7 @@ from rqt_gui_py.plugin import Plugin
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import Float64
 from std_msgs.msg import Int64
+from std_msgs.msg import Bool
 from sensor_msgs.msg import JointState
 
 
@@ -86,6 +87,12 @@ class RqtCartesianController(Plugin):
         self.select = Int64()
         self.select.data = 0
 
+        self.home_released = Bool()
+        self.home_released.data = False
+
+        self.home_pressed = Bool()
+        self.home_pressed.data = False
+
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
@@ -106,6 +113,8 @@ class RqtCartesianController(Plugin):
         self.publisher_linear_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_linear_speed", 1)
         self.publisher_angular_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_angular_speed", 1)
         self.publisher_spacemouse_select_ = self._context.node.create_publisher(Int64, "/ros2_control_explorer/spacemouse_select", 1)
+        self.publisher_home_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/home_pressed", 1)
+        self.publisher_home_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/home_released", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -123,6 +132,10 @@ class RqtCartesianController(Plugin):
         self.publisher_linear_speed_.publish(self.linear_speed)
         self.publisher_angular_speed_.publish(self.angular_speed)
         self.publisher_spacemouse_select_.publish(self.select)
+        if(self.home_released.data == True ):
+            self.home_released.data = False
+            self.publisher_home_released_.publish(self.home_released)
+        
 
     def setUpEventHandlers(self):
         self._widget.pos_x.valueChanged.connect(self.onXMove)
@@ -138,6 +151,9 @@ class RqtCartesianController(Plugin):
         self._widget.max_angular_speed.valueChanged.connect(self.onAngularSpeedMove)
 
         self._widget.spacemouse_select.valueChanged.connect(self.OnChangeSelect)
+
+        self._widget.home_btn.released.connect(self.OnHomeReleased)
+        self._widget.home_btn.pressed.connect(self.OnHomePressed)
 
         self._widget.pos_x.sliderReleased.connect(self.onSliderReleased)
         self._widget.pos_y.sliderReleased.connect(self.onSliderReleased)
@@ -184,6 +200,16 @@ class RqtCartesianController(Plugin):
 
     def OnChangeSelect(self, value):
         self.select.data = value
+
+    def OnHomeReleased(self):
+        self.home_released.data = True
+        self.home_pressed.data = False
+        self.publisher_home_released_.publish(self.home_released)
+        self.publisher_home_pressed_.publish(self.home_pressed)
+
+    def OnHomePressed(self):
+        self.home_pressed.data = True
+        self.publisher_home_pressed_.publish(self.home_pressed)
 
     def onSliderReleased(self):
         self._widget.pos_x.setSliderPosition(0)

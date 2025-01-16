@@ -23,6 +23,7 @@ namespace space_control
         init = false;
         wheelchair = false;
         first_use = true;
+        go_home = false;
         //init inverse and forward kinematic 
         ik_.init("tool0", sampling_period_);
         fk_.init("tool0");
@@ -45,10 +46,12 @@ namespace space_control
         dx_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10, std::bind(&QPSolving::callback_dx_input_, this, std::placeholders::_1));
         x_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10, std::bind(&QPSolving::callback_x_input_, this, std::placeholders::_1));
         q_command_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&QPSolving::callback_q_command_prec_, this, std::placeholders::_1));
+        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&QPSolving::callback_home_pressed_, this, std::placeholders::_1));
+        x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
 
         //init publishers
         dq_output_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10);
-        x_current_debug_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/debug/x_current", 10);
+        x_current_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_current", 10);
         q_current_debug_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/debug/q_current", 10);
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
@@ -107,7 +110,22 @@ namespace space_control
         }
     }
        
-        
+    void QPSolving::callback_home_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_home = true;
+        }
+       
+    }
+
+    void QPSolving::callback_x_des_updated_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_home = false;
+            ik_.reset();
+        }
+       
+    }
 
     void QPSolving::callback_q_command_prec_(const std_msgs::msg::Float64MultiArray & msg)
     {   
@@ -161,24 +179,31 @@ namespace space_control
         x_desired_ = x_input_;
         dx_desired_ = dx_input_;
 
-        //RCLCPP_INFO(n_->get_logger(), "=== Start FK computation...");
+        // RCLCPP_INFO(n_->get_logger(), "=== Start FK computation...");
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Input joint position :");
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "q_current_           : " << q_current_);
         fk_.setQCurrent(q_current_);
         fk_.resolveForwardKinematic();
         fk_.getXCurrent(x_current_);
         // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Forward kinematic computes space position : ");
-        //RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_current_           : " << x_current_);
-
-        //RCLCPP_INFO(n_->get_logger(), "=== Start IK computation...");
-        ik_.setQCurrent(q_current_);
-        ik_.setXCurrent(x_current_);
-        ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, wheelchair);
-        // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Inverse kinematic computes joint velocity :");
-        //RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_          : " << dq_desired_);
-
+        // RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_current_           : " << x_current_);
+        
+        if(go_home == false){
+            
+            // RCLCPP_INFO(n_->get_logger(), "=== Start IK computation...");
+            ik_.setQCurrent(q_current_);
+            ik_.setXCurrent(x_current_);
+            // RCLCPP_DEBUG_STREAM(n_->get_logger(), "x_desired_           : " << x_desired_);
+            // RCLCPP_DEBUG_STREAM(n_->get_logger(), "dx_desired_           : " << dx_desired_);
+            // RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_           : " << dq_desired_);
+            ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, wheelchair);
+            // RCLCPP_DEBUG_STREAM(n_->get_logger(), "Inverse kinematic computes joint velocity :");
+            // RCLCPP_DEBUG_STREAM(n_->get_logger(), "dq_desired_          : " << dq_desired_);
+            send_output();
+        }
+       
         publishDebugTopic_();
-        send_output();
+        
     }
 
     void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
@@ -253,7 +278,7 @@ namespace space_control
         x_current_pose.orientation.x = x_current_.orientation.x();
         x_current_pose.orientation.y = x_current_.orientation.y();
         x_current_pose.orientation.z = x_current_.orientation.z();
-        x_current_debug_pub_->publish(x_current_pose);
+        x_current_pub_->publish(x_current_pose);
 
         for(int i=0; i< 20; i++){
             q_current_debug.data[i] = q_current_[i];

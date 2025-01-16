@@ -7,6 +7,7 @@ namespace space_control
     , x_init_()
     , x_desired_()
     , dx_desired_()
+    , x_current_()
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
@@ -19,6 +20,8 @@ namespace space_control
         call_service_attempt_ = 0;
         init_attempt_ = 0;
         success_init_ = false;
+        go_home = false;
+        x_des_updated_.data = false;
 
         //init variables
         x_desired_.position.x() = 0.0;
@@ -37,17 +40,29 @@ namespace space_control
         x_init_.orientation.z() = 0.0;
         x_init_.orientation.w() = 1.0;
 
+        x_current_.position.x() = 0.0;
+        x_current_.position.y() = 0.0;
+        x_current_.position.z() = 0.0;
+        x_current_.orientation.x() = 0.0;
+        x_current_.orientation.y() = 0.0;
+        x_current_.orientation.z() = 0.0;
+        x_current_.orientation.w() = 1.0;
+
         //init suscribers
         input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
 
         linear_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_linear_speed", 10, std::bind(&InputIntegrator::callback_linear_speed, this, std::placeholders::_1));
         angular_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_angular_speed", 10, std::bind(&InputIntegrator::callback_angular_speed, this, std::placeholders::_1));
+        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_current", 10, std::bind(&InputIntegrator::callback_x_current, this, std::placeholders::_1));
+        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&InputIntegrator::callback_home_released, this, std::placeholders::_1));
+        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&InputIntegrator::callback_home_pressed, this, std::placeholders::_1));
 
         x_init_client_ = n_->create_client<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init");
         
         //init publishers
         dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
         x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10);
+        x_des_updated_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated",10);
 
         auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
 
@@ -122,42 +137,79 @@ namespace space_control
         max_vel_orientation_ = msg.data;
     }
 
+    void InputIntegrator::callback_x_current(const geometry_msgs::msg::Pose & msg)
+    {   
+        x_current_.position.x() = msg.position.x;
+        x_current_.position.y() = msg.position.y;
+        x_current_.position.z() = msg.position.z;
+        x_current_.orientation.w() = msg.orientation.w;
+        x_current_.orientation.x() = msg.orientation.x;
+        x_current_.orientation.y() = msg.orientation.y;
+        x_current_.orientation.z() = msg.orientation.z;
+    }
+
+    void InputIntegrator::callback_home_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_home = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_home_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_home = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
     void InputIntegrator::timer_callback()
     {
        
         tf2::Quaternion q_orig, q_rot, q_new;
 
-        dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
-        dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
-        dx_desired_.position.z() = (dx_input_.twist.linear.z * max_vel_);
-        dx_desired_.orientation.w() = (0.0);
-        dx_desired_.orientation.x() = (dx_input_.twist.angular.x * max_vel_orientation_);
-        dx_desired_.orientation.y() = (dx_input_.twist.angular.y * max_vel_orientation_);
-        dx_desired_.orientation.z() = (dx_input_.twist.angular.z * max_vel_orientation_);
+        if(go_home == false){
             
+            dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
+            dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
+            dx_desired_.position.z() = (dx_input_.twist.linear.z * max_vel_);
+            dx_desired_.orientation.w() = (0.0);
+            dx_desired_.orientation.x() = (dx_input_.twist.angular.x * max_vel_orientation_);
+            dx_desired_.orientation.y() = (dx_input_.twist.angular.y * max_vel_orientation_);
+            dx_desired_.orientation.z() = (dx_input_.twist.angular.z * max_vel_orientation_);
+                
 
-        //Integrates cartesian velocities to get cartesian positions
-        x_desired_.position.x() = (x_desired_.position.x() + dx_desired_.position.x() * sampling_period_ );
-        x_desired_.position.y() = (x_desired_.position.y() + dx_desired_.position.y() * sampling_period_ );
-        x_desired_.position.z() = (x_desired_.position.z() + dx_desired_.position.z() * sampling_period_);
+            //Integrates cartesian velocities to get cartesian positions
+            x_desired_.position.x() = (x_desired_.position.x() + dx_desired_.position.x() * sampling_period_ );
+            x_desired_.position.y() = (x_desired_.position.y() + dx_desired_.position.y() * sampling_period_ );
+            x_desired_.position.z() = (x_desired_.position.z() + dx_desired_.position.z() * sampling_period_);
 
-        //converts in quaternion
-        q_orig[0]=x_desired_.orientation.x();
-        q_orig[1]=x_desired_.orientation.y();
-        q_orig[2]=x_desired_.orientation.z();
-        q_orig[3]=x_desired_.orientation.w();
+            //converts in quaternion
+            q_orig[0]=x_desired_.orientation.x();
+            q_orig[1]=x_desired_.orientation.y();
+            q_orig[2]=x_desired_.orientation.z();
+            q_orig[3]=x_desired_.orientation.w();
 
-        q_rot.setRPY(dx_desired_.orientation.x() * sampling_period_ , dx_desired_.orientation.y() * sampling_period_, dx_desired_.orientation.z() * sampling_period_ );
-                    
-        q_new = q_rot * q_orig;
-        q_new.normalize();
+            q_rot.setRPY(dx_desired_.orientation.x() * sampling_period_ , dx_desired_.orientation.y() * sampling_period_, dx_desired_.orientation.z() * sampling_period_ );
+                        
+            q_new = q_rot * q_orig;
+            q_new.normalize();
 
-        x_desired_.orientation.x() = (q_new[0]);
-        x_desired_.orientation.y() = (q_new[1]);
-        x_desired_.orientation.z() = (q_new[2]);
-        x_desired_.orientation.w() = (q_new[3]);
+            x_desired_.orientation.x() = (q_new[0]);
+            x_desired_.orientation.y() = (q_new[1]);
+            x_desired_.orientation.z() = (q_new[2]);
+            x_desired_.orientation.w() = (q_new[3]);
 
-        send_input();
+            send_input();
+
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
     }
 
     void InputIntegrator::send_input()

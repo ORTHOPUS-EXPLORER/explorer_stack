@@ -6,6 +6,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 #include "ros2_control_explorer/inverse_kinematic.h"
 #include "ros2_control_explorer/forward_kinematic.h"
@@ -43,9 +44,11 @@ namespace space_control
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  x_input_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  dx_input_sub_;
         rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr  q_command_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr x_des_updated_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
-        rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_debug_pub_;
+        rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr q_current_debug_pub_;
         
         rclcpp::Service<custom_interfaces::srv::Pose>::SharedPtr x_init_service_;
@@ -73,6 +76,7 @@ namespace space_control
         bool init;
         bool wheelchair;
         bool first_use;
+        bool go_home;
 
         int joint_order[20];
         std::vector<double> q_init_;
@@ -81,6 +85,8 @@ namespace space_control
         void callback_q_command_prec_(const std_msgs::msg::Float64MultiArray & msg);
         void callback_dx_input_(const geometry_msgs::msg::Pose & msg);
         void callback_x_input_(const geometry_msgs::msg::Pose & msg);
+        void callback_home_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_x_des_updated_(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req, std::shared_ptr<custom_interfaces::srv::Pose::Response> res);
         void callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req, std::shared_ptr<custom_interfaces::srv::Float64::Response> res);
