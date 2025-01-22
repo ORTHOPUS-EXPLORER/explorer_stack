@@ -119,6 +119,12 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
+     # Declare GUI controller node
+    gui_control_node = Node(
+        package='rqt_armcontrol',
+        executable='rqt_actuatorcontrol',
+    )
+
     delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
 
     actuator_bridge_params = PathJoinSubstitution(
@@ -172,6 +178,7 @@ def generate_launch_description():
         joy_node,
         actuator_bridge,
         joint_state_broadcaster_spawner,
+        gui_control_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)

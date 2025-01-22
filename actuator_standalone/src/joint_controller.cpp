@@ -1,5 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <sensor_msgs/msg/joy.hpp>
 
 #include "sensor_msgs/msg/joint_state.hpp"
@@ -15,7 +16,7 @@ public:
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
 
         q_command_.data = {0.0};
-        dq_.data = {0.0};
+        dq_.data = 0.0;
         q_init = 0.0;
         x=0.0;
 
@@ -26,24 +27,30 @@ public:
 
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
 
-        joy_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("/joy", 10, std::bind(&JointControl::callback, this, std::placeholders::_1));
+        joy_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("/joy", 10, std::bind(&JointControl::joy_callback, this, std::placeholders::_1));
+        gui_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_actuator/dq_output", 10, std::bind(&JointControl::gui_callback, this, std::placeholders::_1));
 
         current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&JointControl::callback_current_pos_, this, std::placeholders::_1));
 
         timer_ = n_->create_wall_timer(20ms, std::bind(&JointControl::timer_callback, this));
     }
 
-    void callback(sensor_msgs::msg::Joy msg){
+    void joy_callback(sensor_msgs::msg::Joy msg){
 
        if(msg.axes[2] != 1){
-            dq_.data[0] = -((msg.axes[2]-1)/2) * scale;
+            dq_.data = -((msg.axes[2]-1)/2) * scale;
         }
         else if(msg.axes[5] != 1){
-            dq_.data[0] =  ((msg.axes[5]-1)/2) * scale;
+            dq_.data =  ((msg.axes[5]-1)/2) * scale;
         }
         else{
-            dq_.data[0] =  0.0;
+            dq_.data =  0.0;
         }
+    }
+
+    void gui_callback(std_msgs::msg::Float64 msg){
+
+       dq_.data = msg.data * scale;
     }
 
      void callback_current_pos_(const sensor_msgs::msg::JointState & msg)
@@ -58,16 +65,16 @@ public:
     void timer_callback()
     {
         if(init == true){
-            //q_command_.data[0] = q_command_.data[0] + dq_.data[0] * sampling_period_;
-            q_command_.data[0]= 0.5*cos(x)+q_init;
+            q_command_.data[0] = q_command_.data[0] + dq_.data * sampling_period_;
+            // q_command_.data[0]= 0.5*cos(x)+q_init;
 
+            // command_pub_->publish(q_command_);
+
+            // x = x + 0.04;
+            // if(x >= (3.14*2)){
+            //     x = 0.0;
+            // }
             command_pub_->publish(q_command_);
-
-            x = x + 0.04;
-            if(x >= (3.14*2)){
-                x = 0.0;
-            }
-            //command_pub_->publish(q_command_);
         }
     }
 
@@ -77,11 +84,12 @@ public:
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
 
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gui_sub_;
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 
-    std_msgs::msg::Float64MultiArray dq_;
+    std_msgs::msg::Float64 dq_;
     std_msgs::msg::Float64MultiArray q_command_;
 
     double sampling_period_;

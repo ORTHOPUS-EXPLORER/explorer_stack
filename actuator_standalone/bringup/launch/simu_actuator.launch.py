@@ -119,6 +119,12 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
+    # Declare GUI controller node
+    gui_control_node = Node(
+        package='rqt_armcontrol',
+        executable='rqt_actuatorcontrol',
+    )
+
     delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
 
     register_event_handler = []
@@ -161,6 +167,7 @@ def generate_launch_description():
         node_robot_state_publisher,
         gz_spawn_entity,
         joy_node,
+        gui_control_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)
