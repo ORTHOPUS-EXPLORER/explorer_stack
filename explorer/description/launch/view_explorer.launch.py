@@ -31,8 +31,16 @@ def generate_launch_description():
         with this launch file.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_POC2",
+            default_value="false",
+            description="Use POC2 urdf",
+        )
+    )
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
+    poc2 = LaunchConfiguration("use_POC2")
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -46,6 +54,8 @@ def generate_launch_description():
                     "explorer.urdf.xacro",
                 ]
             ),
+            " ",
+            "use_POC2:=",poc2
         ]
     )
     robot_description = {"robot_description": robot_description_content}

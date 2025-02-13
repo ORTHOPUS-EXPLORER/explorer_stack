@@ -1,6 +1,6 @@
 # URDF 
 
-## explorer_old_description.urdf.xacro
+## explorer_POC1_description.urdf.xacro
 
 This is the description of the "snake like" explorer. 
 

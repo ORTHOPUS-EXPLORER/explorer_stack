@@ -2,9 +2,8 @@
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="explorer">
   <xacro:arg name="use_ignition" default="false" />
   <xacro:arg name="use_actuator_interface" default="false" />
+  <xacro:arg name="use_POC2" default="false" />
 
-  <!-- Import explorer macro -->
-  <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_old_description.urdf.xacro"/>
   <xacro:include filename="$(find gripper_pincette)/description/urdf/gripper_pincette_description.urdf.xacro"/>
 
   <!-- create link fixed to the "world" -->
@@ -20,13 +19,31 @@
     <axis xyz="0 0 1"/>
   </joint>
 
-  <joint name="joint_6" type="revolute">
-    <parent link="link_5"/>
-    <child link="structure"/>
-    <origin xyz="0 0.090 0.083" rpy="0 ${(65*pi)/180} ${pi/2}"/>
-    <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
-  </joint>
+  <xacro:unless value="$(arg use_POC2)">
+    <!-- Import explorer macro -->
+    <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_POC1_description.urdf.xacro"/>
+    <joint name="joint_6" type="revolute">
+      <parent link="link_5"/>
+      <child link="structure"/>
+      <origin xyz="0 0.090 0.083" rpy="0 ${(65*pi)/180} ${pi/2}"/>
+      <axis xyz="0 0 -1"/>
+      <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
+    </joint>
+    <xacro:explorer_POC1_description/>
+  </xacro:unless>
+  <xacro:if value="$(arg use_POC2)">
+    <!-- Import explorer macro -->
+    <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_POC2_description.urdf.xacro"/>
+
+    <joint name="joint_6" type="revolute">
+      <parent link="link_5"/>
+      <child link="structure"/>
+      <origin xyz="0 0.1555 -0.027" rpy="${pi/2} 0 ${pi}"/>
+      <axis xyz="0 0 -1"/>
+      <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
+    </joint>
+    <xacro:explorer_POC2_description/>
+  </xacro:if>
 
   <joint name="joint-ft_frame" type="fixed">
     <parent link="structure"/>
@@ -46,7 +63,6 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <xacro:explorer_old_description/>
   <xacro:gripper_pincette/>
 
   <!-- Import explorer ros2_control description -->

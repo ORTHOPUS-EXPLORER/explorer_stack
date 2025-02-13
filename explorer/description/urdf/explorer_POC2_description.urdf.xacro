@@ -1,0 +1,187 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="explorer_POC2_description">
+
+  <!-- helper macro -->
+  <xacro:include filename="$(find ros2_control_explorer)/description/urdf/inc/create_link.xacro"/>
+
+  <xacro:create_link
+      link_name="base_link"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="base_link_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="link_1"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="link0_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="link_2"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="link1_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="link_3"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="link2_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="link_4"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="link3_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <xacro:create_link
+      link_name="link_5"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="link4_POC2"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  />
+
+  <!-- <xacro:create_link
+      link_name="link_6"
+      xyz_offset="0 0 0"
+      rpy_offset="0 0 0"
+      mesh_package="ros2_control_explorer"
+      mesh_name="gripper"
+      xyz_mass="0 0 0"
+      mass="1"
+      ixx="1"
+      ixy="0"
+      ixz="0"
+      iyy="1"
+      iyz="0"
+      izz="1"
+  /> -->
+
+  <link name="ft_frame"/>
+  <link name="tool0"/>
+
+  <!-- joints - main serial chain -->
+  <joint name="joint_1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link_1"/>
+    <origin xyz="0 0 0.0555" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+  </joint>
+
+  <joint name="joint_2" type="revolute">
+    <parent link="link_1"/>
+    <child link="link_2"/>
+    <origin xyz="0 0.0265 0.058952" rpy="${pi/2} ${-pi/2} 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi/2}" upper="${pi/2}" velocity="2.5"/>
+  </joint>
+
+  <joint name="joint_3" type="revolute">
+    <parent link="link_2"/>
+    <child link="link_3"/>
+    <origin xyz="0.413 0 0" rpy="${pi} 0 ${-pi/2}"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-3*pi/2}" upper="${pi/2}" velocity="2.5"/>
+  </joint>
+
+  <joint name="joint_4" type="revolute">
+    <parent link="link_3"/>
+    <child link="link_4"/>
+    <origin xyz="0.1885 0 -0.008" rpy="${pi/2} 0 ${pi/2}"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+  </joint>
+
+  <joint name="joint_5" type="revolute">
+    <parent link="link_4"/>
+    <child link="link_5"/>
+    <origin xyz="0 0.0285 0.1" rpy="${pi/2} 0 ${pi}"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+  </joint>
+
+  <!-- <joint name="joint_6" type="revolute">
+    <parent link="link_5"/>
+    <child link="link_6"/>
+    <origin xyz="-0.150049 0 -0.028307" rpy="0 ${-pi/2} 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+  </joint>
+
+  <joint name="joint-ft_frame" type="fixed">
+    <parent link="link_6"/>
+    <child link="ft_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="joint-tool" type="fixed">
+    <parent link="ft_frame"/>
+    <child link="tool0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint> -->
+
+</xacro:macro>
+
+</robot>
