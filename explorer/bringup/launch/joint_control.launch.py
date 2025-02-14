@@ -30,6 +30,7 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    poc2 = LaunchConfiguration("use_POC2")
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -44,6 +45,13 @@ def generate_launch_description():
             'use_sim_time',
             default_value= use_sim_time,
             description='If true, use simulated clock')
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_POC2",
+            default_value="false",
+            description="Use POC2 urdf",
+        )
     )
 
     world = os.path.join(
@@ -76,6 +84,8 @@ def generate_launch_description():
             ),
             " ",
             "use_ignition:=true",
+            " ",
+            "use_POC2:=",poc2,
         ]
     )
     robot_description = {"robot_description": robot_description_content}

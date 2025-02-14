@@ -27,6 +27,8 @@ def generate_launch_description():
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
     run_bridge = LaunchConfiguration("use_bridge")
+    poc2 = LaunchConfiguration("use_POC2")
+
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -49,6 +51,13 @@ def generate_launch_description():
             description="Start Explorer PyVESC Bridge (and use Actuators HW Interfaces)",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_POC2",
+            default_value="false",
+            description="Use POC2 urdf",
+        )
+    )
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -61,7 +70,9 @@ def generate_launch_description():
             " ",
             "use_ignition:=false",
             " ",
-            "use_actuator_interface:=",run_bridge
+            "use_actuator_interface:=",run_bridge,
+            " ",
+            "use_POC2:=",poc2
         ]
     )
     robot_description = {"robot_description": robot_description_content}
