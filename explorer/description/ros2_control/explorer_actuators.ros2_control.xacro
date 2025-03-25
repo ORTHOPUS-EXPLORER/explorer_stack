@@ -8,43 +8,48 @@
   <!-- ROS2 Control -->
   <ros2_control name="${name}_joint_1" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
-      <!--param name="my_super_param">2.0</param-->
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">11</param>
     </hardware>
     <xacro:explorer_joint_1 />
   </ros2_control>
 
   <ros2_control name="${name}_joint_2" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">12</param>
     </hardware>
     <xacro:explorer_joint_2 />
   </ros2_control>
 
   <ros2_control name="${name}_joint_3" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">13</param>
     </hardware>
     <xacro:explorer_joint_3 />
   </ros2_control>
 
   <ros2_control name="${name}_joint_4" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">14</param>
     </hardware>
     <xacro:explorer_joint_4 />
   </ros2_control>
 
   <ros2_control name="${name}_joint_5" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">15</param>
     </hardware>
     <xacro:explorer_joint_5 />
   </ros2_control>
 
   <ros2_control name="${name}_joint_6" type="actuator">
     <hardware>
-      <plugin>orthopus_ros_interface/HwInterface</plugin>
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="can_id">16</param>
     </hardware>
     <xacro:explorer_joint_6 />
     <xacro:explorer_gripper_servo_joint />

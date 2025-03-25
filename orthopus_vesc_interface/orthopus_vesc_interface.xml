@@ -1,0 +1,9 @@
+<library path="orthopus_vesc_interface">
+  <class name="orthopus_vesc_interface/VESCInterface"
+         type="orthopus_ros::VESCInterface"
+         base_class_type="hardware_interface::ActuatorInterface">
+    <description>
+      Hardware Interface for Orthopus actuators
+    </description>
+  </class>
+</library>

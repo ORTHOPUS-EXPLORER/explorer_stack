@@ -72,6 +72,7 @@ def generate_launch_description():
             "explorer_controller.yaml",
         ]
     )
+    
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"]
     )
@@ -81,6 +82,8 @@ def generate_launch_description():
         executable="ros2_control_node",
         parameters=[robot_controllers],
         output="both",
+        #arguments=['--non-interactive', '--ros-args' , '--log-level', 'DEBUG']
+        #prefix=['xterm -e gdb -ex run --args'],
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
@@ -128,33 +131,12 @@ def generate_launch_description():
         )
     )
 
-    # Explorer bridge
-    explorer_bridge_params = PathJoinSubstitution(
-        [
-            FindPackageShare("ros2_control_explorer"),
-            "config",
-            "explorer_vesc.yaml",
-        ]
-    )
-
-    explorer_bridge = Node(
-        package="pyvesc_explorer",
-        executable="ros_explorer_bridge",
-        parameters=[explorer_bridge_params],
-        output="both",
-        remappings=[],
-        arguments=['--non-interactive','--ros-args'],#, '--log-level', 'DEBUG']
-        #prefix=['xterm -e gdb -ex run --args'],
-        condition=IfCondition(run_bridge),
-    )
-
     nodes = [
         control_node,
         robot_state_pub_node,
         joint_state_broadcaster_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
-        explorer_bridge,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
