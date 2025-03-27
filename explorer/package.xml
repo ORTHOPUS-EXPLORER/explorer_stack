@@ -56,6 +56,7 @@
   <exec_depend>ros_gz_image</exec_depend>
   <exec_depend>joy</exec_depend>
   <!--exec_depend>ros_gz_gazebo</exec_depend-->
+  <exec_depend>ros2_controllers_test_nodes</exec_depend>
 
   <exec_depend>orthopus_vesc_interface</exec_depend>
 

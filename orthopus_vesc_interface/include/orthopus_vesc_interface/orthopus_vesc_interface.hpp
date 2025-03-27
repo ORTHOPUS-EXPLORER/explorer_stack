@@ -22,7 +22,7 @@ class VESCInterface
 {
 public:
   VESCInterface() = default;
-  virtual ~VESCInterface();
+  virtual ~VESCInterface() = default;
 
   RCLCPP_SHARED_PTR_DEFINITIONS(VESCInterface)
 
@@ -61,12 +61,8 @@ public:
   //std::vector<hardware_interface::CommandInterface> _command_interfaces;
   std::vector<hardware_interface::StateInterface> _state_interfaces;
 
-  std::shared_ptr<orthopus::VESCHost> _vesc;
-  //rclcpp::executors::SingleThreadedExecutor _executor; //Executor needed to subscriber
-  //std::thread _comm_th;
-
-  double _qm, _dqm, _ddqm, _taum;
-  double _qd, _dqd, _ddqd, _tauf;
+  std::shared_ptr<orthopus::VESCHost>   _vesc_host{nullptr};
+  std::shared_ptr<orthopus::VESCTarget> _vesc_dev{nullptr};
 
   void printHardwareInfo(const hardware_interface::HardwareInfo& info);
   void printComponentInfo(const hardware_interface::ComponentInfo& info, size_t i);

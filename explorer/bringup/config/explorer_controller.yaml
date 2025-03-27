@@ -72,13 +72,3 @@ gripper_controller:
     joints:
       - right_finger_joint
     interface_name: position
-
-explorer_comm:
-  ros__parameters:
-    can_port: 'vxcan1'
-    can_id: 40
-    # ROS <=> VESC Mappings
-    #vesc_joints_can_ids:  [11,        12,         13,         14,         15,         16,         16                  ]
-    #vesc_joint_names:     ['joint_1', 'joint_2',  'joint_3',  'joint_4',  'joint_5',  'joint_6',  'right_finger_joint']
-    #vesc_joint_types:     ['motor',   'motor',    'motor',    'motor',    'motor',    'motor',    'servo'             ]
-    max_pos_setpoint_step: 7.0 #deg

@@ -34,20 +34,37 @@ def generate_launch_description():
             description="Start RViz2 automatically with this launch file.",
         )
     )
-
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_bridge",
+            "use_actuator_interface",
             default_value="true",
-            description="Start Explorer PyVESC Bridge (and use Actuators HW Interfaces)",
+            description="Use VESCInterface to control the robot. Set to false for simulation",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "can_port",
+            default_value="vxcan1",
+            description="CAN Port for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "host_id",
+            default_value="45",
+            description="Host CAN ID for VESC Communication",
         )
     )
 
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
-    run_bridge = LaunchConfiguration("use_bridge")
+    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    can_port = LaunchConfiguration("can_port")
+    host_id = LaunchConfiguration("host_id")
 
     # Get URDF via xacro
+    # FIXME: We can possibly pass the Joints CAN IDs here too, maybe from a YAML file
+    #        See: https://github.com/bdaiinstitute/spot_ros2/pull/516/files
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -59,8 +76,9 @@ def generate_launch_description():
                     "explorer.urdf.xacro",
                 ]
             ),
-            " ",
-            "use_actuator_interface:=",run_bridge
+            " use_actuator_interface:=",use_actuator_interface,
+            " can_port:=",can_port,
+            " host_id:=",host_id,
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -72,7 +90,7 @@ def generate_launch_description():
             "explorer_controller.yaml",
         ]
     )
-    
+
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"]
     )
@@ -82,7 +100,8 @@ def generate_launch_description():
         executable="ros2_control_node",
         parameters=[robot_controllers],
         output="both",
-        #arguments=['--non-interactive', '--ros-args' , '--log-level', 'DEBUG']
+        #arguments=['--non-interactive', '--ros-args' , '--log-level', 'DEBUG'],
+        #prefix=['xterm -e'],
         #prefix=['xterm -e gdb -ex run --args'],
         remappings=[
             ("~/robot_description", "/robot_description"),

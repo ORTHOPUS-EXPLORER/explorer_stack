@@ -1,16 +1,14 @@
+#include <sstream>  // for from_str, below
+
 #include "orthopus_vesc_interface/orthopus_vesc_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+using namespace std::chrono_literals;
 using namespace hardware_interface;
 
 namespace orthopus_ros
 {
-
-VESCInterface::~VESCInterface()
-{
-
-}
 
 void VESCInterface::printParameters(const std::unordered_map<std::string, std::string>& params)
 {
@@ -89,99 +87,168 @@ void VESCInterface::printHardwareInfo(const HardwareInfo& info)
     printTransmissionInfo(transmission, i++);
 }
 
+
+template<typename T>
+T from_str(const std::string& str, const T& def_v)
+{
+  T out;
+  std::istringstream ss(str);
+  ss >> out;
+  return ss.fail() ? def_v : out;
+}
+
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
 CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 {
   if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS)
     return CallbackReturn::ERROR;
 
-  if(!_vesc)
+  _name = info.name;
+
+  if(!_vesc_host)
   {
-    _vesc = orthopus::VESCHost::getInstance();
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),"VESCHost: %p", (void*)_vesc.get());
-    if(!_vesc)
+    _vesc_host = orthopus::VESCHost::getInstance();
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),"VESCHost: %p", (void*)_vesc_host.get());
+    if(!_vesc_host)
     {
-      auto can = std::make_shared<vescpp::comm::CAN>("vxcan1");
-      _vesc = orthopus::VESCHost::spawnInstance(1, can);
-      RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Spawn VESCHost: %p", (void*)_vesc.get());
+      spdlog::cfg::load_env_levels();
+      
+      auto it = info.hardware_parameters.find("can_port");
+      if(it == info.hardware_parameters.end())
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface")," Can't spawn VESCHost, can_port is not defined");  
+        exit(0);
+      }
+      auto can_port = it->second;
+      it = info.hardware_parameters.find("host_id");
+      if(it == info.hardware_parameters.end())
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface")," Can't spawn VESCHost, host_id is not defined");  
+        exit(0);
+      }
+      auto host_id = (vescpp::VESC::BoardId)(from_str<unsigned int>(it->second, vescpp::VESC::InvalidBoardId))&0xFF;
+      if(host_id == vescpp::VESC::InvalidBoardId)
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Invalid host_id in HardwareInfo, abort");  
+        return CallbackReturn::ERROR;
+      }
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Use CAN port '%s' with Host ID '%d'", can_port.c_str(), host_id);
+      auto can = std::make_shared<vescpp::comm::CAN>(can_port);
+      _vesc_host = orthopus::VESCHost::spawnInstance(host_id, can);
+      const auto& scan = _vesc_host->scanCAN(false, 100ms);
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Spawn VESCHost: %p", (void*)_vesc_host.get());
     }
   }
 
+  auto board_id = vescpp::VESC::InvalidBoardId;
+  {
+    auto it = info.hardware_parameters.find("can_id");
+    if(it == info.hardware_parameters.end())
+    {
+      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"can_id not found in HardwareInfo, abort");  
+      return CallbackReturn::ERROR;
+    }
+    board_id = (vescpp::VESC::BoardId)(from_str<unsigned int>(it->second, vescpp::VESC::InvalidBoardId))&0xFF;
+  }
+  if(board_id == vescpp::VESC::InvalidBoardId)
+  {
+    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Invalid can_id in HardwareInfo, abort");  
+    return CallbackReturn::ERROR;
+  }
+
+  // Not quite necessary since we fetch the FwVersion when adding the Device just below
+  //if(!_vesc_host->pingCAN(board_id, 200ms))
+  //{
+  //  RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Timeout waiting for CAN PONG from '%d'. Abort", board_id);  
+  //  return CallbackReturn::ERROR;
+  //}
+
+  _vesc_dev = _vesc_host->addDevice(board_id);
+  if(!_vesc_dev || !_vesc_dev->fw())
+  {
+    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Timeout waiting for VESC '%d'. Abort", board_id);  
+    return CallbackReturn::ERROR;
+  }
+  
+  const auto* name = info.name.c_str();
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[VESCInterface::on_init][%p] Init '%s' with BoardID '%d': %p", (void*)this, name, board_id, (void*)_vesc_dev.get());
+  spdlog::debug("==> {:np}", spdlog::to_hex(_vesc_dev->fw()->uuid));
   printHardwareInfo(info);
-  const auto* name = info_.name.c_str();
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[VESCInterface::on_init] Init '%s'", name);
-  for(auto& joint: info_.joints)
+  auto j_sz = _vesc_dev->joints.size();
+  if(info_.joints.size() > j_sz)
   {
-    const auto* jname = joint.name.c_str();
-    if (joint.command_interfaces.size() > 4)
+    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d' doesn't have enough Joints. Expected '%ld', got '%ld'. Abort", board_id, info.joints.size(), j_sz);  
+    return CallbackReturn::ERROR;
+  }
+  j_sz = std::min(j_sz, info_.joints.size());
+  
+  // FIXME: Get Joint names from VESC, well build the whole joints map from VESC data
+  //        Please note this trick is REALLY FRAGILE !!! 
+  //        It depends on how the joints are defined in the URDF and how they are added to the 
+  //        unordered_map (reverse order in which they are written in the .hpp file)
+  {
+    for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
     {
-      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"[%s] Joint '%s' has %zu command interfaces. Expected Max 4", name, jname, joint.command_interfaces.size());
+      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
+      for(const auto& [r, _]: tgt_j.refs)
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
+    }
+
+    auto it = _vesc_dev->joints.begin();
+    for(const auto& cfg_j: info.joints)
+    {
+      auto v = _vesc_dev->joints.extract(it);
+      v.key() = cfg_j.name;
+      _vesc_dev->joints.insert(it, std::move(v));
+      if(++it == _vesc_dev->joints.end())
+        break;
+    }
+    for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
+    {
+      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
+      for(const auto& [r, _]: tgt_j.refs)
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
+    }
+  }
+  size_t j = 0;
+  for(const auto& cfg_j: info.joints)
+  {
+    auto j_it = _vesc_dev->joints.find(cfg_j.name);
+    if(j_it == _vesc_dev->joints.end())
+    {
+      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' not found. Abort", board_id, cfg_j.name.c_str());  
       return CallbackReturn::ERROR;
     }
-    for(const auto& intf: joint.command_interfaces)
+    
+    const auto& j_name = j_it->first;
+    auto& tgt_j = j_it->second;
+    
+    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
+    for(const auto& [r, _]: tgt_j.refs)
+      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());  
+    
+    for(const auto& cif: cfg_j.command_interfaces)
     {
-      const auto* iname = intf.name.c_str();
-      if(    intf.name != HW_IF_POSITION
-          && intf.name != HW_IF_VELOCITY
-          && intf.name != HW_IF_ACCELERATION
-          && intf.name != HW_IF_EFFORT
-        )
+      const auto it = tgt_j.refs.find(cif.name);
+      if(it == tgt_j.refs.end())
       {
-        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"[%s][%s] Unsupported command interface '%s'", name, jname, iname);
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s', Interface '%s' not found in available refs. Abort", board_id, j_name.c_str(), cif.name.c_str());  
         return CallbackReturn::ERROR;
       }
     }
-    for(const auto& intf: joint.state_interfaces)
+    for(const auto& sif: cfg_j.state_interfaces)
     {
-      const auto* iname = intf.name.c_str();
-      if(    intf.name != HW_IF_POSITION
-          && intf.name != HW_IF_VELOCITY
-          && intf.name != HW_IF_ACCELERATION
-          && intf.name != HW_IF_EFFORT
-        )
+      auto it = tgt_j.meas.find(sif.name);
+      if(it == tgt_j.meas.end())
       {
-        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"[%s][%s] Unsupported command interface '%s'", name, jname, iname);
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s', Interface '%s' not found in available meas. Abort", board_id, j_name.c_str(), sif.name.c_str());  
         return CallbackReturn::ERROR;
       }
+      _state_interfaces.emplace_back(hardware_interface::StateInterface(j_name, sif.name, &it->second));
     }
-/*
-    // State interfaces
-    _state_interfaces.emplace_back(hardware_interface::StateInterface(_name, hardware_interface::HW_IF_POSITION, &_qm));
-    _state_interfaces.emplace_back(hardware_interface::StateInterface(_name, hardware_interface::HW_IF_VELOCITY, &_dqm));
-    _state_interfaces.emplace_back(hardware_interface::StateInterface(_name, hardware_interface::HW_IF_ACCELERATION, &_ddqm));
-    _state_interfaces.emplace_back(hardware_interface::StateInterface(_name, hardware_interface::HW_IF_EFFORT, &_taum));
-
-    if (joint.state_interfaces.size() > _state_interfaces.size())
-    {
-      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"[%s] Joint '%s' has %zu state interfaces found. max %ld expected.", name, jname, joint.state_interfaces.size(), _state_interfaces.size());
-      return CallbackReturn::ERROR;
-    }
-    for(const auto& intf: joint.state_interfaces)
-    {
-      if(    intf.name != HW_IF_POSITION
-          && intf.name != HW_IF_VELOCITY
-          && intf.name != HW_IF_ACCELERATION
-          && intf.name != HW_IF_EFFORT
-        )
-      {
-        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"[%s][%s] Unsupported state interface '%s'", name, name, intf.name.c_str());
-        return CallbackReturn::ERROR;
-      }
-    }
-*/
+    j_it++;
+    j++;
   }
-
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully initialized!", name);
-  /*
-  auto& _hw_joints = *(VESCInterfaceComm::getInstance().getJoints());
-  for(auto& joint: _hw_joints)
-  {
-    if(!(joint.owner == this && joint.enable))
-      continue;
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Successfully initialized!", name,joint.name.c_str());
-  }
-    */
-
   return CallbackReturn::SUCCESS;
 }
 
@@ -199,52 +266,30 @@ std::vector<hardware_interface::StateInterface> VESCInterface::export_state_inte
 std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> _command_interfaces;
-  /*auto& _hw_joints = *(VESCInterfaceComm::getInstance().getJoints());
-  for(auto& joint: _hw_joints)
+  for(auto& [j_name, tgt_j]: _vesc_dev->joints)
   {
-    if(!(joint.owner == this && joint.enable))
-      continue;
-    const auto& joint_name = joint.name;
-    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_POSITION, &joint.ref.pos));
-    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_VELOCITY, &joint.ref.vel));
-    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_ACCELERATION, &joint.ref.acc));
-    _command_interfaces.emplace_back(hardware_interface::CommandInterface(joint_name, hardware_interface::HW_IF_EFFORT, &joint.ref.eff));
+    for(const auto& [cif_name, cif_v]: tgt_j.refs)
+    {
+      _command_interfaces.emplace_back(hardware_interface::CommandInterface(j_name, cif_name, &cif_v));
+    }
   }
-    */
   return _command_interfaces;
 }
 
 ORTHOPUS_ROS_PUBLIC
 return_type VESCInterface::prepare_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
-  /*
-  auto& _hw_joints = *(VESCInterfaceComm::getInstance().getJoints());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
   for(const auto& st_if: start_if)
   {
-    for(const auto& joint: _hw_joints)
-    {
-      if(!(joint.owner == this && joint.enable))
-        continue;
-      const auto jnsz = joint.name.length();
-      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
-        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-    }
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
   }
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    for(const auto& joint: _hw_joints)
-    {
-      if(!(joint.owner == this && joint.enable))
-        continue;
-      const auto jnsz = joint.name.length();
-      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
-        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-    }
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
   }
-  */
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch prepared!", _name.c_str());
   return return_type::OK;
 }
@@ -252,58 +297,34 @@ return_type VESCInterface::prepare_command_mode_switch([[maybe_unused]] const st
 ORTHOPUS_ROS_PUBLIC
 return_type VESCInterface::perform_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
-  /*
-  auto& _hw_joints = *(VESCInterfaceComm::getInstance().getJoints());
+
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Performing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
   for(const auto& st_if: start_if)
   {
-    for(const auto& joint: _hw_joints)
-    {
-      if(!(joint.owner == this && joint.enable))
-        continue;
-      const auto jnsz = joint.name.length();
-      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
-        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-    }
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
   }
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    for(const auto& joint: _hw_joints)
-    {
-      if(!(joint.owner == this && joint.enable))
-        continue;
-      const auto jnsz = joint.name.length();
-      if(!st_if.compare(0,jnsz,joint.name)) // Check only for us
-        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-    }
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
   }
-  */
+  _vesc_host->startStreaming();
+  
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch performed!", _name.c_str());
   return return_type::OK;
 }
 
 CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  /*
-  auto& _hw_joints = *(VESCInterfaceComm::getInstance().getJoints());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Activating ...please wait...", _name.c_str());
-  for(auto& joint: _hw_joints)
+  // FIXME: Init state with Current pos from VESC
+  // FIXME: Init refs with Current state
+  for(auto& [_, j]: _vesc_dev->joints)
   {
-    if(!(joint.owner == this && joint.enable))
-      continue;
-    joint.state.pos = 0.0;
-    joint.state.vel = 0.0;
-    joint.state.acc = 0.0;
-    joint.state.eff = 0.0;
-
-    joint.ref.pos = 0.0;
-    joint.ref.vel = 0.0;
-    joint.ref.acc = 0.0;
-    joint.ref.eff = 0.0;
+      for(auto& [_j,if_v]: j.refs)
+        if_v = 0.0;             
   }
-  */
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
 
   return CallbackReturn::SUCCESS;
@@ -319,43 +340,13 @@ CallbackReturn VESCInterface::on_deactivate([[maybe_unused]] const rclcpp_lifecy
 
 return_type VESCInterface::read([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // Done in VESCInterfaceComm
+  // Async, Measures are streamed by the devices
   return return_type::OK;
 }
 
 return_type VESCInterface::write([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-/*  for(auto& joint: _hw_joints)
-  {
-    if(!(joint.owner == this && joint.enable))
-      continue;
-    auto& hw_ref = joint.ref;
-    if(!std::isnan(hw_ref.pos))// && hw_ref.pos != hw_ref.ppos)
-    {
-      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Writing new pos command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.pos);
-      //hw_ref.ppos = hw_ref.pos;
-      //hw_ref.nwpos = true;
-    }
-    if(!std::isnan(hw_ref.vel))// && hw_ref.vel != hw_ref.pvel)
-    {
-      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Writing new vel command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.vel);
-      //hw_ref.pvel = hw_ref.vel;
-      //hw_ref.nwvel = true;
-    }
-    if(!std::isnan(hw_ref.acc))// && hw_ref.acc != hw_ref.pacc)
-    {
-      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Writing new acc command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.acc);
-      //hw_ref.pacc = hw_ref.acc;
-      //hw_ref.nwacc = true;
-    }
-    if(!std::isnan(hw_ref.eff))// && hw_ref.eff != hw_ref.peff)
-    {
-      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Writing new eff command: %f...", _name.c_str(), joint.name.c_str(), hw_ref.eff);
-      //hw_ref.peff = hw_ref.eff;
-      //hw_ref.nweff = true;
-    }
-  }
-    */
+  // Async, Refs are sent in another Thread, managed by VESCHost (started by startStreaming)
   return return_type::OK;
 }
 
