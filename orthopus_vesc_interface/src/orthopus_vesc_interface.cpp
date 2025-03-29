@@ -10,84 +10,6 @@ using namespace hardware_interface;
 namespace orthopus_ros
 {
 
-void VESCInterface::printParameters(const std::unordered_map<std::string, std::string>& params)
-{
-  const auto& log = rclcpp::get_logger("VESCInterface");
-  size_t j=0;
-  for(const auto& [name,v]: params)
-  {
-    RCLCPP_INFO(log,  "        - '%s': '%s'", name.c_str(), v.c_str());
-    j++;
-  }
-}
-
-void VESCInterface::printInterfaceInfo(const InterfaceInfo& info, size_t i)
-{
-  const auto& log = rclcpp::get_logger("VESCInterface");
-  RCLCPP_INFO(log,  "        - %ld",i);
-  RCLCPP_INFO(log,  "          Name: '%s'", info.name.c_str());
-  RCLCPP_INFO(log,  "          Min : '%s'", info.min.c_str());
-  RCLCPP_INFO(log,  "          Max : '%s'", info.max.c_str());
-  RCLCPP_INFO(log,  "          Init: '%s'", info.initial_value.c_str());
-  RCLCPP_INFO(log,  "          Type: '%s'", info.data_type.c_str());
-  RCLCPP_INFO(log,  "          Size: '%d'", info.size);
-}
-void VESCInterface::printTransmissionInfo(const TransmissionInfo& info, size_t i)
-{
-  const auto& log = rclcpp::get_logger("VESCInterface");
-  RCLCPP_INFO(log,  "        - %ld",i);
-  RCLCPP_INFO(log,  "          Name: '%s'", info.name.c_str());
-  RCLCPP_INFO(log,  "          Type: '%s'", info.type.c_str());
-  RCLCPP_INFO(log,  "          Joints: TODO");
-  RCLCPP_INFO(log,  "          Actuators: TODO");
-  RCLCPP_INFO(log,  "          Parameters:");
-  printParameters(info.parameters);
-}
-
-void VESCInterface::printComponentInfo(const ComponentInfo& info, size_t i)
-{
-  const auto& log = rclcpp::get_logger("VESCInterface");
-  RCLCPP_INFO(log,    "    - %ld",i);
-  RCLCPP_INFO(log,    "      Name  : '%s'", info.name.c_str()); 
-  RCLCPP_INFO(log,    "      Type  : '%s'", info.type.c_str()); 
-  RCLCPP_INFO(log,    "      Command Interfaces:"); 
-  size_t j=0;
-  for(const auto& intf: info.command_interfaces)
-    printInterfaceInfo(intf, j++);
-  RCLCPP_INFO(log,    "      State Interfaces:"); 
-  j=0;
-  for(const auto& intf: info.command_interfaces)
-    printInterfaceInfo(intf, j++);
-  RCLCPP_INFO(log,    "      Parameters:"); 
-  printParameters(info.parameters);
-
-};
-
-void VESCInterface::printHardwareInfo(const HardwareInfo& info)
-{
-  const auto& log = rclcpp::get_logger("VESCInterface");
-  RCLCPP_INFO(log,      "Hardware Info for: '%s'", info.name.c_str());
-  RCLCPP_INFO(log,      "  Hardware parameters:");
-  printParameters(info.hardware_parameters);
-  size_t i=0;
-  RCLCPP_INFO(log,      "  Joints:");
-  for(auto& joint: info.joints)
-    printComponentInfo(joint, i++);
-  i=0;
-  RCLCPP_INFO(log,      "  Sensors:");
-  for(auto& sensors: info.sensors)
-    printComponentInfo(sensors, i++);
-  i=0;
-  RCLCPP_INFO(log,      "  GPIOs:");
-  for(auto& gpio: info.gpios)
-    printComponentInfo(gpio, i++);
-  i=0;
-  RCLCPP_INFO(log,      "  Transmissions:");
-  for(auto& transmission: info.transmissions)
-    printTransmissionInfo(transmission, i++);
-}
-
-
 template<typename T>
 T from_str(const std::string& str, const T& def_v)
 {
@@ -170,10 +92,10 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     return CallbackReturn::ERROR;
   }
   
-  const auto* name = info.name.c_str();
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[VESCInterface::on_init][%p] Init '%s' with BoardID '%d': %p", (void*)this, name, board_id, (void*)_vesc_dev.get());
-  spdlog::debug("==> {:np}", spdlog::to_hex(_vesc_dev->fw()->uuid));
-  printHardwareInfo(info);
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[%s]] Init with BoardID '%d'", _name.c_str(), board_id);
+  //spdlog::debug("==> {:np}", spdlog::to_hex(_vesc_dev->fw()->uuid));
+  //printHardwareInfo(info);
+  
   auto j_sz = _vesc_dev->joints.size();
   if(info_.joints.size() > j_sz)
   {
@@ -187,12 +109,12 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
   //        It depends on how the joints are defined in the URDF and how they are added to the 
   //        unordered_map (reverse order in which they are written in the .hpp file)
   {
-    for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
-    {
-      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
-      for(const auto& [r, _]: tgt_j.refs)
-        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
-    }
+    //for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
+    //{
+    //  RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
+    //  for(const auto& [r, _]: tgt_j.refs)
+    //    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
+    //}
 
     auto it = _vesc_dev->joints.begin();
     for(const auto& cfg_j: info.joints)
@@ -203,12 +125,12 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       if(++it == _vesc_dev->joints.end())
         break;
     }
-    for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
-    {
-      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
-      for(const auto& [r, _]: tgt_j.refs)
-        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
-    }
+    //for(const auto& [j_name, tgt_j]: _vesc_dev->joints)
+    //{
+    //  RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
+    //  for(const auto& [r, _]: tgt_j.refs)
+    //    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());   
+    //}
   }
   size_t j = 0;
   for(const auto& cfg_j: info.joints)
@@ -222,10 +144,11 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     
     const auto& j_name = j_it->first;
     auto& tgt_j = j_it->second;
-    
-    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.c_str());  
-    for(const auto& [r, _]: tgt_j.refs)
-      RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());  
+    tgt_j.in_use = true;
+
+    //RCLCPP_DEBUG(rclcpp::get_logger("VESCInterface"),"Target '%d', Joint '%s' found.", board_id, j_name.//c_str());  
+    //for(const auto& [r, _]: tgt_j.refs)
+    //  RCLCPP_DEBUG(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());  
     
     for(const auto& cif: cfg_j.command_interfaces)
     {
@@ -252,12 +175,6 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
-{
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully configured!", _name.c_str());
-  return CallbackReturn::SUCCESS;
-}
-
 std::vector<hardware_interface::StateInterface> VESCInterface::export_state_interfaces()
 {
   return _state_interfaces;
@@ -268,6 +185,8 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
   std::vector<hardware_interface::CommandInterface> _command_interfaces;
   for(auto& [j_name, tgt_j]: _vesc_dev->joints)
   {
+    if(!tgt_j.in_use)
+      continue;
     for(const auto& [cif_name, cif_v]: tgt_j.refs)
     {
       _command_interfaces.emplace_back(hardware_interface::CommandInterface(j_name, cif_name, &cif_v));
@@ -276,21 +195,95 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
   return _command_interfaces;
 }
 
+
+CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+{
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully configured!", _name.c_str());
+
+  // FIXME: Do this somewhere else ffs
+  _vesc_host->startStreaming();
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+{
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Activating ...please wait...", _name.c_str());
+  // TODO: Figure out what we should do about the servo/2nd joint.
+  //       Currently, we only check the main/first joint (the actuator)
+  for(auto& [j_name, j]: _vesc_dev->joints)
+  {
+    // Wait for a a fresh meas
+    const auto now = vescpp::Time::now();
+    while(true)
+    {
+      if((now - _vesc_dev->_meas_last_tp) < 10ms)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Got a fresh Meas! Marching on !",_name.c_str(), j_name.c_str());
+        break;
+      }
+      else if(vescpp::Time::now()-now >= 1000ms)
+      {
+        RCLCPP_ERROR(rclcpp::get_logger("VESCInterface"), "[%s][%s] Timeout waiting for a fresh Meas. Abort,",_name.c_str(), j_name.c_str());
+        return CallbackReturn::ERROR;
+      } 
+      std::this_thread::sleep_for(10us);
+    }
+    // Meas are a-okay. Init refs !
+    for(auto& [ifn,if_v]: j.refs)
+    {
+      if_v = 0.0; // 0.0 is the default
+      if(ifn == "position")
+      {
+        if(auto it=j.meas.find(ifn); it != j.meas.end())
+        {
+          if_v = it->second; // Set ref to last/current position
+          RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s][%s] Init POS ref with value: % 7.4f", _name.c_str(), j_name.c_str(), if_v);
+        }
+      }
+    }
+  }
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
+
+  return CallbackReturn::SUCCESS;
+}
+
+CallbackReturn VESCInterface::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
+{
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Deactivating ...please wait...", _name.c_str());
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully deactivated!", _name.c_str());
+
+  return CallbackReturn::SUCCESS;
+}
+
 ORTHOPUS_ROS_PUBLIC
 return_type VESCInterface::prepare_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
-  for(const auto& st_if: start_if)
-  {
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-  }
+  // TODO: Sanity checks: Make sure we're not trying to enable POS + VEL + TRQ at the same time.
+  /*RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+    for(const auto& [j_name, _]: _vesc_dev->joints)
+    {
+      if(auto id = st_if.find(j_name,0); id == 0)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+      }
+    }
+  }
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
+  for(const auto& st_if: start_if)
+  {
+    for(const auto& [j_name, _]: _vesc_dev->joints)
+    {
+      if(auto id = st_if.find(j_name,0); id == 0)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+      }
+    }
   }
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch prepared!", _name.c_str());
+  */
   return return_type::OK;
 }
 
@@ -298,57 +291,156 @@ ORTHOPUS_ROS_PUBLIC
 return_type VESCInterface::perform_command_mode_switch([[maybe_unused]] const std::vector<std::string>&start_if, [[maybe_unused]] const std::vector<std::string> &stop_if)
 {
 
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Performing Command mode switch...", _name.c_str());
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
-  for(const auto& st_if: start_if)
-  {
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
-  }
+  /*RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Performing Command mode switch...", _name.c_str());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Stopping Interfaces:");
   for(const auto& st_if: stop_if)
   {
-    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+    for(const auto& [j_name, _]: _vesc_dev->joints)
+    {
+      if(auto id = st_if.find(j_name,0); id == 0)
+      {
+        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+      }
+    }
   }
-  _vesc_host->startStreaming();
-  
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch performed!", _name.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Starting Interfaces:");
+  */
+  for(const auto& st_if: start_if)
+  {
+    for(const auto& [j_name, j_data]: _vesc_dev->joints)
+    {
+      // st_if format is JOINT_NAME/INTERFACE 
+      if(auto idx = st_if.find(j_name,0); idx == 0)   // Match beginning of the name with joint name
+      {
+        // FIXME: Check st_if length first
+        const auto& intf = st_if.substr(j_name.length()+1);  // Then match the end with supported interfaces
+        if(auto it = j_data.refs.find(intf); it != j_data.refs.end())
+        {
+          _vesc_dev->ctrl_word &= ~orthopus::ORTHOPUS_CTRL_MODE_MSK;  // Clear last command
+
+          if(intf == "position")
+          {
+            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_POS;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to POS mode", j_name.c_str());
+          } 
+          else if(intf == "velocity")
+          {
+            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to VEL mode", j_name.c_str());
+          } 
+          else if(intf == "effort")
+          {
+            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to TRQ mode", j_name.c_str());
+          } 
+          else
+          RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to OFF mode", j_name.c_str());
+          
+
+          //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
+          break; // We're done for this joint
+        }
+      }
+    }
+  }
+    
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch performed!", _name.c_str());
   return return_type::OK;
 }
 
-CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
-{
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Activating ...please wait...", _name.c_str());
-  // FIXME: Init state with Current pos from VESC
-  // FIXME: Init refs with Current state
-  for(auto& [_, j]: _vesc_dev->joints)
-  {
-      for(auto& [_j,if_v]: j.refs)
-        if_v = 0.0;             
-  }
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
-
-  return CallbackReturn::SUCCESS;
-}
-
-CallbackReturn VESCInterface::on_deactivate([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
-{
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Deactivating ...please wait...", _name.c_str());
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully deactivated!", _name.c_str());
-
-  return CallbackReturn::SUCCESS;
-}
 
 return_type VESCInterface::read([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // Async, Measures are streamed by the devices
+  // Async, Measures are streamed by the devices, directly to orthopus::VESCTarget
+  // TODO: Sanity checks (trigger error if delay since last meas reached a timeout for instance)
   return return_type::OK;
 }
 
 return_type VESCInterface::write([[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // Async, Refs are sent in another Thread, managed by VESCHost (started by startStreaming)
+  // Async, Refs are sent in another Thread, managed by orthopus::VESCHost (started by startStreaming)
+  // TODO: Sanity checks: Make sure the refs are not completely out of range, for instance
   return return_type::OK;
 }
+
+
+void VESCInterface::printParameters(const std::unordered_map<std::string, std::string>& params)
+{
+  const auto& log = rclcpp::get_logger("VESCInterface");
+  size_t j=0;
+  for(const auto& [name,v]: params)
+  {
+    RCLCPP_INFO(log,  "        - '%s': '%s'", name.c_str(), v.c_str());
+    j++;
+  }
+}
+
+void VESCInterface::printInterfaceInfo(const InterfaceInfo& info, size_t i)
+{
+  const auto& log = rclcpp::get_logger("VESCInterface");
+  RCLCPP_INFO(log,  "        - %ld",i);
+  RCLCPP_INFO(log,  "          Name: '%s'", info.name.c_str());
+  RCLCPP_INFO(log,  "          Min : '%s'", info.min.c_str());
+  RCLCPP_INFO(log,  "          Max : '%s'", info.max.c_str());
+  RCLCPP_INFO(log,  "          Init: '%s'", info.initial_value.c_str());
+  RCLCPP_INFO(log,  "          Type: '%s'", info.data_type.c_str());
+  RCLCPP_INFO(log,  "          Size: '%d'", info.size);
+}
+void VESCInterface::printTransmissionInfo(const TransmissionInfo& info, size_t i)
+{
+  const auto& log = rclcpp::get_logger("VESCInterface");
+  RCLCPP_INFO(log,  "        - %ld",i);
+  RCLCPP_INFO(log,  "          Name: '%s'", info.name.c_str());
+  RCLCPP_INFO(log,  "          Type: '%s'", info.type.c_str());
+  RCLCPP_INFO(log,  "          Joints: TODO");
+  RCLCPP_INFO(log,  "          Actuators: TODO");
+  RCLCPP_INFO(log,  "          Parameters:");
+  printParameters(info.parameters);
+}
+
+void VESCInterface::printComponentInfo(const ComponentInfo& info, size_t i)
+{
+  const auto& log = rclcpp::get_logger("VESCInterface");
+  RCLCPP_INFO(log,    "    - %ld",i);
+  RCLCPP_INFO(log,    "      Name  : '%s'", info.name.c_str()); 
+  RCLCPP_INFO(log,    "      Type  : '%s'", info.type.c_str()); 
+  RCLCPP_INFO(log,    "      Command Interfaces:"); 
+  size_t j=0;
+  for(const auto& intf: info.command_interfaces)
+    printInterfaceInfo(intf, j++);
+  RCLCPP_INFO(log,    "      State Interfaces:"); 
+  j=0;
+  for(const auto& intf: info.command_interfaces)
+    printInterfaceInfo(intf, j++);
+  RCLCPP_INFO(log,    "      Parameters:"); 
+  printParameters(info.parameters);
+
+};
+
+void VESCInterface::printHardwareInfo(const HardwareInfo& info)
+{
+  const auto& log = rclcpp::get_logger("VESCInterface");
+  RCLCPP_INFO(log,      "Hardware Info for: '%s'", info.name.c_str());
+  RCLCPP_INFO(log,      "  Hardware parameters:");
+  printParameters(info.hardware_parameters);
+  size_t i=0;
+  RCLCPP_INFO(log,      "  Joints:");
+  for(auto& joint: info.joints)
+    printComponentInfo(joint, i++);
+  i=0;
+  RCLCPP_INFO(log,      "  Sensors:");
+  for(auto& sensors: info.sensors)
+    printComponentInfo(sensors, i++);
+  i=0;
+  RCLCPP_INFO(log,      "  GPIOs:");
+  for(auto& gpio: info.gpios)
+    printComponentInfo(gpio, i++);
+  i=0;
+  RCLCPP_INFO(log,      "  Transmissions:");
+  for(auto& transmission: info.transmissions)
+    printTransmissionInfo(transmission, i++);
+}
+
 
 }  // namespace orthopus_ros
 
