@@ -9,7 +9,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   
-  <build_depend>veschost</build_depend>
+  <build_depend>orthopus_vesc</build_depend>
   <depend>pluginlib</depend>
   <depend>hardware_interface</depend>
   <depend>rclcpp</depend>

@@ -8,7 +8,7 @@ find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(realtime_tools REQUIRED)
-find_package(veschost REQUIRED)
+find_package(orthopus_vesc REQUIRED)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -40,7 +40,7 @@ PUBLIC
   rclcpp
   rclcpp_lifecycle
   realtime_tools
-  veschost
+  orthopus_vesc
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,

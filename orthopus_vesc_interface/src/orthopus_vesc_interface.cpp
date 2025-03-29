@@ -135,7 +135,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Use CAN port '%s' with Host ID '%d'", can_port.c_str(), host_id);
       auto can = std::make_shared<vescpp::comm::CAN>(can_port);
       _vesc_host = orthopus::VESCHost::spawnInstance(host_id, can);
-      const auto& scan = _vesc_host->scanCAN(false, 100ms);
+      _vesc_host->scanCAN(true, 100ms);
       RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Spawn VESCHost: %p", (void*)_vesc_host.get());
     }
   }
@@ -163,7 +163,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
   //  return CallbackReturn::ERROR;
   //}
 
-  _vesc_dev = _vesc_host->addDevice(board_id);
+  _vesc_dev = _vesc_host->addTarget(board_id);
   if(!_vesc_dev || !_vesc_dev->fw())
   {
     RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Timeout waiting for VESC '%d'. Abort", board_id);  

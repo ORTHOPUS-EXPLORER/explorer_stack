@@ -4,6 +4,6 @@
 [submodule "libs/pyvesc"]
 	path = libs/pyvesc
 	url = ../pyvesc.git
-[submodule "libs/veschost"]
-	path = libs/veschost
-	url = ../veschost.git
+[submodule "libs/orthopus_vesc"]
+	path = libs/orthopus_vesc
+	url = ../orthopus_vesc.git

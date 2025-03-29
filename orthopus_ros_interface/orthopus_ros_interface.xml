@@ -1,9 +1,0 @@
-<library path="orthopus_ros_interface">
-  <class name="orthopus_ros_interface/HwInterface"
-         type="orthopus_ros_interface::HwInterface"
-         base_class_type="hardware_interface::ActuatorInterface">
-    <description>
-      Hardware Interface for Orthopus actuators
-    </description>
-  </class>
-</library>

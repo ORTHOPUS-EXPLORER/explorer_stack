@@ -13,7 +13,7 @@
 
 #include "control_msgs/msg/dynamic_joint_state.hpp"
 
-#include "veschost/veschost.hpp"
+#include "orthopus_vesc/host.hpp"
 
 namespace orthopus_ros
 {
