@@ -115,7 +115,7 @@
       ixz="0"
       iyy="1"
       iyz="0"
-      izz="1"
+      izz="1"3 cm de marge hors du PCB et rien dedans pour +-200°
   /> -->
 
   <link name="ft_frame"/>
@@ -127,7 +127,7 @@
     <child link="link_1"/>
     <origin xyz="0 0 0.0555" rpy="0 0 0"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
   </joint>
 
   <joint name="joint_2" type="revolute">
@@ -135,7 +135,7 @@
     <child link="link_2"/>
     <origin xyz="0 0.0265 0.058952" rpy="${pi/2} ${-pi/2} 0"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-pi/2}" upper="${pi/2}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-pi/2}" upper="${pi/2}" velocity="10"/>
   </joint>
 
   <joint name="joint_3" type="revolute">
@@ -143,15 +143,15 @@
     <child link="link_3"/>
     <origin xyz="0.413 0 0" rpy="${pi} 0 0"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-3*pi/2}" upper="${pi/2}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-3*pi/2}" upper="${pi/2}" velocity="10"/>
   </joint>
 
   <joint name="joint_4" type="revolute">
     <parent link="link_3"/>
     <child link="link_4"/>
-    <origin xyz="0.1885 0 -0.008" rpy="${pi/2} 0 ${pi/2}"/>
+    <origin xyz="0.1885 0 -0.008" rpy="${pi/2} ${pi} ${pi/2}"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
   </joint>
 
   <joint name="joint_5" type="revolute">
@@ -159,7 +159,7 @@
     <child link="link_5"/>
     <origin xyz="0 0.0285 0.1" rpy="${pi/2} 0 ${pi}"/>
     <axis xyz="0 0 -1"/>
-    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
   </joint>
 
   <!-- <joint name="joint_6" type="revolute">
@@ -167,7 +167,7 @@
     <child link="link_6"/>
     <origin xyz="-0.150049 0 -0.028307" rpy="0 ${-pi/2} 0"/>
     <axis xyz="0 0 1"/>
-    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="2.5"/>
+    <limit effort="1000.0" lower="${-pi}" upper="${pi}" velocity="10"/>
   </joint>
 
   <joint name="joint-ft_frame" type="fixed">

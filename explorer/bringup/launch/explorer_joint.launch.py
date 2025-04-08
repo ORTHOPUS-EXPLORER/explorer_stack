@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -85,8 +85,12 @@ def generate_launch_description():
         ]
     )
 
-    config =  PathJoinSubstitution(
-            [FindPackageShare("ros2_control_explorer"), "config", "settings_joint.yaml"]
+    config_POC1 =  PathJoinSubstitution(
+            [FindPackageShare("ros2_control_explorer"), "config", "settings_joint_POC1.yaml"]
+    )
+
+    config_POC2 =  PathJoinSubstitution(
+            [FindPackageShare("ros2_control_explorer"), "config", "settings_joint_POC2.yaml"]
     )
     
     rviz_config_file = PathJoinSubstitution(
@@ -122,14 +126,26 @@ def generate_launch_description():
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
     )
 
-    output_integrator_node = Node(
+    output_integrator_POC1_node = Node(
         package="ros2_control_explorer",
         executable="joint_output_integrator",
         parameters=[
-            config,
+            config_POC1,
             {'use_sim_time': use_sim_time}
         ],
+        condition=UnlessCondition(poc2),
     )
+
+    output_integrator_POC2_node = Node(
+        package="ros2_control_explorer",
+        executable="joint_output_integrator",
+        parameters=[
+            config_POC2,
+            {'use_sim_time': use_sim_time}
+        ],
+        condition=IfCondition(poc2),
+    )
+
 
     rviz_node = Node(
         package="rviz2",
@@ -192,7 +208,15 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[output_integrator_node],
+                    on_exit=[output_integrator_POC1_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[output_integrator_POC2_node],
                 )
         )
     )

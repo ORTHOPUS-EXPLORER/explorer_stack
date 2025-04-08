@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -119,8 +119,12 @@ def generate_launch_description():
         [FindPackageShare("ros2_control_explorer"), "config", "spacenav_settings.yaml"]
     )
 
-    config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings.yaml"]
+    config_POC1 =  PathJoinSubstitution(
+        [FindPackageShare("ros2_control_explorer"), "config", "settings_POC1.yaml"]
+    )
+
+    config_POC2 =  PathJoinSubstitution(
+        [FindPackageShare("ros2_control_explorer"), "config", "settings_POC2.yaml"]
     )
     
     spacenav_node = Node(
@@ -167,15 +171,26 @@ def generate_launch_description():
         name="input_integrator_node",
     )
 
-    
-    qp_solving_node = Node(
+    qp_solving_POC1_node = Node(
         package="ros2_control_explorer",
         executable="qp_solving",
         parameters=[
-            config,
+            config_POC1,
             robot_description,
             robot_description_semantic
             ],
+        condition=UnlessCondition(poc2),
+    )
+
+    qp_solving_POC2_node = Node(
+        package="ros2_control_explorer",
+        executable="qp_solving",
+        parameters=[
+            config_POC2,
+            robot_description,
+            robot_description_semantic
+            ],
+        condition=IfCondition(poc2),
     )
 
     output_integrator_node = Node(
@@ -246,7 +261,16 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[qp_solving_node],
+                    on_exit=[qp_solving_POC1_node],
+                )
+        )
+    )
+    
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_POC2_node],
                 )
         )
     )

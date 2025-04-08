@@ -1,0 +1,31 @@
+joint_output_integrator:
+  ros__parameters:
+
+    ### --- JOINT LIMITS --- ###
+    j1:
+      limits  : 1 #int type, 0 if joint is multiturn or 1 otherwise
+      min     : -2.97
+      max     : 2.97
+    j2:
+      limits  : 1
+      min     : -2.14
+      max     : 2.14
+    j3:
+      limits  : 1
+      min     : -2.97
+      max     : 2.97
+    j4:
+      limits  : 1
+      min     : -2.97
+      max     : 2.97
+    j5:
+      limits  : 1
+      min     : -1.8
+      max     : 1.8
+    j6:
+      limits  : 1
+      min     : -2.97
+      max     : 2.97
+
+
+
