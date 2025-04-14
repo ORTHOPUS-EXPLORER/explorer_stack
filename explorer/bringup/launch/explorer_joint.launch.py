@@ -145,8 +145,7 @@ def generate_launch_description():
         ],
         condition=IfCondition(poc2),
     )
-
-
+    
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
