@@ -2,7 +2,9 @@
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="actuator">
   <xacro:arg name="use_ignition" default="false" />
   <xacro:arg name="use_actuator_interface" default="false" />
-
+  <xacro:arg name="can_port" default="vxcan1" />
+  <xacro:arg name="can_id" default="17" />
+  <xacro:arg name="host_id" default="45" />
   <!-- Import actuator macro -->
   <xacro:include filename="$(find ros2_control_actuator)/description/urdf/actuator_description.urdf.xacro"/>
 
@@ -20,7 +22,7 @@
 
   <!-- Import actuator ros2_control description -->
  <xacro:include filename="$(find ros2_control_actuator)/description/ros2_control/actuator.ros2_control.xacro" />
-  <xacro:actuator_ros2_control name="actuator" use_ignition="$(arg use_ignition)" />
+  <xacro:actuator_ros2_control name="actuator" use_ignition="$(arg use_ignition)"  can_port="$(arg can_port)" can_id="$(arg can_id)" host_id="$(arg host_id)" />
 
   <xacro:if value="$(arg use_ignition)">
     <!-- Import Gazebo definitions + plugin -->

@@ -17,7 +17,7 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
-    run_bridge = LaunchConfiguration("use_bridge")
+    use_actuator_interface = LaunchConfiguration("use_bridge")
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -35,11 +35,37 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_bridge",
+            "use_actuator_interface",
             default_value="true",
-            description="Start Explorer PyVESC Bridge (and use Actuators HW Interfaces)",
+            description="Use VESCInterface to control the robot. Set to false for simulation",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "can_port",
+            default_value="vxcan1",
+            description="CAN Port for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "can_id",
+            default_value="17",
+            description="Device CAN ID for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "host_id",
+            default_value="45",
+            description="Host CAN ID for VESC Communication",
+        )
+    )
+
+    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    can_port = LaunchConfiguration("can_port")
+    can_id = LaunchConfiguration("can_id")
+    host_id = LaunchConfiguration("host_id")
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -49,10 +75,11 @@ def generate_launch_description():
             PathJoinSubstitution(
                 [FindPackageShare("ros2_control_actuator"), "description/urdf", "actuator.urdf.xacro"]
             ),
-            " ",
-            "use_ignition:=false",
-            " ",
-            "use_actuator_interface:=",run_bridge
+            " use_ignition:=false",
+            " use_actuator_interface:=",use_actuator_interface,
+            " can_port:=",can_port, 
+            " can_id:=",can_id, 
+            " host_id:=",host_id,
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -127,25 +154,6 @@ def generate_launch_description():
 
     delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
 
-    actuator_bridge_params = PathJoinSubstitution(
-        [
-            FindPackageShare("ros2_control_actuator"),
-            "config",
-            "actuator_vesc.yaml",
-        ]
-    )
-
-    actuator_bridge = Node(
-        package="pyvesc_explorer",
-        executable="ros_actuator_bridge",
-        parameters=[actuator_bridge_params],
-        output="both",
-        remappings=[],
-        arguments=['--non-interactive','--ros-args'],#, '--log-level', 'DEBUG']
-        #prefix=['xterm -e gdb -ex run --args'],
-        condition=IfCondition(run_bridge),
-    )
-
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
@@ -176,7 +184,6 @@ def generate_launch_description():
         control_node,
         node_robot_state_publisher,
         joy_node,
-        actuator_bridge,
         joint_state_broadcaster_spawner,
         gui_control_node,
     ]

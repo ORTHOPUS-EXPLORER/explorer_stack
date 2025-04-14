@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="actuator_ros2_control" params="name use_ignition:=^|false">
+  <xacro:macro name="actuator_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1 can_id:=^|17  host_id:=^|45">
 
   <ros2_control name="${name}" type="actuator">
     <hardware>
@@ -9,8 +9,11 @@
           <plugin>gz_ros2_control/GazeboSimSystem</plugin>
         </xacro:if>
         <xacro:unless value="${use_ignition}">
-          <plugin>orthopus_ros_interface/HwInterface</plugin>
+          <plugin>orthopus_vesc_interface/VESCInterface</plugin>
         </xacro:unless>
+      <param name="can_port">${can_port}</param>
+      <param name="can_id">${can_id}</param>
+      <param name="host_id">${host_id}</param>
     </hardware>
 
     <joint name="joint">
