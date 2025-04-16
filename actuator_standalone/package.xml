@@ -38,8 +38,7 @@
   <exec_depend>gz_ros2_control</exec_depend>
   <exec_depend>ros_gz_sim</exec_depend>
 
-  <exec_depend>orthopus_ros_interface</exec_depend>
-  <exec_depend>pyvesc_explorer</exec_depend>
+  <exec_depend>orthopus_vesc_interface</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
