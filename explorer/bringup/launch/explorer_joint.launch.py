@@ -26,7 +26,9 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
-    run_bridge = LaunchConfiguration("use_bridge")
+    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    can_port = LaunchConfiguration("can_port")
+    host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
 
     # Declare arguments
@@ -46,9 +48,23 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_bridge",
+            "use_actuator_interface",
             default_value="true",
-            description="Start Explorer PyVESC Bridge (and use Actuators HW Interfaces)",
+            description="Use VESCInterface to control the robot. Set to false for simulation",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "can_port",
+            default_value="vxcan1",
+            description="CAN Port for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "host_id",
+            default_value="45",
+            description="Host CAN ID for VESC Communication",
         )
     )
     declared_arguments.append(
@@ -70,7 +86,11 @@ def generate_launch_description():
             " ",
             "use_ignition:=false",
             " ",
-            "use_actuator_interface:=",run_bridge,
+            " use_actuator_interface:=",use_actuator_interface,
+            " ",
+            " can_port:=",can_port,
+            " ",
+            " host_id:=",host_id,
             " ",
             "use_POC2:=",poc2
         ]
@@ -182,18 +202,6 @@ def generate_launch_description():
         ]
     )
 
-    explorer_bridge = Node(
-        package="pyvesc_explorer",
-        executable="ros_explorer_bridge",
-        parameters=[explorer_bridge_params],
-        output="both",
-        remappings=[],
-        arguments=['--non-interactive','--ros-args'],#, '--log-level', 'DEBUG']
-        #prefix=['xterm -e gdb -ex run --args'],
-        condition=IfCondition(run_bridge),
-    )
-
-
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
@@ -235,7 +243,6 @@ def generate_launch_description():
         gui_control_node,
         joy_node,
         joystick_input_node,
-        explorer_bridge,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)
