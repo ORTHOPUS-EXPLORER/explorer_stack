@@ -3,14 +3,20 @@
 
   <xacro:include filename="$(find ros2_control_explorer)/description/urdf/explorer_joints.xacro" />
 
-  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1  host_id:=^|45">
+  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1  host_id:=^|45 rt_stream_rate:=^|250 aux_stream_rate:=^|10">
+
+    <xacro:macro name="hw_intf_params">
+      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
+      <param name="host_id">${host_id}</param>
+      <param name="can_port">${can_port}</param>
+      <param name="rt_stream_rate">${rt_stream_rate}</param>
+      <param name="aux_stream_rate">${aux_stream_rate}</param>
+    </xacro:macro>
 
   <!-- ROS2 Control -->
   <ros2_control name="${name}_joint_1" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">11</param>
     </hardware>
     <xacro:explorer_joint_1 />
@@ -18,9 +24,7 @@
 
   <ros2_control name="${name}_joint_2" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">12</param>
     </hardware>
     <xacro:explorer_joint_2 />
@@ -28,9 +32,7 @@
 
   <ros2_control name="${name}_joint_3" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">13</param>
     </hardware>
     <xacro:explorer_joint_3 />
@@ -38,9 +40,7 @@
 
   <ros2_control name="${name}_joint_4" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">14</param>
     </hardware>
     <xacro:explorer_joint_4 />
@@ -48,9 +48,7 @@
 
   <ros2_control name="${name}_joint_5" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">15</param>
     </hardware>
     <xacro:explorer_joint_5 />
@@ -58,9 +56,7 @@
 
   <ros2_control name="${name}_joint_6" type="actuator">
     <hardware>
-      <plugin>orthopus_vesc_interface/VESCInterface</plugin>
-      <param name="host_id">${host_id}</param>
-      <param name="can_port">${can_port}</param>
+       <xacro:hw_intf_params />
       <param name="can_id">16</param>
     </hardware>
     <xacro:explorer_joint_6 />

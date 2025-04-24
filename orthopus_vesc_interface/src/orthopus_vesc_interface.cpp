@@ -34,7 +34,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     if(!_vesc_host)
     {
       spdlog::cfg::load_env_levels();
-      
+      // Load parameters
+        // CAN Port
       auto it = info.hardware_parameters.find("can_port");
       if(it == info.hardware_parameters.end())
       {
@@ -42,6 +43,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
         exit(0);
       }
       auto can_port = it->second;
+        // Host ID
       it = info.hardware_parameters.find("host_id");
       if(it == info.hardware_parameters.end())
       {
@@ -54,9 +56,30 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
         RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Invalid host_id in HardwareInfo, abort");  
         return CallbackReturn::ERROR;
       }
+        // Stream rate
+      it = info.hardware_parameters.find("rt_stream_rate");
+      if(it == info.hardware_parameters.end())
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface")," Can't spawn VESCHost, rt_stream_rate is not defined");  
+        exit(0);
+      }
+      auto rt_stream_rate_hz = from_str<double>(it->second, 250);
+        // Aux rate
+      it = info.hardware_parameters.find("aux_stream_rate");
+      if(it == info.hardware_parameters.end())
+      {
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface")," Can't spawn VESCHost, aux_stream_rate is not defined");  
+        exit(0);
+      }
+      auto aux_stream_rate_hz = from_str<double>(it->second, 10);
+      
+
       RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Use CAN port '%s' with Host ID '%d'", can_port.c_str(), host_id);
       auto can = std::make_shared<vescpp::comm::CAN>(can_port);
       _vesc_host = orthopus::VESCHost::spawnInstance(host_id, can);
+      _vesc_host->setRTStreamRate(rt_stream_rate_hz);
+      _vesc_host->setAuxStreamRate(aux_stream_rate_hz);
+      
       _vesc_host->scanCAN(true, 100ms);
       RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Spawn VESCHost: %p", (void*)_vesc_host.get());
     }
