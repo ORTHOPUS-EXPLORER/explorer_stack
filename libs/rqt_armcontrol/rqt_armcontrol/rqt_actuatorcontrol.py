@@ -60,19 +60,20 @@ class RqtActuatorController(Plugin):
         if self._context.serial_number() < 1:
             self._widget.window().setWindowTitle(self.title)
 
-
-        self.scale = 1000.0 # Slider values between -scale and +scale
+        self.velocity_scale = 1000.0 
+        self.effort_scale = 30.0 
 
         self.joint_vel = Float64()
         self.joint_vel.data = 0.0
 
-        self.slider_released = True
-        self.prev_slider_released = True
+        self.joint_effort = Float64()
+        self.joint_effort.data = 0.0
 
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
-        self.publisher_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
+        self.publisher_velocity_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
+        self.publisher_torque_ = self._context.node.create_publisher(Float64, "/forward_effort_controller/commands", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -81,24 +82,29 @@ class RqtActuatorController(Plugin):
 
 
     def publisher_callback(self):
-        if (not self.slider_released) or (not self.prev_slider_released) :
-            self.publisher_.publish(self.joint_vel)
-        self.prev_slider_released = self.slider_released
+        self.publisher_velocity_.publish(self.joint_vel)
+        self.publisher_torque_.publish(self.joint_effort)
 
     def setUpEventHandlers(self):
         
-        self._widget.actuator.valueChanged.connect(self.onActuatorMove)
+        self._widget.velocity.valueChanged.connect(self.onVelocityMove)
 
-        self._widget.actuator.sliderReleased.connect(self.onSliderReleased)
+        self._widget.torque.valueChanged.connect(self.onTorqueMove)
 
-    def onActuatorMove(self, value):
-        self.joint_vel.data = float(value) / self.scale
-        self.slider_released = False
+        self._widget.zero_btn.pressed.connect(self.OnZeroPressed)
+
+    def onVelocityMove(self, value):
+        self.joint_vel.data = float(value) / self.velocity_scale
+
     
-    def onSliderReleased(self):
-        self._widget.actuator.setSliderPosition(0)
+    def onTorqueMove(self, value):
+        self.joint_effort.data = float(value) / self.effort_scale
+
+    def OnZeroPressed(self):
+        self._widget.velocity.setSliderPosition(0)
         self.joint_vel.data = 0.0
-        self.slider_released = True
+        self._widget.torque.setSliderPosition(0)
+        self.joint_effort.data = 0.0
 
     # Qt methods
     def shutdown_plugin(self):

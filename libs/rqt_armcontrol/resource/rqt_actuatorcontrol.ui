@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>571</width>
-    <height>221</height>
+    <width>616</width>
+    <height>349</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,10 +39,10 @@
   <widget class="QFrame" name="frame">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>100</y>
-     <width>501</width>
-     <height>71</height>
+     <x>30</x>
+     <y>120</y>
+     <width>541</width>
+     <height>191</height>
     </rect>
    </property>
    <property name="autoFillBackground">
@@ -57,9 +57,9 @@
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>20</y>
-      <width>281</width>
+      <x>50</x>
+      <y>60</y>
+      <width>361</width>
       <height>31</height>
      </rect>
     </property>
@@ -67,7 +67,7 @@
      <item>
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>actuator</string>
+        <string>velocity</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -75,7 +75,45 @@
       </widget>
      </item>
      <item>
-      <widget class="QSlider" name="actuator">
+      <widget class="QSlider" name="velocity">
+       <property name="minimum">
+        <number>-1000</number>
+       </property>
+       <property name="maximum">
+        <number>1000</number>
+       </property>
+       <property name="sliderPosition">
+        <number>1</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+   <widget class="QWidget" name="horizontalLayoutWidget_2">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>130</y>
+      <width>361</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>torque</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSlider" name="torque">
        <property name="minimum">
         <number>-1000</number>
        </property>
@@ -91,6 +129,19 @@
       </widget>
      </item>
     </layout>
+   </widget>
+   <widget class="QPushButton" name="zero_btn">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>10</y>
+      <width>89</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ZERO</string>
+    </property>
    </widget>
   </widget>
   <zorder>frame</zorder>

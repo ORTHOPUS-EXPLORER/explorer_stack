@@ -8,8 +8,17 @@ controller_manager:
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
 
+    forward_effort_controller:
+      type: forward_command_controller/ForwardCommandController
+
 forward_position_controller:
   ros__parameters:
     joints:
       - joint
     interface_name: position
+
+forward_effort_controller:
+  ros__parameters:
+    joints:
+      - joint
+    interface_name: effort
