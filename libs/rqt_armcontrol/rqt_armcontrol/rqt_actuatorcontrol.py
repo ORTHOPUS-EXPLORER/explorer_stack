@@ -22,7 +22,7 @@ from rqt_gui.main import Main
 from rqt_gui_py.plugin import Plugin
 
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Float64MultiArray
 
 
 
@@ -73,7 +73,7 @@ class RqtActuatorController(Plugin):
         self.setUpEventHandlers()
 
         self.publisher_velocity_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
-        self.publisher_torque_ = self._context.node.create_publisher(Float64, "/forward_effort_controller/commands", 1)
+        self.publisher_torque_ = self._context.node.create_publisher(Float64MultiArray, "/forward_effort_controller/commands", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
@@ -83,7 +83,9 @@ class RqtActuatorController(Plugin):
 
     def publisher_callback(self):
         self.publisher_velocity_.publish(self.joint_vel)
-        self.publisher_torque_.publish(self.joint_effort)
+        torque_msg = Float64MultiArray()
+        torque_msg.data = [self.joint_effort.data]
+        self.publisher_torque_.publish(torque_msg)
 
     def setUpEventHandlers(self):
         
