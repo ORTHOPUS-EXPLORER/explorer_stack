@@ -66,13 +66,14 @@ class RqtActuatorController(Plugin):
         self.joint_vel = Float64()
         self.joint_vel.data = 0.0
 
-        self.joint_effort = Float64()
-        self.joint_effort.data = 0.0
+        self.joint_effort = Float64MultiArray()
+        self.joint_effort.data = [0.0]
 
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
-        self.publisher_velocity_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
+        self.publisher_vel_pos_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
+        self.publisher_velocity_ = self._context.node.create_publisher(Float64, "/forward_velocity_controller/commands", 1)
         self.publisher_torque_ = self._context.node.create_publisher(Float64MultiArray, "/forward_effort_controller/commands", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
@@ -82,10 +83,9 @@ class RqtActuatorController(Plugin):
 
 
     def publisher_callback(self):
+        self.publisher_vel_pos_.publish(self.joint_vel)
         self.publisher_velocity_.publish(self.joint_vel)
-        torque_msg = Float64MultiArray()
-        torque_msg.data = [self.joint_effort.data]
-        self.publisher_torque_.publish(torque_msg)
+        self.publisher_torque_.publish(self.joint_effort)
 
     def setUpEventHandlers(self):
         
@@ -98,15 +98,14 @@ class RqtActuatorController(Plugin):
     def onVelocityMove(self, value):
         self.joint_vel.data = float(value) / self.velocity_scale
 
-    
     def onTorqueMove(self, value):
-        self.joint_effort.data = float(value) / self.effort_scale
+        self.joint_effort.data[0] = float(value) / self.effort_scale
 
     def OnZeroPressed(self):
         self._widget.velocity.setSliderPosition(0)
         self.joint_vel.data = 0.0
         self._widget.torque.setSliderPosition(0)
-        self.joint_effort.data = 0.0
+        self.joint_effort.data[0] = 0.0
 
     # Qt methods
     def shutdown_plugin(self):
