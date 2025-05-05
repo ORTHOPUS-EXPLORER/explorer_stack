@@ -66,6 +66,9 @@ class RqtActuatorController(Plugin):
         self.joint_vel = Float64()
         self.joint_vel.data = 0.0
 
+        self.joint_velocity = Float64MultiArray()
+        self.joint_velocity.data = [0.0]
+
         self.joint_effort = Float64MultiArray()
         self.joint_effort.data = [0.0]
 
@@ -84,7 +87,7 @@ class RqtActuatorController(Plugin):
 
     def publisher_callback(self):
         self.publisher_vel_pos_.publish(self.joint_vel)
-        self.publisher_velocity_.publish(self.joint_vel)
+        self.publisher_velocity_.publish(self.joint_velocity)
         self.publisher_torque_.publish(self.joint_effort)
 
     def setUpEventHandlers(self):
@@ -97,6 +100,7 @@ class RqtActuatorController(Plugin):
 
     def onVelocityMove(self, value):
         self.joint_vel.data = float(value) / self.velocity_scale
+        self.joint_velocity.data[0] = float(value) / self.velocity_scale
 
     def onTorqueMove(self, value):
         self.joint_effort.data[0] = float(value) / self.effort_scale
@@ -104,6 +108,7 @@ class RqtActuatorController(Plugin):
     def OnZeroPressed(self):
         self._widget.velocity.setSliderPosition(0)
         self.joint_vel.data = 0.0
+        self.joint_velocity.data[0] = 0.0
         self._widget.torque.setSliderPosition(0)
         self.joint_effort.data[0] = 0.0
 
