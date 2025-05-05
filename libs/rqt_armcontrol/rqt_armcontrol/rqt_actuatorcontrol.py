@@ -60,8 +60,9 @@ class RqtActuatorController(Plugin):
         if self._context.serial_number() < 1:
             self._widget.window().setWindowTitle(self.title)
 
-        self.velocity_scale = 1000.0 
+        self.vel_scale = 1000.0 #for velocity via position control
         self.effort_scale = 30.0 
+        self.velocity_scale = 0.1
 
         self.joint_vel = Float64()
         self.joint_vel.data = 0.0
@@ -76,7 +77,7 @@ class RqtActuatorController(Plugin):
         self.setUpEventHandlers()
 
         self.publisher_vel_pos_ = self._context.node.create_publisher(Float64, "/ros2_control_actuator/dq_output", 1)
-        self.publisher_velocity_ = self._context.node.create_publisher(Float64, "/forward_velocity_controller/commands", 1)
+        self.publisher_velocity_ = self._context.node.create_publisher(Float64MultiArray, "/forward_velocity_controller/commands", 1)
         self.publisher_torque_ = self._context.node.create_publisher(Float64MultiArray, "/forward_effort_controller/commands", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
@@ -99,7 +100,7 @@ class RqtActuatorController(Plugin):
         self._widget.zero_btn.pressed.connect(self.OnZeroPressed)
 
     def onVelocityMove(self, value):
-        self.joint_vel.data = float(value) / self.velocity_scale
+        self.joint_vel.data = float(value) / self.vel_scale
         self.joint_velocity.data[0] = float(value) / self.velocity_scale
 
     def onTorqueMove(self, value):
