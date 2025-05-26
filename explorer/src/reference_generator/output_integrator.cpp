@@ -114,8 +114,8 @@ namespace space_control
         if(q_command_.data[6]<= 0.04){
             q_command_.data[6] = 0.04;
         }
-        else if(q_command_.data[6]>= 0.5){
-            q_command_.data[6] = 0.5;
+        else if(q_command_.data[6]>= 0.6){
+            q_command_.data[6] = 0.6;
         }
 
         command_pub_->publish(q_command_);
