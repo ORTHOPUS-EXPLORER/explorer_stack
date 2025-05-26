@@ -1,6 +1,3 @@
-[submodule "libs/trac_ik"]
-	path = libs/trac_ik
-	url = git@github.com:ARMMS-ORTHOPUS/trac_ik.git
 [submodule "libs/orthopus_vesc"]
 	path = libs/orthopus_vesc
 	url = ../orthopus_vesc.git
