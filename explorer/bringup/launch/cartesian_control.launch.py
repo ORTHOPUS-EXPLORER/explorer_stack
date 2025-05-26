@@ -51,7 +51,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_POC2",
-            default_value="false",
+            default_value="true",
             description="Use POC2 urdf",
         )
     )
@@ -209,7 +209,7 @@ def generate_launch_description():
         package="ros2_control_explorer",
         executable="qp_solving",
         parameters=[
-            config_POC1,
+            config_POC2,
             robot_description,
             robot_description_semantic,
             {'use_sim_time': use_sim_time}

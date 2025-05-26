@@ -5,7 +5,7 @@
   <xacro:arg name="can_port" default="vxcan1" />
   <xacro:arg name="host_id" default="45" />
   <xacro:arg name="rt_stream_rate" default="250" />
-  <xacro:arg name="aux_stream_rate" default="10" />
+  <xacro:arg name="aux_stream_rate" default="50" />
   <xacro:arg name="use_POC2" default="false" />
 
   <xacro:include filename="$(find gripper_pincette)/description/urdf/gripper_pincette_description.urdf.xacro"/>

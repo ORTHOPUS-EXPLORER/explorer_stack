@@ -49,7 +49,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_POC2",
-            default_value="false",
+            default_value="true",
             description="Use POC2 urdf",
         )
     )
