@@ -4,8 +4,8 @@
     <xacro:macro name="explorer_joint_1">
       <joint name="joint_1">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -21,8 +21,8 @@
     <xacro:macro name="explorer_joint_2">
       <joint name="joint_2">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -55,8 +55,8 @@
     <xacro:macro name="explorer_joint_4">
       <joint name="joint_4">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -72,8 +72,8 @@
     <xacro:macro name="explorer_joint_5">
       <joint name="joint_5">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -89,8 +89,8 @@
     <xacro:macro name="explorer_joint_6">
       <joint name="joint_6">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -106,8 +106,8 @@
     <xacro:macro name="explorer_gripper_servo_joint">
       <joint name="right_finger_joint">
         <command_interface name="position">
-          <param name="min">{-2*pi}</param>
-          <param name="max">{2*pi}</param>
+          <param name="min">-2*{pi}</param>
+          <param name="max">2*{pi}</param>
         </command_interface>
         <!--command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -124,7 +124,6 @@
       <joint name="right_external_rod_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
-        <command_interface name="position"/>
         <state_interface name="position"/>
         <!--state_interface name="velocity"/-->
       </joint>
@@ -132,7 +131,6 @@
       <joint name="right_fingertip_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
-        <command_interface name="position"/>
         <state_interface name="position"/>
         <!--state_interface name="velocity"/-->
       </joint>
@@ -140,7 +138,6 @@
       <joint name="left_finger_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
-        <command_interface name="position"/>
         <state_interface name="position"/>
         <!--state_interface name="velocity"/-->
       </joint>
@@ -148,7 +145,6 @@
       <joint name="left_external_rod_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
-        <command_interface name="position"/>
         <state_interface name="position"/>
         <!--state_interface name="velocity"/-->
       </joint>
@@ -156,7 +152,6 @@
       <joint name="left_fingertip_joint">
         <param name="mimic">right_finger_joint</param>
         <param name="multiplier">-1</param>
-        <command_interface name="position"/>
         <state_interface name="position"/>
         <!--state_interface name="velocity"/-->
       </joint>
