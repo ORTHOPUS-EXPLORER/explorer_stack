@@ -104,6 +104,7 @@ namespace space_control
 
             current_pos_ = msg;
             init = true;
+            RCLCPP_INFO(n_->get_logger(), "qt received first positions an initialized");
         }
         else{
             current_pos_ = msg;
@@ -211,7 +212,7 @@ namespace space_control
     {
         
         if(init == true){
-            for(int i=0; i< 20; i++){
+            for(int i=0; i< 20; i++){ //TODO length instead of 20
                 q_current_[i] = current_pos_.position[joint_order[i]];
             }
             fk_.setQCurrent(q_current_);
@@ -227,9 +228,11 @@ namespace space_control
             x_init_.orientation.z = x_current_.orientation.z();
         
             res->code_error = 0;
+            RCLCPP_INFO(n_->get_logger(), "service sent X ");
         }
         else{
             res->code_error = 1;
+            RCLCPP_INFO(n_->get_logger(), "service FAILED to send X ");
         }
         res->pose = x_init_;
     }
@@ -251,9 +254,11 @@ namespace space_control
                 q_init_[6] = current_pos_.position[joint_order[11]];
             }
             res->code_error = 0;
+            RCLCPP_INFO(n_->get_logger(), "service sent q ");
         }
         else{
             res->code_error = 1;
+            RCLCPP_INFO(n_->get_logger(), "service FAILED to send q ");
         }
 
         res->data = q_init_;

@@ -240,7 +240,7 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
-    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
+    delayed_rviz = TimerAction(period=10.0,actions=[rviz_node])
     
     # Declare GUI controller node
     gui_control_node = Node(
