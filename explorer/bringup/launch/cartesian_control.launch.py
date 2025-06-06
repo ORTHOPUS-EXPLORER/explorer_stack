@@ -273,7 +273,7 @@ def generate_launch_description():
     register_event_handler.append(
         RegisterEventHandler(
             event_handler=OnProcessStart(
-                target_action=gz_spawn_entity,
+                target_action=node_robot_state_publisher,
                 on_start=[joint_state_broadcaster_spawner],
             )
         )
