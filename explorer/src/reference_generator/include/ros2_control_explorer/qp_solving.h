@@ -78,7 +78,13 @@ namespace space_control
         bool first_use;
         bool go_home;
 
-        int joint_order[20];
+        enum class Mode { INVALID, EXPLORER, FULL };
+
+        std::vector<std::string> expected_names_explorer = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
+        std::vector<std::string> expected_names_wheelchair = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint"};
+
+        std::vector<size_t> joint_order;
+        Mode mode;
         std::vector<double> q_init_;
 
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);

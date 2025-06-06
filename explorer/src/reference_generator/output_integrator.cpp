@@ -34,10 +34,10 @@ namespace space_control
 
         auto request = std::make_shared<custom_interfaces::srv::Float64::Request>();
 
-        while(init_attempt_< 1000 && call_service_attempt_< 1000 && success_init_ == false){
+        while(init_attempt_< 100000 && call_service_attempt_< 100000 && success_init_ == false){
         request->ready = true;
         
-            while (!q_init_client_->wait_for_service(1s) && error_ == false && call_service_attempt_ < 1000) {
+            while (!q_init_client_->wait_for_service(1s) && error_ == false && call_service_attempt_ < 100000) {
                 if (!rclcpp::ok()) {
                     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
                     error_ = true;
@@ -47,7 +47,7 @@ namespace space_control
                 call_service_attempt_ += 1;
             }
 
-            if(call_service_attempt_ <= 1000){
+            if(call_service_attempt_ <= 100000){
                 RCLCPP_INFO_ONCE(rclcpp::get_logger("rclcpp"), "service available");
                 auto result = q_init_client_->async_send_request(request);
                 if (rclcpp::spin_until_future_complete(n_, result) ==
@@ -57,12 +57,12 @@ namespace space_control
                     if(copy_result.get()->code_error == 0){
                         q_init_ = copy_result.get()->data;
                         success_init_ = true;
-                        RCLCPP_INFO(n_->get_logger(), "initialized! ");
+                        RCLCPP_INFO(n_->get_logger(), "output_integrator_initialized");
                     }
                     else{
                         init_attempt_ += 1;
                         //RCLCPP_INFO_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
-                        RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
+                        //RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
                     }
                 
                 } else {
@@ -73,7 +73,7 @@ namespace space_control
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
             }
         }
-        if( init_attempt_>= 1000){
+        if( init_attempt_>= 100000){
             RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
             exit(0);
         }
