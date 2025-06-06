@@ -15,7 +15,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
@@ -336,13 +336,22 @@ def generate_launch_description():
         )
     )
 
+    register_event_handler.append(
+        RegisterEventHandler(
+            event_handler=OnProcessStart(
+                target_action=control_node,
+                on_start=[joint_state_broadcaster_spawner],
+            )
+        )
+    )
+
     nodes = [
         spacenav_arg,
         spacenav_node,
         spacenav_driver_node,
         control_node,
         node_robot_state_publisher,
-        joint_state_broadcaster_spawner,
+        #joint_state_broadcaster_spawner, removed, set in an event handler
         gui_control_node,
     ]
 
