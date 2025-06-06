@@ -308,6 +308,34 @@ def generate_launch_description():
         )
     )
 
+    register_event_handler.append(
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=robot_controller_spawner,
+                on_exit=[
+                    Node(
+                        package="controller_manager",
+                        executable="spawner",
+                        arguments=[
+                            "joint_state_broadcaster",
+                            "--controller-manager", "/controller_manager",
+                            "--activate",
+                        ],
+                    ),
+                    Node(
+                        package="controller_manager",
+                        executable="spawner",
+                        arguments=[
+                            "forward_position_controller",
+                            "--controller-manager", "/controller_manager",
+                            "--activate",
+                        ],
+                    ),
+                ],
+            )
+        )
+    )
+
     nodes = [
         spacenav_arg,
         spacenav_node,
