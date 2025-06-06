@@ -303,7 +303,7 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
     void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
                                            std::shared_ptr<custom_interfaces::srv::Pose::Response> res)
     {
-        RCLCPP_INFO(n_->get_logger(), "x_init [input integrator]: service called");
+        //RCLCPP_INFO(n_->get_logger(), "x_init [input integrator]: service called");
         (void)req;
         if(init == true){
             for(int i=0; i< joint_order.size(); i++){
@@ -334,7 +334,7 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
     void QPSolving::callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req,
                                            std::shared_ptr<custom_interfaces::srv::Float64::Response> res)
     {
-        RCLCPP_INFO(n_->get_logger(), "q_init [output integrator]: service called");
+        //RCLCPP_INFO(n_->get_logger(), "q_init [output integrator]: service called");
         if(init == true){ 
             if(wheelchair){  
                 for(int i=0; i< 6; i++){
