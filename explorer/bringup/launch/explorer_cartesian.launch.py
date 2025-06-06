@@ -13,7 +13,9 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, TimerAction
+from launch.actions import RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
@@ -76,8 +78,8 @@ def generate_launch_description():
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
         default_value='True',
-        description='If the spacenav 3D mouse is used'
-    )
+        description='If the spacenav 3D mouse is used')
+    
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -119,7 +121,7 @@ def generate_launch_description():
     )
 
     robot_description_semantic = {"robot_description_semantic": semantic_content}
-
+    
     robot_controllers = PathJoinSubstitution(
         [
             FindPackageShare("ros2_control_explorer"),
@@ -144,7 +146,7 @@ def generate_launch_description():
     config_POC2 =  PathJoinSubstitution(
         [FindPackageShare("ros2_control_explorer"), "config", "settings_POC2.yaml"]
     )
-
+    
     spacenav_node = Node(
         package='ros2_control_explorer',
         executable='spacenav',
@@ -238,10 +240,72 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
+    delayed_rviz = TimerAction(period=0.0,actions=[rviz_node])
+    
     # Declare GUI controller node
     gui_control_node = Node(
         package='rqt_armcontrol',
         executable='rqt_armcontrol',
+    )
+
+
+    explorer_bridge_params = PathJoinSubstitution(
+        [
+            FindPackageShare("ros2_control_explorer"),
+            "config",
+            "explorer_vesc_hw.yaml",
+        ]
+    )
+
+    register_event_handler = []
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=joint_state_broadcaster_spawner,
+                    on_exit=[robot_controller_spawner],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_POC1_node],
+                )
+        )
+    )
+    
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[qp_solving_POC2_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[input_integrator_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[output_integrator_node],
+                )
+        )
+    )
+    register_event_handler.append(
+        RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=robot_controller_spawner,
+                    on_exit=[delayed_rviz],
+                )
+        )
     )
 
     nodes = [
@@ -251,13 +315,7 @@ def generate_launch_description():
         control_node,
         node_robot_state_publisher,
         joint_state_broadcaster_spawner,
-        robot_controller_spawner,
-        qp_solving_POC1_node,
-        qp_solving_POC2_node,
-        input_integrator_node,
-        output_integrator_node,
-        rviz_node,
         gui_control_node,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription(declared_arguments + nodes + register_event_handler)
