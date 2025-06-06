@@ -18,7 +18,7 @@ from ament_index_python.packages import get_package_share_path, get_package_shar
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
@@ -272,10 +272,10 @@ def generate_launch_description():
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=gz_spawn_entity,
-                    on_exit=[joint_state_broadcaster_spawner],
-                )
+            event_handler=OnProcessStart(
+                target_action=gz_spawn_entity,
+                on_start=[joint_state_broadcaster_spawner],
+            )
         )
     )
     register_event_handler.append(
