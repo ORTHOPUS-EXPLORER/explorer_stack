@@ -4,18 +4,23 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
+      auto_start: false
 
     explorer_controller:
       type: ros2_control_explorer/RobotController
+      auto_start: false
 
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
+      auto_start: false
 
     joint_trajectory_controller:
       type: "joint_trajectory_controller/JointTrajectoryController"
+      auto_start: false
 
     gripper_controller:
       type: forward_command_controller/ForwardCommandController
+      auto_start: false
 
 explorer_controller:
   ros__parameters:
