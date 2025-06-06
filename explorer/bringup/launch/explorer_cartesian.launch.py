@@ -30,6 +30,7 @@ def generate_launch_description():
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
+    robot_description_param = LaunchConfiguration("robot_description_param")
 
     # Declare arguments
     declared_arguments = []
@@ -41,7 +42,7 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-    DeclareLaunchArgument(
+        DeclareLaunchArgument(
             'use_sim_time',
             default_value=use_sim_time,
             description='If true, use simulated clock')
@@ -74,39 +75,38 @@ def generate_launch_description():
             description="Use POC2 urdf",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "robot_description_param",
+            default_value=Command([
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                PathJoinSubstitution([
+                    FindPackageShare("ros2_control_explorer"),
+                    "description/urdf",
+                    "explorer.urdf.xacro",
+                ]),
+                " ",
+                "use_ignition:=false",
+                " ",
+                "use_actuator_interface:=", use_actuator_interface,
+                " ",
+                "can_port:=", can_port,
+                " ",
+                "host_id:=", host_id,
+                " ",
+                "use_POC2:=", poc2
+            ]),
+            description="Robot description (URDF) evaluated from xacro"
+        )
+    )
 
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
         default_value='True',
         description='If the spacenav 3D mouse is used')
-    
 
-    # Get URDF via xacro
-    robot_description_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("ros2_control_explorer"),
-                    "description/urdf",
-                    "explorer.urdf.xacro",
-                ]
-            ),
-            " ",
-            "use_ignition:=false",
-            " ",
-            " use_actuator_interface:=",use_actuator_interface,
-            " ",
-            " can_port:=",can_port,
-            " ",
-            " host_id:=",host_id,
-            " ",
-            "use_POC2:=",poc2
-        ]
-    )
-
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {"robot_description": robot_description_param}
 
     # Get SRDF via xacro
     semantic_content = Command(

@@ -32,6 +32,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
     spacenav = LaunchConfiguration('spacenav')
     poc2 = LaunchConfiguration("use_POC2")
+    robot_description_param = LaunchConfiguration("robot_description_param")
 
     # Declare arguments
     declared_arguments = []
@@ -43,9 +44,9 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-    DeclareLaunchArgument(
+        DeclareLaunchArgument(
             'use_sim_time',
-            default_value= use_sim_time,
+            default_value=use_sim_time,
             description='If true, use simulated clock')
     )
     declared_arguments.append(
@@ -55,13 +56,31 @@ def generate_launch_description():
             description="Use POC2 urdf",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "robot_description_param",
+            default_value=Command([
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                PathJoinSubstitution([
+                    FindPackageShare("ros2_control_explorer"),
+                    "description/urdf",
+                    "explorer.urdf.xacro"
+                ]),
+                " ",
+                "use_ignition:=true",
+                " ",
+                "use_POC2:=", poc2
+            ]),
+            description="Robot description (URDF) evaluated from xacro"
+        )
+    )
 
     spacenav_arg = DeclareLaunchArgument(
         name='spacenav',
         default_value='True',
         description='If the spacenav 3D mouse is used')
     
-
     world = os.path.join(
         get_package_share_directory('ros2_control_explorer'),
         'description/worlds',
@@ -82,21 +101,7 @@ def generate_launch_description():
         launch_arguments={'gz_args': '-g -v4 '}.items() #Rajouter -s pour que Gazebo s'affiche pas
     )
 
-    # Get URDF via xacro
-    robot_description_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]
-            ),
-            " ",
-            "use_ignition:=true",
-            " ",
-            "use_POC2:=",poc2
-        ]
-    )
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {"robot_description": robot_description_param}
 
     # Get SRDF via xacro
     semantic_content = Command(
