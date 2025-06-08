@@ -62,7 +62,7 @@ class RqtActuatorController(Plugin):
 
         self.vel_scale = 1000.0 #for velocity via position control
         self.effort_scale = 30.0 
-        self.velocity_scale = 0.1
+        self.velocity_scale = 200
 
         self.joint_vel = Float64()
         self.joint_vel.data = 0.0
