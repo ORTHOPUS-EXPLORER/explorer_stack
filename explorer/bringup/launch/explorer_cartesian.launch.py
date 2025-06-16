@@ -62,6 +62,33 @@ def generate_launch_description():
     config_POC2 = PathJoinSubstitution([
         FindPackageShare("ros2_control_explorer"), "config", "settings_POC2.yaml"])
 
+    spacenav_config = PathJoinSubstitution([
+        FindPackageShare("ros2_control_explorer"),
+        "config",
+        "spacenav_settings.yaml"
+    ])
+
+    spacenav_node = Node(
+        package='ros2_control_explorer',
+        executable='spacenav',
+        parameters=[
+            spacenav_config,
+            {'static_rot_deadband': 0.5},
+            {'static_trans_deadband': 0.5}
+        ],
+        condition=IfCondition(spacenav),
+    )
+
+    spacenav_driver_node = Node(
+        package='spacenav',
+        executable='spacenav_node',
+        parameters=[
+            {'static_rot_deadband': 0.5},
+            {'static_trans_deadband': 0.5}
+        ],
+        condition=IfCondition(spacenav),
+    )
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -168,4 +195,6 @@ def generate_launch_description():
         delayed_robot_controller,
         delayed_nodes,
         delayed_rviz,
+        spacenav_node,
+        spacenav_driver_node,
     ])
