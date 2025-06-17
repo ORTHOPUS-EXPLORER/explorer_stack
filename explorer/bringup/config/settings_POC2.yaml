@@ -17,28 +17,28 @@ qp_solving:
     ### --- JOINT LIMITS --- ###
     j1:
       limits  : 1 #int type, 0 if joint is multiturn or 1 otherwise
-      min     : -2.97
-      max     : 2.97
+      min     : -2.941
+      max     : 2.941
     j2:
       limits  : 1
-      min     : -2.14
-      max     : 2.14
+      min     : -2.112
+      max     : 2.112
     j3:
       limits  : 1
-      min     : -2.97
-      max     : 2.97
+      min     : -2.941
+      max     : 2.941
     j4:
       limits  : 1
-      min     : -2.97
-      max     : 2.97
+      min     : -2.941
+      max     : 2.941
     j5:
       limits  : 1
-      min     : -1.8
-      max     : 1.8
+      min     : -1.763
+      max     : 1.763
     j6:
       limits  : 1
-      min     : -2.97
-      max     : 2.97
+      min     : -2.941
+      max     : 2.941
 
     ### --- NAME OF SDRF GROUP --- ###
     model_group_name            : "arm"
