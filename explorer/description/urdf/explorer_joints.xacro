@@ -15,6 +15,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
@@ -32,6 +33,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
@@ -49,6 +51,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
@@ -66,6 +69,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
@@ -83,6 +87,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
@@ -100,6 +105,7 @@
           <param name="initial_value">0.0</param>
         </state_interface>
         <state_interface name="velocity"/>
+        <state_interface name="effort"/>
       </joint>
     </xacro:macro>
 
