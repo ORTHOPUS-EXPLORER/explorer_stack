@@ -210,7 +210,7 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
   {
     if(!tgt_j.in_use)
       continue;
-    for(const auto& [cif_name, cif_v]: tgt_j.refs)
+    for(auto& [cif_name, cif_v]: tgt_j.refs)
     {
       _command_interfaces.emplace_back(hardware_interface::CommandInterface(j_name, cif_name, &cif_v));
     }
@@ -221,10 +221,8 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
 
 CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully configured!", _name.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully configured!", _name.c_str());
 
-  // FIXME: Do this somewhere else ffs
-  _vesc_host->startStreaming();
   return CallbackReturn::SUCCESS;
 }
 
@@ -265,8 +263,9 @@ CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycl
       }
     }
   }
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
-
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
+  // FIXME: Do this somewhere else ffs
+  _vesc_host->startStreaming();
   return CallbackReturn::SUCCESS;
 }
 
@@ -339,26 +338,35 @@ return_type VESCInterface::perform_command_mode_switch([[maybe_unused]] const st
         const auto& intf = st_if.substr(j_name.length()+1);  // Then match the end with supported interfaces
         if(auto it = j_data.refs.find(intf); it != j_data.refs.end())
         {
-          _vesc_dev->ctrl_word &= ~orthopus::ORTHOPUS_CTRL_MODE_MSK;  // Clear last command
+          auto pctrl = j_data.ctrl;
+          j_data.ctrl &= ~orthopus::ORTHOPUS_CTRL_MODE_MSK;  // Clear last command
 
-          if(intf == "position")
+          if(intf == "position" )
           {
-            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_POS;
-            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to POS mode", j_name.c_str());
+            j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_POS;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to POS mode", j_name.c_str());
           } 
           else if(intf == "velocity")
           {
-            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
-            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to VEL mode", j_name.c_str());
+            j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to VEL mode", j_name.c_str());
           } 
           else if(intf == "effort")
           {
-            _vesc_dev->ctrl_word |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
-            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to TRQ mode", j_name.c_str());
+            j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to TRQ mode", j_name.c_str());
           } 
           else
-          RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "Switch %s to OFF mode", j_name.c_str());
+            RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to OFF mode", j_name.c_str());
           
+          if(pctrl != j_data.ctrl)
+          {
+            if(!j_data.stream)
+            {
+              RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Enable stream, with ctrlWord 0x%04x, posMeas: %f posRef: %f", j_name.c_str(), j_data.ctrl, j_data.meas.at("position"), j_data.refs.at("position"));
+              j_data.stream = true;
+            }
+          }
 
           //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "   - %s",st_if.c_str());
           break; // We're done for this joint
