@@ -16,7 +16,7 @@ namespace space_control
 
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         gripper_vel_.data = 0.0;
-        q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
 
         q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         
@@ -113,11 +113,11 @@ namespace space_control
         }
         
         q_command_.data[6] = q_command_.data[6] + gripper_vel_.data * sampling_period_;
-        if(q_command_.data[6]<= 0.04){
-            q_command_.data[6] = 0.04;
+        if(q_command_.data[6]<= 0.0){
+            q_command_.data[6] = 0.0;
         }
-        else if(q_command_.data[6]>= 0.6){
-            q_command_.data[6] = 0.6;
+        else if(q_command_.data[6]>= 1.0){
+            q_command_.data[6] = 1.0;
         }
 
         command_pub_->publish(q_command_);
