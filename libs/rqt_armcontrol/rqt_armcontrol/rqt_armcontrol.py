@@ -96,6 +96,12 @@ class RqtCartesianController(Plugin):
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
+        # Set fullscreen mode when running standalone (after widget is added to context)
+        if self._context.serial_number() < 1:
+            # Use a timer to delay maximizing to ensure widget is fully rendered
+            from python_qt_binding.QtCore import QTimer
+            QTimer.singleShot(1000, lambda: self._widget.window().showMaximized())
+
         self._widget.J1_pos.setText("{:.2f} °".format(0.00))
         self._widget.J2_pos.setText("{:.2f} °".format(0.00))
         self._widget.J3_pos.setText("{:.2f} °".format(0.00))
