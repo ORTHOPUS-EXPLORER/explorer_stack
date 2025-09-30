@@ -61,7 +61,8 @@ void ForwardKinematic::resolveForwardKinematic()
              pow(conv_quat.y() - x_current_.orientation.y(), 2) + pow(conv_quat.z() - x_current_.orientation.z(), 2));
     if (diff_norm > 1)
     {
-      RCLCPP_WARN_STREAM(n_->get_logger(), "ForwardKinematic - A discontinuity has been detected during quaternion conversion.");
+      //RCLCPP_WARN_STREAM(n_->get_logger(), "ForwardKinematic - A discontinuity has been detected during quaternion conversion.");
+      //TODO: removed message to avoid spamming the log, but may be interesting to investigate if we should try to avoid this case instead of just ignoring it
       /* If discontinuity happened, change sign of the quaternion */
       conv_quat.w() = -conv_quat.w();
       conv_quat.x() = -conv_quat.x();

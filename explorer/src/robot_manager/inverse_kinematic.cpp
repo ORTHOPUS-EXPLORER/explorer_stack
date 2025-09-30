@@ -721,7 +721,8 @@ bool InverseKinematic::getJacobian_(const moveit::core::RobotStatePtr kinematic_
                pow(conv_quat.y() - jacobian_quat_prev_.y(), 2) + pow(conv_quat.z() - jacobian_quat_prev_.z(), 2));
       if (diff_norm > 1)
       {
-        RCLCPP_WARN_STREAM(n_->get_logger(), "InverseKinematic - A discontinuity has been detected during quaternion conversion.");
+        //RCLCPP_WARN_STREAM(n_->get_logger(), "InverseKinematic - A discontinuity has been detected during quaternion conversion.");
+        //TODO: removed message to avoid spamming the log, but may be interesting to investigate if we should try to avoid this case instead of just ignoring it
         /* If discontinuity happened, change sign of the quaternion */
         conv_quat.w() = -conv_quat.w();
         conv_quat.x() = -conv_quat.x();
