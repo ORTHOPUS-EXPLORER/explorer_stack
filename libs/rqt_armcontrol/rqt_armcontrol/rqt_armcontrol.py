@@ -130,17 +130,21 @@ class RqtCartesianController(Plugin):
 
 
     def publisher_callback(self):
-        if (not self.slider_released) or (not self.prev_slider_released) :
-            self.cartesian_vel.header.stamp = self._context.node.get_clock().now().to_msg();
-            self.publisher_.publish(self.cartesian_vel)
-            self.publisher_gripper_.publish(self.gripper_pos)
-        self.prev_slider_released = self.slider_released
-        self.publisher_linear_speed_.publish(self.linear_speed)
-        self.publisher_angular_speed_.publish(self.angular_speed)
-        self.publisher_spacemouse_select_.publish(self.select)
-        if(self.home_released.data == True ):
-            self.home_released.data = False
-            self.publisher_home_released_.publish(self.home_released)
+        try:
+            if (not self.slider_released) or (not self.prev_slider_released):
+                self.cartesian_vel.header.stamp = self._context.node.get_clock().now().to_msg()
+                self.publisher_.publish(self.cartesian_vel)
+                self.publisher_gripper_.publish(self.gripper_pos)
+            self.prev_slider_released = self.slider_released
+            self.publisher_linear_speed_.publish(self.linear_speed)
+            self.publisher_angular_speed_.publish(self.angular_speed)
+            self.publisher_spacemouse_select_.publish(self.select)
+            if self.home_released.data:
+                self.home_released.data = False
+                self.publisher_home_released_.publish(self.home_released)
+        except Exception as e:
+            # Log error but don't crash the application
+            self._context.node.get_logger().warn(f"Error in publisher_callback: {str(e)}")
         
 
     def setUpEventHandlers(self):
@@ -235,26 +239,44 @@ class RqtCartesianController(Plugin):
         self.slider_released = True
 
     def joint_sub_callback(self, msg):
-        for i in range(0,6):
-            j = 0
-            while (self.joint.name[i]!= msg.name[j] and j<len(msg.name)):
-                j += 1
-            if(self.joint.name[i] == msg.name[j]):    
-                self.joint.position[i] = msg.position[j]
+        try:
+            # Ensure msg has required attributes
+            if not hasattr(msg, 'name') or not hasattr(msg, 'position'):
+                return
+            
+            for i in range(0, 6):
+                # Safely search for the joint name in the message
+                for j in range(len(msg.name)):
+                    if self.joint.name[i] == msg.name[j]:
+                        # Ensure we don't access position array out of bounds
+                        if j < len(msg.position):
+                            self.joint.position[i] = msg.position[j]
+                        break
 
-        
-        self._widget.J1_pos.setText("{:.2f} °".format(self.joint.position[0]*(180/3.141592)))
-        self._widget.J2_pos.setText("{:.2f} °".format(self.joint.position[1]*(180/3.141592)))
-        self._widget.J3_pos.setText("{:.2f} °".format(self.joint.position[2]*(180/3.141592)))
-        self._widget.J4_pos.setText("{:.2f} °".format(self.joint.position[3]*(180/3.141592)))
-        self._widget.J5_pos.setText("{:.2f} °".format(self.joint.position[4]*(180/3.141592)))
-        self._widget.J6_pos.setText("{:.2f} °".format(self.joint.position[5]*(180/3.141592)))
+            # Update UI with joint positions (convert from radians to degrees)
+            self._widget.J1_pos.setText("{:.2f} °".format(self.joint.position[0]*(180/3.141592)))
+            self._widget.J2_pos.setText("{:.2f} °".format(self.joint.position[1]*(180/3.141592)))
+            self._widget.J3_pos.setText("{:.2f} °".format(self.joint.position[2]*(180/3.141592)))
+            self._widget.J4_pos.setText("{:.2f} °".format(self.joint.position[3]*(180/3.141592)))
+            self._widget.J5_pos.setText("{:.2f} °".format(self.joint.position[4]*(180/3.141592)))
+            self._widget.J6_pos.setText("{:.2f} °".format(self.joint.position[5]*(180/3.141592)))
+        except Exception as e:
+            # Log error but don't crash the application
+            self._context.node.get_logger().warn(f"Error in joint_sub_callback: {str(e)}")
             
 
 
     # Qt methods
     def shutdown_plugin(self):
         """Shutdown plugin."""
+        try:
+            # Clean up timer and subscribers
+            if hasattr(self, 'timer'):
+                self.timer.cancel()
+            if hasattr(self, 'joint_sub_'):
+                self._context.node.destroy_subscription(self.joint_sub_)
+        except Exception as e:
+            self._context.node.get_logger().warn(f"Error during shutdown: {str(e)}")
 
     def save_settings(self, plugin_settings, instance_settings):
         """Save settings."""
