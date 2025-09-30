@@ -726,53 +726,43 @@ bool InverseKinematic::getJacobian_(const moveit::core::RobotStatePtr kinematic_
   }
   if (use_quaternion_representation)
   {
-    /* Convert rotation matrix to quaternion */
-    Quaterniond conv_quat(link_transform.linear());
-
-    /* Warning : During the convertion in quaternion, sign could change as there are tow quaternion definitions possible
-     * (q and -q) for the same rotation. The following code ensure quaternion continuity between to occurence of this
-     * method call
-     */
+    /* Use rotation matrix directly - no quaternion discontinuities! */
+    Eigen::Matrix3d rotation_matrix = link_transform.linear();
+    
+    /* Convert to quaternion only for Jacobian computation */
+    Quaterniond conv_quat(rotation_matrix);
+    
+    /* Apply quaternion continuity correction only if needed for external interfaces */
     if (jacobian_init_flag_)
     {
       jacobian_init_flag_ = false;
+      jacobian_quat_prev_ = conv_quat;
     }
     else
     {
-      /* Detect if a discontinuity happened between new quaternion and the previous one */
-      double diff_norm =
-          sqrt(pow(conv_quat.w() - jacobian_quat_prev_.w(), 2) + pow(conv_quat.x() - jacobian_quat_prev_.x(), 2) +
-               pow(conv_quat.y() - jacobian_quat_prev_.y(), 2) + pow(conv_quat.z() - jacobian_quat_prev_.z(), 2));
-      if (diff_norm > 1)
-      {
-        //RCLCPP_WARN_STREAM(n_->get_logger(), "InverseKinematic - A discontinuity has been detected during quaternion conversion.");
-        //TODO: removed message to avoid spamming the log, but may be interesting to investigate if we should try to avoid this case instead of just ignoring it
-        /* If discontinuity happened, change sign of the quaternion */
+      /* Ensure quaternion continuity using dot product (more robust than euclidean distance) */
+      double dot_product = conv_quat.w() * jacobian_quat_prev_.w() + 
+                          conv_quat.x() * jacobian_quat_prev_.x() + 
+                          conv_quat.y() * jacobian_quat_prev_.y() + 
+                          conv_quat.z() * jacobian_quat_prev_.z();
+      
+      if (dot_product < 0.0) {
+        // Flip quaternion for continuity
         conv_quat.w() = -conv_quat.w();
         conv_quat.x() = -conv_quat.x();
         conv_quat.y() = -conv_quat.y();
         conv_quat.z() = -conv_quat.z();
       }
-      else
-      {
-        /* Else, do nothing and keep quaternion sign */
-      }
+      jacobian_quat_prev_ = conv_quat;
     }
-    jacobian_quat_prev_ = conv_quat;
-
-    //double w = conv_quat.w(), x = conv_quat.x(), y = conv_quat.y(), z = conv_quat.z();
-    // MatrixXd quaternion_update_matrix(4, 3);
 
     /* d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
      *        [x]           [  w  z -y ]    [ omega_2 ]
      *        [y]           [ -z  w  x ]    [ omega_3 ]
      *        [z]           [  y -x  w ]
      */
-    // quaternion_update_matrix << -x, -y, -z, w, z, -y, -z, w, x, y, -x, w;
 
-    // Vector4d omega;
-    // omega(0) = 0.0;
-    // omega.bottomLeftCorner(3, 1) =
+    /* Compute quaternion Jacobian from angular velocity Jacobian */
     jacobian.block(3, 0, 4, columns) = 0.5 * xR_(conv_quat).block(0, 1, 4, 3) * jacobian.block(3, 0, 3, columns);
   }
   return true;

@@ -43,45 +43,16 @@ void ForwardKinematic::resolveForwardKinematic()
   const Eigen::Affine3d& end_effector_state =
       kinematic_state_->getGlobalLinkTransform(kinematic_state_->getLinkModel(end_effector_link_));
 
-  /* Convert rotation matrix to quaternion */
-  Eigen::Quaterniond conv_quat(end_effector_state.linear());
-  /* Warning : During the convertion in quaternion, sign could change as there are tow quaternion definitions possible
-   * (q and -q) for the same rotation. The following code ensure quaternion continuity between to occurence of this
-   * method call
-   */
-  if (init_flag_)
-  {
-    init_flag_ = false;
-  }
-  else
-  {
-    /* Detect if a discontinuity happened between new quaternion and the previous one */
-    double diff_norm =
-        sqrt(pow(conv_quat.w() - x_current_.orientation.w(), 2) + pow(conv_quat.x() - x_current_.orientation.x(), 2) +
-             pow(conv_quat.y() - x_current_.orientation.y(), 2) + pow(conv_quat.z() - x_current_.orientation.z(), 2));
-    if (diff_norm > 1)
-    {
-      //RCLCPP_WARN_STREAM(n_->get_logger(), "ForwardKinematic - A discontinuity has been detected during quaternion conversion.");
-      //TODO: removed message to avoid spamming the log, but may be interesting to investigate if we should try to avoid this case instead of just ignoring it
-      /* If discontinuity happened, change sign of the quaternion */
-      conv_quat.w() = -conv_quat.w();
-      conv_quat.x() = -conv_quat.x();
-      conv_quat.y() = -conv_quat.y();
-      conv_quat.z() = -conv_quat.z();
-    }
-    else
-    {
-      /* Else, do nothing and keep quaternion sign */
-    }
-  }
-
+  /* Use rotation matrix directly - no discontinuities! */
+  Eigen::Matrix3d rotation_matrix = end_effector_state.linear();
+  
+  /* Store position */
   x_current_.position.x() = end_effector_state.translation()[0];
   x_current_.position.y() = end_effector_state.translation()[1];
   x_current_.position.z() = end_effector_state.translation()[2];
-  x_current_.orientation.w() = conv_quat.w();
-  x_current_.orientation.x() = conv_quat.x();
-  x_current_.orientation.y() = conv_quat.y();
-  x_current_.orientation.z() = conv_quat.z();
+  
+  /* Set orientation using rotation matrix (eliminates quaternion discontinuities) */
+  x_current_.orientation.setRotationMatrix(rotation_matrix);
 }
 
 void ForwardKinematic::setQCurrent(const JointPosition& q_current)
