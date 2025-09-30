@@ -427,7 +427,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
 
   /* Solve QP */
   qpOASES::real_t xOpt[6];
-  qpOASES::int_t nWSR = 10;
+  qpOASES::int_t nWSR = 100;  // Increased from 10 to 100 to allow more working set recalculations
   qpOASES::returnValue qp_return = qpOASES::SUCCESSFUL_RETURN;
   if (qp_init_required_)
   {
@@ -436,7 +436,12 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
     qpOASES::Options options;
     //Options options;
     options.setToReliable();
-    // options.enableInertiaCorrection = qpOASES::BT_TRUE;
+    // Enable inertia correction to improve numerical stability
+    options.enableInertiaCorrection = qpOASES::BT_TRUE;
+    // Enable regularisation to handle ill-conditioned problems
+    options.enableRegularisation = qpOASES::BT_TRUE;
+    // Set termination tolerance for better convergence
+    options.terminationTolerance = 1e-8;
     options.printLevel = qpOASES::PL_NONE;
     QP_->setOptions(options);
 
@@ -463,20 +468,39 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
       prev_dq_computed_[i] = dq_computed[i];
     }
   }
+  else if (qp_return == qpOASES::RET_MAX_NWSR_REACHED)
+  {
+    RCLCPP_WARN_THROTTLE(n_->get_logger(), *n_->get_clock(), 1000, 
+                         "qpOASES : Maximum number of working set recalculations reached, using best solution found");
+    
+    /* Get the best solution found even if not fully converged */
+    QP_->getPrimalSolution(xOpt);
+    for (int i=0; i<joint_number_; i++){
+      dq_computed[i] = xOpt[i];
+      prev_dq_computed_[i] = dq_computed[i];
+    }
+  }
   else
   {
     RCLCPP_ERROR(n_->get_logger(), "qpOASES : Failed with code : %d !", qp_return);
     const char* error_msg = qpOASES::MessageHandling::getErrorCodeMessage(qp_return);
     RCLCPP_ERROR(n_->get_logger(), "qpOASES : Failed with message : %s", error_msg);
+    
+    /* Use previous solution or zero velocity as fallback */
     for (int i=0; i<joint_number_; i++){
-      dq_computed[i] = 0.0;
+      dq_computed[i] = prev_dq_computed_[i] * 0.5; // Reduce previous velocity by half as conservative fallback
     }
   }
 
-  if (qp_return != qpOASES::SUCCESSFUL_RETURN && qp_return != qpOASES::RET_MAX_NWSR_REACHED)
+  /* Only reset on serious errors, not on max iterations reached */
+  if (qp_return != qpOASES::SUCCESSFUL_RETURN && 
+      qp_return != qpOASES::RET_MAX_NWSR_REACHED &&
+      qp_return != qpOASES::RET_HOTSTART_STOPPED_INFEASIBILITY)
   {
+    RCLCPP_WARN(n_->get_logger(), "QP solver failed with serious error, resetting solver state");
     reset();
-    exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
+    // Don't exit, just reset and continue - this allows recovery
+    // exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
   }
 }
 
