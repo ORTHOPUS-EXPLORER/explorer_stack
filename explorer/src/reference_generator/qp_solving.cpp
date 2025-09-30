@@ -47,6 +47,7 @@ namespace space_control
         x_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10, std::bind(&QPSolving::callback_x_input_, this, std::placeholders::_1));
         q_command_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&QPSolving::callback_q_command_prec_, this, std::placeholders::_1));
         home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&QPSolving::callback_home_pressed_, this, std::placeholders::_1));
+        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&QPSolving::callback_home_released_, this, std::placeholders::_1));
         x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
 
         //init publishers
@@ -207,6 +208,19 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
     {   
         if(msg.data == true){
             go_home = true;
+        }
+        else{
+            go_home = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_home_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_home = false;
+            ik_.reset();
         }
        
     }

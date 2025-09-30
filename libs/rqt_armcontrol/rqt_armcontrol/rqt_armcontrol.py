@@ -93,6 +93,9 @@ class RqtCartesianController(Plugin):
         self.home_pressed = Bool()
         self.home_pressed.data = False
 
+        # Add state tracking for home button operations
+        self.home_button_is_pressed = False
+
         context.add_widget(self._widget)
         self.setUpEventHandlers()
 
@@ -143,9 +146,14 @@ class RqtCartesianController(Plugin):
             self.publisher_linear_speed_.publish(self.linear_speed)
             self.publisher_angular_speed_.publish(self.angular_speed)
             self.publisher_spacemouse_select_.publish(self.select)
+            
+            # Always publish current home_pressed state (true while held, false when released)
+            self.publisher_home_pressed_.publish(self.home_pressed)
+            
+            # Only publish home_released signal once after button is released
             if self.home_released.data:
-                self.home_released.data = False
                 self.publisher_home_released_.publish(self.home_released)
+                self.home_released.data = False  # Reset after publishing once
         except Exception as e:
             # Log error but don't crash the application
             self._context.node.get_logger().warn(f"Error in publisher_callback: {str(e)}")
@@ -216,14 +224,20 @@ class RqtCartesianController(Plugin):
         self.select.data = value
 
     def OnHomeReleased(self):
-        self.home_released.data = True
-        self.home_pressed.data = False
-        self.publisher_home_released_.publish(self.home_released)
-        self.publisher_home_pressed_.publish(self.home_pressed)
+        """Called when home button is released - stops homing process immediately."""
+        if self.home_button_is_pressed:  # Only process if button was actually pressed
+            self.home_button_is_pressed = False
+            self.home_pressed.data = False
+            self.home_released.data = True  # Signal to stop homing and resume normal control
+            self._context.node.get_logger().info("Home button released - stopping homing process")
 
     def OnHomePressed(self):
-        self.home_pressed.data = True
-        self.publisher_home_pressed_.publish(self.home_pressed)
+        """Called when home button is pressed - starts continuous homing process."""
+        if not self.home_button_is_pressed:  # Prevent multiple press events
+            self.home_button_is_pressed = True
+            self.home_pressed.data = True
+            self.home_released.data = False
+            self._context.node.get_logger().info("Home button pressed - starting homing process")
 
     def onSliderReleased(self):
         # Reset velocities immediately  

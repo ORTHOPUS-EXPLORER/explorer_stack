@@ -45,6 +45,7 @@ namespace space_control
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr  dx_input_sub_;
         rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr  q_command_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_released_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr x_des_updated_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
@@ -92,6 +93,7 @@ namespace space_control
         void callback_dx_input_(const geometry_msgs::msg::Pose & msg);
         void callback_x_input_(const geometry_msgs::msg::Pose & msg);
         void callback_home_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_home_released_(const std_msgs::msg::Bool & msg);
         void callback_x_des_updated_(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req, std::shared_ptr<custom_interfaces::srv::Pose::Response> res);
