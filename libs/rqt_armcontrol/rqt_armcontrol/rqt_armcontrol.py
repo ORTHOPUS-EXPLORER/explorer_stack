@@ -76,10 +76,10 @@ class RqtCartesianController(Plugin):
         self.gripper_pos.data = 0.0
     
         self.linear_speed= Float64()
-        self.linear_speed.data = 0.025
+        self.linear_speed.data = 0.05
 
         self.angular_speed= Float64()
-        self.angular_speed.data = 0.5
+        self.angular_speed.data = 1.0
 
         self.slider_released = True
         self.prev_slider_released = True
@@ -108,6 +108,10 @@ class RqtCartesianController(Plugin):
         self._widget.J4_pos.setText("{:.2f} °".format(0.00))
         self._widget.J5_pos.setText("{:.2f} °".format(0.00))
         self._widget.J6_pos.setText("{:.2f} °".format(0.00))
+
+        # Set initial slider positions to match the default values
+        self._widget.max_linear_speed.setSliderPosition(int(self.linear_speed.data * self.scale))
+        self._widget.max_angular_speed.setSliderPosition(int(self.angular_speed.data * self.scale))
 
         #joint states
         self.joint = JointState()
