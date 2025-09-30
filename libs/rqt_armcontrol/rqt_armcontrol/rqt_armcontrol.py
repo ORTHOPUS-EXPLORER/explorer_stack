@@ -226,13 +226,7 @@ class RqtCartesianController(Plugin):
         self.publisher_home_pressed_.publish(self.home_pressed)
 
     def onSliderReleased(self):
-        self._widget.pos_x.setSliderPosition(0)
-        self._widget.pos_y.setSliderPosition(0)
-        self._widget.pos_z.setSliderPosition(0)
-        self._widget.or_roll.setSliderPosition(0)
-        self._widget.or_pitch.setSliderPosition(0)
-        self._widget.or_yaw.setSliderPosition(0)
-        self._widget.gripper.setSliderPosition(0)
+        # Reset velocities immediately  
         self.cartesian_vel.twist.linear.x = 0.0
         self.cartesian_vel.twist.linear.y = 0.0
         self.cartesian_vel.twist.linear.z = 0.0
@@ -241,6 +235,35 @@ class RqtCartesianController(Plugin):
         self.cartesian_vel.twist.angular.z = 0.0
         self.gripper_pos.data = 0.0
         self.slider_released = True
+        
+        # Reset slider positions with a small delay to avoid UI conflicts
+        from python_qt_binding.QtCore import QTimer
+        QTimer.singleShot(10, self._reset_slider_positions)
+    
+    def _reset_slider_positions(self):
+        """Reset slider positions to center (0) with proper signal blocking."""
+        # Temporarily block signals to prevent triggering value change events
+        sliders = [
+            self._widget.pos_x,
+            self._widget.pos_y, 
+            self._widget.pos_z,
+            self._widget.or_roll,
+            self._widget.or_pitch,
+            self._widget.or_yaw,
+            self._widget.gripper
+        ]
+        
+        for slider in sliders:
+            try:
+                slider.blockSignals(True)
+                slider.setValue(0)  # Use setValue instead of setSliderPosition
+                slider.setSliderPosition(0)
+                slider.blockSignals(False)
+                slider.update()  # Force UI update
+            except Exception as e:
+                # If one slider fails, continue with others
+                self._context.node.get_logger().warn(f"Error resetting slider: {str(e)}")
+                slider.blockSignals(False)  # Ensure signals are unblocked
 
     def joint_sub_callback(self, msg):
         try:
