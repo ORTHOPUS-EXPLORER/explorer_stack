@@ -99,16 +99,21 @@ private:
   std::vector<double> alpha_weight_vec;
   std::vector<double> beta_weight_vec;
   std::vector<double> gamma_weight_vec;
+  std::vector<double> joint_centering_weight_vec;
 
   int alpha_multiplier;
   int beta_multiplier;
   int gamma_multiplier;
+  int joint_centering_multiplier;
 
   MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
   MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
   MatrixXd gamma_pos_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
   MatrixXd gamma_or_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd joint_centering_weight_;   /*!< Diagonal matrix which contains weight for joint centering (keeping redundant joints near zero) */
   MatrixXd lambda_weight_;   /*!< TODO */
+
+  double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 
@@ -139,10 +144,13 @@ private:
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_beta_multiplier;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_gamma_weight;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_gamma_multiplier;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_centering_weight;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_centering_multiplier;
 
   void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
   void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
   void setGammaWeight_(const std::vector<double>& gamma_weight, const int gamma_multiplier);
+  void setJointCenteringWeight_(const std::vector<double>& joint_centering_weight, const int joint_centering_multiplier);
   void setLambdaWeight_(const std::vector<double>& lambda_weight);
   void setDqBounds_(const JointVelocity& dq_bound);
 

@@ -13,6 +13,20 @@ qp_solving:
     #  Minimize cartesian pose difference : x-x_des
     gamma_weight  : [1000.0, 1000.0, 1000.0, 250.0, 250.0, 250.0, 250.0]
     gamma_multiplier : 1
+    #  Keep redundant joints near zero (joint centering) - CONDITIONAL on J5 alignment
+    joint_centering_weight : [0.0, 0.0, 0.0, 50.0, 0.0, 50.0]  # Only J4 and J6, can be aggressive since conditional
+    joint_centering_multiplier : 1
+    j5_alignment_threshold : 0.2  # radians (~11 degrees) - when J5 is below this, J4&J6 centering is active
+    
+    # SMART JOINT CENTERING EXPLANATION:
+    # - When J5 ≈ 0, joints J4 and J6 are aligned and act as a single rotation around the same axis
+    # - Traditional centering (J4→0, J6→0) would change end-effector orientation
+    # - Smart centering preserves (J4+J6) sum while minimizing |J4-J6| difference
+    # - This centers both joints toward equal values without affecting end-effector pose
+    # - Example: J4=60°, J6=-40° → both move toward J4=10°, J6=10° (preserving sum=20°)
+    # - Centering strength scales linearly: full when J5=0, zero when J5≥threshold
+    # - Safe to use high weights since the approach is orientation-preserving
+    # - Set to 0.0 for joints that shouldn't be centered
 
     ### --- JOINT LIMITS --- ###
     j1:

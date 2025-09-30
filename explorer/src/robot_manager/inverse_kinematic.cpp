@@ -36,16 +36,25 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   n_->get_parameter("alpha_multiplier", alpha_multiplier);
   n_->get_parameter("beta_multiplier", beta_multiplier);
   n_->get_parameter("gamma_multiplier", gamma_multiplier);
+  n_->get_parameter("joint_centering_multiplier", joint_centering_multiplier);
+  
+  // Joint centering threshold parameter
+  if (!n_->get_parameter("j5_alignment_threshold", j5_alignment_threshold_)) {
+    j5_alignment_threshold_ = 0.2;  // Default: ~11 degrees
+    RCLCPP_INFO(n_->get_logger(), "Using default j5_alignment_threshold: %.3f rad", j5_alignment_threshold_);
+  }
 
   n_->get_parameter("alpha_weight", alpha_weight_vec);
   n_->get_parameter("beta_weight", beta_weight_vec);
   n_->get_parameter("gamma_weight", gamma_weight_vec);
+  n_->get_parameter("joint_centering_weight", joint_centering_weight_vec);
   //n_->get_parameter("lambda_weight", lambda_weight_);
   //n_->get_parameter("q_natural", q_natural_);
 
   setAlphaWeight_(alpha_weight_vec, alpha_multiplier);
   setBetaWeight_(beta_weight_vec, beta_multiplier);
   setGammaWeight_(gamma_weight_vec, gamma_multiplier);
+  setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
   //setLambdaWeight_(lambda_weight_vec);
 
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Setting up bounds on joint position (q) of the QP");
@@ -123,12 +132,24 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     setGammaWeight_(gamma_weight_vec, gamma_multiplier);
   };
 
+  auto callback_joint_centering_weight = [this](const rclcpp::Parameter & p) {
+    joint_centering_weight_vec = p.as_double_array();
+    setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
+  };
+
+  auto callback_joint_centering_multiplier = [this](const rclcpp::Parameter & p) {
+    joint_centering_multiplier = p.as_int();
+    setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
+  };
+
   cb_handle_alpha_weight = param_subscriber_->add_parameter_callback("alpha_weight", callback_alpha_weight);
   cb_handle_alpha_multiplier = param_subscriber_->add_parameter_callback("alpha_multiplier", callback_alpha_multiplier);
   cb_handle_beta_weight = param_subscriber_->add_parameter_callback("beta_weight", callback_beta_weight);
   cb_handle_beta_multiplier = param_subscriber_->add_parameter_callback("beta_multiplier", callback_beta_multiplier);
   cb_handle_gamma_weight = param_subscriber_->add_parameter_callback("gamma_weight", callback_gamma_weight);
   cb_handle_gamma_multiplier = param_subscriber_->add_parameter_callback("gamma_multiplier", callback_gamma_multiplier);
+  cb_handle_joint_centering_weight = param_subscriber_->add_parameter_callback("joint_centering_weight", callback_joint_centering_weight);
+  cb_handle_joint_centering_multiplier = param_subscriber_->add_parameter_callback("joint_centering_multiplier", callback_joint_centering_multiplier);
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
@@ -175,6 +196,17 @@ void InverseKinematic::setGammaWeight_(const std::vector<double>& gamma_weight, 
   }
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set gamma position weight to : \n" << gamma_pos_weight_ << "\n");
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set gamma orientation weight to : \n" << gamma_or_weight_ << "\n");
+}
+
+void InverseKinematic::setJointCenteringWeight_(const std::vector<double>& joint_centering_weight, const int joint_centering_multiplier)
+{
+  // Joint centering weight to keep redundant joints near zero
+  joint_centering_weight_ = MatrixXd::Identity(joint_number_, joint_number_);
+  for (int i = 0; i < joint_number_; i++)
+  {
+    joint_centering_weight_(i, i) = joint_centering_multiplier * joint_centering_weight[i];
+  }
+  RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set joint centering weight to : \n" << joint_centering_weight_ << "\n");
 }
 
 void InverseKinematic::setLambdaWeight_(const std::vector<double>& lambda_weight)
@@ -587,17 +619,79 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
     Rdes_conj = xR_(x_des_quat) * CONJ_MAT;
   }
 
+  // Conditional joint centering: only active when J5 is near zero (J4 and J6 aligned)
+  // Strategy: When J5≈0, J4 and J6 act as a single rotation. We want to:
+  // 1. Maintain J4+J6 (preserve end-effector orientation) 
+  // 2. Minimize |J4-J6| (center both joints toward equal values)
+  double j5_angle = std::abs(q_current_[4]);  // Joint 5 (index 4, 0-based)
+  double centering_scale = 0.0;
+  
+  if (j5_angle < j5_alignment_threshold_) {
+    // Linear scaling: full centering when perfectly aligned, reduces as J5 moves away
+    centering_scale = 1.0 - (j5_angle / j5_alignment_threshold_);
+  }
+  
+  // Create smart centering matrix that only penalizes J4-J6 difference, not their sum
+  MatrixXd smart_centering_weight = MatrixXd::Zero(joint_number_, joint_number_);
+  if (centering_scale > 0.0) {
+    // Copy base joint centering weights
+    smart_centering_weight = joint_centering_weight_ * centering_scale;
+    
+    // For J4 and J6 (indices 3 and 5): modify to preserve J4+J6 while minimizing J4-J6
+    // Instead of penalizing J4 and J6 individually, we'll use a different approach in the gradient
+    // The hessian can stay the same but we'll modify the gradient to be smarter
+  }
+  
+  // Log centering activity for debugging
+  if (centering_scale > 0.1) {  // Only log when significantly active
+    double j4_plus_j6 = q_current_[3] + q_current_[5];
+    double j4_minus_j6 = q_current_[3] - q_current_[5];
+    RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 2000,
+                          "Smart centering: J5=%.3f, scale=%.3f, J4=%.3f, J6=%.3f, sum=%.3f, diff=%.3f", 
+                          q_current_[4], centering_scale, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);
+  }
+  
   hessian = jacobian.transpose() * alpha_weight_ * dx_controlled_mat * jacobian
           + jacob_pos.transpose() * gamma_pos_weight_ * pos_controlled_mat * jacob_pos * sampling_period_ * sampling_period_
           + jacob_or.transpose() * Rdes_conj.transpose() * gamma_or_weight_ * or_controlled_mat * Rdes_conj * jacob_or * sampling_period_ * sampling_period_
-          + beta_weight_;
+          + beta_weight_
+          + smart_centering_weight * sampling_period_ * sampling_period_;  // Smart joint centering
   //hessian = (jacobian.transpose() * (alpha_weight_ + gamma_weight_ * ctrl_axes_mat) * jacobian)
   //          + beta_weight_
   //          + lambda_weight_ * ;
 
+  // Convert current joint positions to Eigen vector for matrix operations
+  VectorXd q_current_eigen = VectorXd::Zero(joint_number_);
+  for (int i = 0; i < joint_number_; i++)
+  {
+    q_current_eigen(i) = q_current_[i];
+  }
+
+  // Smart centering gradient: preserve J4+J6, minimize |J4-J6|
+  VectorXd smart_centering_gradient = VectorXd::Zero(joint_number_);
+  if (centering_scale > 0.0) {
+    // For joints other than J4 and J6, use normal centering (drive toward zero)
+    for (int i = 0; i < joint_number_; i++) {
+      if (i != 3 && i != 5) {  // Not J4 or J6
+        smart_centering_gradient(i) = joint_centering_weight_(i,i) * q_current_eigen(i) * centering_scale;
+      }
+    }
+    
+    // For J4 and J6: only penalize their difference, not their sum
+    // Goal: minimize (J4-J6)^2 while allowing (J4+J6) to vary freely
+    // Gradient of (J4-J6)^2 w.r.t J4 = 2*(J4-J6)
+    // Gradient of (J4-J6)^2 w.r.t J6 = -2*(J4-J6)
+    double j4_minus_j6 = q_current_[3] - q_current_[5];
+    double centering_strength = joint_centering_weight_(3,3) * centering_scale;  // Use J4's weight
+    
+    smart_centering_gradient(3) = centering_strength * j4_minus_j6;      // Push J4 toward J6
+    smart_centering_gradient(5) = -centering_strength * j4_minus_j6;     // Push J6 toward J4
+  }
+
   g = -jacobian.transpose() * alpha_weight_ * dx_controlled_mat * dx_des.getRawVector()
       + jacob_pos.transpose() * gamma_pos_weight_ * pos_controlled_mat * (x_current_.getPosition() - x_des.getPosition()) * sampling_period_
-      + jacob_or.transpose() * Rdes_conj.transpose() * gamma_or_weight_ * or_controlled_mat * Rdes_conj * x_current_.getOrientation().toVector() * sampling_period_;
+      + jacob_or.transpose() * Rdes_conj.transpose() * gamma_or_weight_ * or_controlled_mat * Rdes_conj * x_current_.getOrientation().toVector() * sampling_period_
+      + smart_centering_gradient * sampling_period_;  // Smart centering gradient
   //    + jacobian.transpose() * gamma_weight_ * ctrl_axes_mat * sampling_period_ * delta_X_current_snap.getRawVector()
   //    + lambda_weight_ * sampling_period_ * q_natural_.getRawVector();
 }
