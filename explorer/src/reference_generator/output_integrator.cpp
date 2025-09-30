@@ -131,14 +131,14 @@ namespace space_control
                 dq_output_.data[5] = 0.5;
             }
             else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0) {
-                dq_output_.data[5] =  q_command_.data[5]/sampling_period_;
+                dq_output_.data[5] = -q_command_.data[5]/sampling_period_;
             }
         }else if(q_command_.data[5] > 0.001){
             if(q_command_.data[5] - 0.5 * sampling_period_ >= 0.0){
                 dq_output_.data[5] = - 0.5;
             }
             else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0) {
-                dq_output_.data[5] =  q_command_.data[5]/(-sampling_period_);
+                dq_output_.data[5] = -q_command_.data[5]/sampling_period_;
             }
         }else{
             dq_output_.data[5] = 0.0;
@@ -151,14 +151,14 @@ namespace space_control
                         dq_output_.data[i] = 0.5;
                     }
                     else if (q_command_.data[i] + 0.5 * sampling_period_ > 0.0) {
-                        dq_output_.data[i] =  q_command_.data[i]/sampling_period_;
+                        dq_output_.data[i] = -q_command_.data[i]/sampling_period_;
                     }
                 }else if(q_command_.data[i] > 0.001){
                     if(q_command_.data[i] - 0.5 * sampling_period_ >= 0.0){
                         dq_output_.data[i] = - 0.5;
                     }
                     else if (q_command_.data[i] - 0.5 * sampling_period_ < 0.0) {
-                        dq_output_.data[i] =  q_command_.data[i]/(-sampling_period_);
+                        dq_output_.data[i] = -q_command_.data[i]/sampling_period_;
                     }
                 }else{
                     dq_output_.data[i] = 0.0;
