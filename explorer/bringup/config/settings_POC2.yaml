@@ -15,7 +15,7 @@ qp_solving:
     gamma_multiplier : 1
     #  Keep redundant joints near zero (joint centering) - CONDITIONAL on J5 alignment
     joint_centering_weight : [0.0, 0.0, 0.0, 50.0, 0.0, 50.0]  # Only J4 and J6, can be aggressive since conditional
-    joint_centering_multiplier : 1
+    joint_centering_multiplier : 0
     j5_alignment_threshold : 0.2  # radians (~11 degrees) - when J5 is below this, J4&J6 centering is active
     
     # SMART JOINT CENTERING EXPLANATION:

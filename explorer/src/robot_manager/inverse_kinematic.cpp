@@ -646,9 +646,9 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
   if (centering_scale > 0.1) {  // Only log when significantly active
     double j4_plus_j6 = q_current_[3] + q_current_[5];
     double j4_minus_j6 = q_current_[3] - q_current_[5];
-    RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 2000,
+    /*RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 2000,
                           "Smart centering: J5=%.3f, scale=%.3f, J4=%.3f, J6=%.3f, sum=%.3f, diff=%.3f", 
-                          q_current_[4], centering_scale, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);
+                          q_current_[4], centering_scale, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);*/
   }
   
   hessian = jacobian.transpose() * alpha_weight_ * dx_controlled_mat * jacobian
