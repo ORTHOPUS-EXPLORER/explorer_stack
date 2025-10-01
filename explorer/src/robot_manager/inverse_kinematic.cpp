@@ -43,6 +43,12 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     j5_alignment_threshold_ = 0.2;  // Default: ~11 degrees
     RCLCPP_INFO(n_->get_logger(), "Using default j5_alignment_threshold: %.3f rad", j5_alignment_threshold_);
   }
+  
+  // Movement detection threshold parameter
+  if (!n_->get_parameter("movement_detection_threshold", movement_detection_threshold_)) {
+    movement_detection_threshold_ = 1e-6;  // Default: very small threshold for any intentional movement
+    RCLCPP_INFO(n_->get_logger(), "Using default movement_detection_threshold: %.2e", movement_detection_threshold_);
+  }
 
   n_->get_parameter("alpha_weight", alpha_weight_vec);
   n_->get_parameter("beta_weight", beta_weight_vec);
@@ -619,15 +625,22 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
     Rdes_conj = xR_(x_des_quat) * CONJ_MAT;
   }
 
-  // Conditional joint centering: only active when J5 is near zero (J4 and J6 aligned)
+  // Conditional joint centering: only active when J5 is near zero (J4 and J6 aligned) AND robot is being moved
   // Strategy: When J5≈0, J4 and J6 act as a single rotation. We want to:
   // 1. Maintain J4+J6 (preserve end-effector orientation) 
   // 2. Minimize |J4-J6| (center both joints toward equal values)
+  // 3. Only apply when robot is actively being controlled to avoid unwanted movement
+  
+  // Check if robot is being actively controlled by looking at desired velocity magnitude
+  double velocity_magnitude = dx_des.getRawVector().norm();
+  bool robot_is_moving = velocity_magnitude > movement_detection_threshold_;
+  
   double j5_angle = std::abs(q_current_[4]);  // Joint 5 (index 4, 0-based)
   double centering_scale = 0.0;
   
-  if (j5_angle < j5_alignment_threshold_) {
+  if (j5_angle < j5_alignment_threshold_ && robot_is_moving) {
     // Linear scaling: full centering when perfectly aligned, reduces as J5 moves away
+    // Only active when robot is being moved to prevent unwanted motion during rest
     centering_scale = 1.0 - (j5_angle / j5_alignment_threshold_);
   }
   
@@ -647,8 +660,8 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
     double j4_plus_j6 = q_current_[3] + q_current_[5];
     double j4_minus_j6 = q_current_[3] - q_current_[5];
     /*RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 2000,
-                          "Smart centering: J5=%.3f, scale=%.3f, J4=%.3f, J6=%.3f, sum=%.3f, diff=%.3f", 
-                          q_current_[4], centering_scale, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);*/
+                          "Smart centering ACTIVE: J5=%.3f, scale=%.3f, vel_mag=%.6f, J4=%.3f, J6=%.3f, sum=%.3f, diff=%.3f", 
+                          q_current_[4], centering_scale, velocity_magnitude, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);*/
   }
   
   hessian = jacobian.transpose() * alpha_weight_ * dx_controlled_mat * jacobian

@@ -114,6 +114,7 @@ private:
   MatrixXd lambda_weight_;   /*!< TODO */
 
   double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
+  double movement_detection_threshold_;  /*!< Velocity magnitude threshold to detect intentional robot movement */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 
