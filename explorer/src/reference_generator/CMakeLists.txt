@@ -106,27 +106,6 @@ PRIVATE
   explorer_robot_manager
 )
 
-# test_output_integrator
-add_executable(test_output_integrator
-  test_output_integrator.cpp
-)
-
-target_include_directories(test_output_integrator
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(test_output_integrator
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
-target_link_libraries(test_output_integrator
-PRIVATE
-  explorer_robot_manager
-)
-
 # joystick_input
 add_executable(joystick_input
   joystick_input.cpp
@@ -148,35 +127,12 @@ PRIVATE
   explorer_robot_manager
 )
 
-# joint_output_test
-add_executable(joint_output_test
-  joint_output_test.cpp
-)
-
-target_include_directories(joint_output_test
-PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include/ros2_control_explorer>
-)
-
-ament_target_dependencies(joint_output_test
-PUBLIC
-  ${REF_GEN_DEPENDENCIES}
-)
-
-target_link_libraries(joint_output_test
-PRIVATE
-  explorer_robot_manager
-)
-
 #  Install !
 install(TARGETS input_integrator
                 qp_solving
                 output_integrator
                 joint_output_integrator
-                test_output_integrator
                 joystick_input
-                joint_output_test
         DESTINATION lib/ros2_control_explorer
 )
 

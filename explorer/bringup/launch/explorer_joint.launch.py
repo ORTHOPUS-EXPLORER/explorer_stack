@@ -194,14 +194,6 @@ def generate_launch_description():
         executable="joystick_input",
     )
 
-    explorer_bridge_params = PathJoinSubstitution(
-        [
-            FindPackageShare("ros2_control_explorer"),
-            "config",
-            "explorer_vesc_hw.yaml",
-        ]
-    )
-
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
