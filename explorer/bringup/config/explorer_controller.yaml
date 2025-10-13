@@ -6,39 +6,13 @@ controller_manager:
       type: joint_state_broadcaster/JointStateBroadcaster
       auto_start: false
 
-    explorer_controller:
-      type: ros2_control_explorer/RobotController
-      auto_start: false
-
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
-      auto_start: false
-
-    joint_trajectory_controller:
-      type: "joint_trajectory_controller/JointTrajectoryController"
       auto_start: false
 
     gripper_controller:
       type: forward_command_controller/ForwardCommandController
       auto_start: false
-
-explorer_controller:
-  ros__parameters:
-    joints:
-      - joint_1
-      - joint_2
-      - joint_3
-      - joint_4
-      - joint_5
-      - joint_6
-
-    command_interfaces:
-      - position
-      - velocity
-
-    state_interfaces:
-      - position
-      - velocity
 
 forward_position_controller:
   ros__parameters:
@@ -51,26 +25,6 @@ forward_position_controller:
       - joint_6
       - right_finger_joint
     interface_name: position
-
-joint_trajectory_controller:
-  ros__parameters:
-    joints:
-      - joint_1
-      - joint_2
-      - joint_3
-      - joint_4
-      - joint_5
-      - joint_6
-
-    command_interfaces:
-      - position
-
-    state_interfaces:
-      - position
-      - velocity
-    open_loop_control: true
-
-    allow_integration_in_goal_trajectories: true
 
 gripper_controller:
   ros__parameters:
