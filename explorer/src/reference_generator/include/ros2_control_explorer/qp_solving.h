@@ -46,6 +46,20 @@ namespace space_control
         rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr  q_command_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_released_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr x_des_updated_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
@@ -78,6 +92,13 @@ namespace space_control
         bool wheelchair;
         bool first_use;
         bool go_home;
+        bool go_zero;
+        bool go_J1_zero;
+        bool go_J2_zero;
+        bool go_J3_zero;
+        bool go_J4_zero;
+        bool go_J5_zero;
+        bool go_J6_zero;
 
         enum class Mode { INVALID, EXPLORER, FULL };
 
@@ -95,6 +116,20 @@ namespace space_control
         void callback_home_pressed_(const std_msgs::msg::Bool & msg);
         void callback_home_released_(const std_msgs::msg::Bool & msg);
         void callback_x_des_updated_(const std_msgs::msg::Bool & msg);
+        void callback_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J1_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J1_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_J2_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J2_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_J3_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J3_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_J4_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J4_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_J5_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J5_zero_pressed_(const std_msgs::msg::Bool & msg);
+        void callback_J6_zero_released_(const std_msgs::msg::Bool & msg);
+        void callback_J6_zero_pressed_(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req, std::shared_ptr<custom_interfaces::srv::Pose::Response> res);
         void callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req, std::shared_ptr<custom_interfaces::srv::Float64::Response> res);

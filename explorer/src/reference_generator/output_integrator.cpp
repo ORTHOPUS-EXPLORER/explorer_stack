@@ -21,11 +21,26 @@ namespace space_control
         q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         
         go_home = false;
+        go_zero = false;
+        go_J1_zero = false;
+        go_J2_zero = false;
+        go_J3_zero = false;
+        go_J4_zero = false;
+        go_J5_zero = false;
+        go_J6_zero = false;
+
 
         //init suscriber
         dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output, this, std::placeholders::_1));
         gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/input_gripper_velocity", 10, std::bind(&OutputIntegrator::callback_gripper_vel, this, std::placeholders::_1));
         home_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&OutputIntegrator::callback_home, this, std::placeholders::_1));
+        zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_pressed", 10, std::bind(&OutputIntegrator::callback_zero, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J1_zero, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J2_zero, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J3_zero, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J4_zero, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero, this, std::placeholders::_1));
 
         q_init_client_ = n_->create_client<custom_interfaces::srv::Float64>("/ros2_control_explorer/q_init");
 
@@ -101,10 +116,168 @@ namespace space_control
         go_home = msg.data;
     }
 
+    void OutputIntegrator::callback_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_zero = msg.data;
+    }
+    
+    void OutputIntegrator::callback_J1_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J1_zero = msg.data;
+    }
+    
+    void OutputIntegrator::callback_J2_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J2_zero = msg.data;
+    }
+
+    void OutputIntegrator::callback_J3_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J3_zero = msg.data;
+    }
+    
+    void OutputIntegrator::callback_J4_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J4_zero = msg.data;
+    }
+
+    void OutputIntegrator::callback_J5_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J5_zero = msg.data;
+    }
+    
+    void OutputIntegrator::callback_J6_zero(const std_msgs::msg::Bool & msg)
+    {   
+        go_J6_zero = msg.data;
+    }
+
+
     void OutputIntegrator::timer_callback()
     {
         if(go_home == true){
             home(); 
+        }
+
+        if(go_zero == true){
+            zero(); 
+        }
+
+        if(go_J1_zero == true){
+            if(q_command_.data[0] < -0.001){
+                if(q_command_.data[0] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[0] = 0.5;
+                }
+                else if (q_command_.data[0] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[0] =  q_command_.data[0]/sampling_period_;
+                }
+            }else if(q_command_.data[0] > 0.001){
+                if(q_command_.data[0] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[0] = - 0.5;
+                }
+                else if (q_command_.data[0] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[0] =  -q_command_.data[0]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[0] = 0.0;
+            } 
+        }
+
+        if(go_J2_zero == true){
+            if(q_command_.data[1] < -0.001){
+                if(q_command_.data[1] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[1] = 0.5;
+                }
+                else if (q_command_.data[1] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[1] =  q_command_.data[1]/sampling_period_;
+                }
+            }else if(q_command_.data[1] > 0.001){
+                if(q_command_.data[1] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[1] = - 0.5;
+                }
+                else if (q_command_.data[1] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[1] =  -q_command_.data[1]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[1] = 0.0;
+            } 
+        }
+        if(go_J3_zero == true){
+            if(q_command_.data[2] < -0.001){
+                if(q_command_.data[2] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[2] = 0.5;
+                }
+                else if (q_command_.data[2] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[2] =  q_command_.data[2]/sampling_period_;
+                }
+            }else if(q_command_.data[2] > 0.001){
+                if(q_command_.data[2] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[2] = - 0.5;
+                }
+                else if (q_command_.data[2] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[2] =  -q_command_.data[2]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[2] = 0.0;
+            } 
+        }
+
+        if(go_J4_zero == true){
+            if(q_command_.data[3] < -0.001){
+                if(q_command_.data[3] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[3] = 0.5;
+                }
+                else if (q_command_.data[3] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[3] =  q_command_.data[3]/sampling_period_;
+                }
+            }else if(q_command_.data[3] > 0.001){
+                if(q_command_.data[3] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[3] = - 0.5;
+                }
+                else if (q_command_.data[3] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[3] =  -q_command_.data[3]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[3] = 0.0;
+            } 
+        }
+        if(go_J5_zero == true){
+            if(q_command_.data[4] < -0.001){
+                if(q_command_.data[4] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[4] = 0.5;
+                }
+                else if (q_command_.data[4] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[4] =  q_command_.data[4]/sampling_period_;
+                }
+            }else if(q_command_.data[4] > 0.001){
+                if(q_command_.data[4] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[4] = - 0.5;
+                }
+                else if (q_command_.data[4] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[4] =  -q_command_.data[4]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[4] = 0.0;
+            } 
+        }
+
+        if(go_J6_zero == true){
+            if(q_command_.data[5] < -0.001){
+                if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
+                    dq_output_.data[5] = 0.5;
+                }
+                else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0) {
+                    dq_output_.data[5] =  q_command_.data[5]/sampling_period_;
+                }
+            }else if(q_command_.data[5] > 0.001){
+                if(q_command_.data[5] - 0.5 * sampling_period_ >= 0.0){
+                    dq_output_.data[5] = - 0.5;
+                }
+                else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0) {
+                    dq_output_.data[5] =  -q_command_.data[5]/sampling_period_;
+                }
+            }else{
+                dq_output_.data[5] = 0.0;
+            } 
         }
 
         for(int i=0; i< 6; i++){
@@ -125,7 +298,54 @@ namespace space_control
 
     void OutputIntegrator::home()
     {
-        
+        double x[6] = {0.0 , 0.436332, 1.48353, 0.0, -0.523599, 0.0};
+
+        if(q_command_.data[5] < (x[5] - 0.001)){
+            if(q_command_.data[5] + 0.5 * sampling_period_ <= x[5]){
+                dq_output_.data[5] = 0.5;
+            }
+            else if (q_command_.data[5] + 0.5 * sampling_period_ > x[5]) {
+                dq_output_.data[5] = (x[5] - q_command_.data[5])/sampling_period_;
+            }
+        }else if(q_command_.data[5] > (x[5] + 0.001)){
+            if(q_command_.data[5] - 0.5 * sampling_period_ >= x[5]){
+                dq_output_.data[5] = - 0.5;
+            }
+            else if (q_command_.data[5] - 0.5 * sampling_period_ < x[5]) {
+                dq_output_.data[5] = (x[5] - q_command_.data[5])/(sampling_period_);
+            }
+        }else{
+            dq_output_.data[5] = 0.0;
+        }
+
+        for(int i=4; i >= 0; i--){
+            if(q_command_.data[i+1] <= (x[i+1] + 0.001) && q_command_.data[i+1] >= (x[i+1] - 0.001)){
+                if(q_command_.data[i] < (x[i] - 0.001)){
+                    if(q_command_.data[i] + 0.5 * sampling_period_ <= x[i]){
+                        dq_output_.data[i] = 0.5;
+                    }
+                    else if (q_command_.data[i] + 0.5 * sampling_period_ > x[i]) {
+                        dq_output_.data[i] =  (x[i] - q_command_.data[i])/sampling_period_;
+                    }
+                }else if(q_command_.data[i] > (x[i] + 0.001)){
+                    if(q_command_.data[i] - 0.5 * sampling_period_ >= x[i]){
+                        dq_output_.data[i] = - 0.5;
+                    }
+                    else if (q_command_.data[i] - 0.5 * sampling_period_ < x[i] ) {
+                        dq_output_.data[i] =  (x[i] - q_command_.data[i])/(sampling_period_);
+                    }
+                }else{
+                    dq_output_.data[i] = 0.0;
+                }
+            }
+            else{
+                dq_output_.data[i] = 0.0;
+            }
+        }
+    }
+
+    void OutputIntegrator::zero()
+    {
         if(q_command_.data[5] < -0.001){
             if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
                 dq_output_.data[5] = 0.5;

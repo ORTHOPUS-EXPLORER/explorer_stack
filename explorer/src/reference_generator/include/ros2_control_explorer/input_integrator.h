@@ -43,6 +43,20 @@ namespace space_control
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_released_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_released_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
 
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_desired_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_pub_;
@@ -71,6 +85,13 @@ namespace space_control
         int init_attempt_;
         bool success_init_;
         bool go_home;
+        bool go_zero;
+        bool go_J1_zero;
+        bool go_J2_zero;
+        bool go_J3_zero;
+        bool go_J4_zero;
+        bool go_J5_zero;
+        bool go_J6_zero;
         
         std_msgs::msg::Bool x_des_updated_;
 
@@ -80,6 +101,20 @@ namespace space_control
         void callback_x_current(const geometry_msgs::msg::Pose & msg);
         void callback_home_released(const std_msgs::msg::Bool & msg);
         void callback_home_pressed(const std_msgs::msg::Bool & msg);
+        void callback_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J1_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J1_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J2_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J2_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J3_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J3_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J4_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J4_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J5_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J5_zero_pressed(const std_msgs::msg::Bool & msg);
+        void callback_J6_zero_released(const std_msgs::msg::Bool & msg);
+        void callback_J6_zero_pressed(const std_msgs::msg::Bool & msg);
         void timer_callback();
         void send_input();
 

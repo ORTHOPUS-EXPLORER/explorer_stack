@@ -21,6 +21,14 @@ namespace space_control
         init_attempt_ = 0;
         success_init_ = false;
         go_home = false;
+        go_zero = false;
+        go_J1_zero = false;
+        go_J2_zero = false;
+        go_J3_zero = false;
+        go_J4_zero = false;
+        go_J5_zero = false;
+        go_J6_zero = false;
+
         x_des_updated_.data = false;
 
         //init variables
@@ -56,6 +64,20 @@ namespace space_control
         x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_current", 10, std::bind(&InputIntegrator::callback_x_current, this, std::placeholders::_1));
         home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&InputIntegrator::callback_home_released, this, std::placeholders::_1));
         home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&InputIntegrator::callback_home_pressed, this, std::placeholders::_1));
+        zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_released", 10, std::bind(&InputIntegrator::callback_zero_released, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_pressed", 10, std::bind(&InputIntegrator::callback_zero_pressed, this, std::placeholders::_1));
+        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_released", 10, std::bind(&InputIntegrator::callback_J1_zero_released, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_pressed", 10, std::bind(&InputIntegrator::callback_J1_zero_pressed, this, std::placeholders::_1));
+        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_released", 10, std::bind(&InputIntegrator::callback_J2_zero_released, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_pressed", 10, std::bind(&InputIntegrator::callback_J2_zero_pressed, this, std::placeholders::_1));
+        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_released", 10, std::bind(&InputIntegrator::callback_J3_zero_released, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_pressed", 10, std::bind(&InputIntegrator::callback_J3_zero_pressed, this, std::placeholders::_1));
+        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_released", 10, std::bind(&InputIntegrator::callback_J4_zero_released, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_pressed", 10, std::bind(&InputIntegrator::callback_J4_zero_pressed, this, std::placeholders::_1));
+        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_released", 10, std::bind(&InputIntegrator::callback_J5_zero_released, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&InputIntegrator::callback_J5_zero_pressed, this, std::placeholders::_1));
+        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_released", 10, std::bind(&InputIntegrator::callback_J6_zero_released, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&InputIntegrator::callback_J6_zero_pressed, this, std::placeholders::_1));
 
         x_init_client_ = n_->create_client<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init");
         
@@ -172,13 +194,159 @@ namespace space_control
        
     }
 
+    void InputIntegrator::callback_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
+    void InputIntegrator::callback_J1_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J1_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J1_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J1_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
+    void InputIntegrator::callback_J2_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J2_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J2_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J2_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
+    void InputIntegrator::callback_J3_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J3_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J3_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J3_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
+    void InputIntegrator::callback_J4_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J4_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J4_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J4_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+    void InputIntegrator::callback_J5_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J5_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J5_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J5_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
+    void InputIntegrator::callback_J6_zero_released(const std_msgs::msg::Bool & msg)
+    {   
+        if (msg.data ==true){
+            x_desired_ = x_current_;
+            x_des_updated_.data = true;
+            go_J6_zero = false;
+        }
+        
+    }
+
+    void InputIntegrator::callback_J6_zero_pressed(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J6_zero = true;
+            x_des_updated_.data = false;
+            x_des_updated_pub_->publish(x_des_updated_);
+        }
+        
+       
+    }
+
     void InputIntegrator::timer_callback()
     {
        
         tf2::Quaternion q_orig, q_rot, q_new;
 
-        if(go_home == false){
-            
+        if(!go_home && !go_zero && !go_J1_zero && !go_J2_zero && !go_J3_zero && !go_J4_zero && !go_J5_zero && !go_J6_zero){
+
             dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
             dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
             dx_desired_.position.z() = (dx_input_.twist.linear.z * max_vel_);

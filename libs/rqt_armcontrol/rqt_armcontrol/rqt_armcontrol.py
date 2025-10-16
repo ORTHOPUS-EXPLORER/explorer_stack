@@ -87,6 +87,48 @@ class RqtCartesianController(Plugin):
         self.select = Int64()
         self.select.data = 0
 
+        self.zero_released = Bool()
+        self.zero_released.data = False
+
+        self.zero_pressed = Bool()
+        self.zero_pressed.data = False
+
+        self.J1_zero_released = Bool()
+        self.J1_zero_released.data = False
+
+        self.J1_zero_pressed = Bool()
+        self.J1_zero_pressed.data = False
+
+        self.J2_zero_released = Bool()
+        self.J2_zero_released.data = False
+
+        self.J2_zero_pressed = Bool()
+        self.J2_zero_pressed.data = False
+
+        self.J3_zero_released = Bool()
+        self.J3_zero_released.data = False
+
+        self.J3_zero_pressed = Bool()
+        self.J3_zero_pressed.data = False
+
+        self.J4_zero_released = Bool()
+        self.J4_zero_released.data = False
+
+        self.J4_zero_pressed = Bool()
+        self.J4_zero_pressed.data = False
+
+        self.J5_zero_released = Bool()
+        self.J5_zero_released.data = False
+
+        self.J5_zero_pressed = Bool()
+        self.J5_zero_pressed.data = False
+
+        self.J6_zero_released = Bool()
+        self.J6_zero_released.data = False
+
+        self.J6_zero_pressed = Bool()
+        self.J6_zero_pressed.data = False
+
         self.home_released = Bool()
         self.home_released.data = False
 
@@ -95,6 +137,13 @@ class RqtCartesianController(Plugin):
 
         # Add state tracking for home button operations
         self.home_button_is_pressed = False
+        self.zero_button_is_pressed = False
+        self.J1_zero_button_is_pressed = False
+        self.J2_zero_button_is_pressed = False
+        self.J3_zero_button_is_pressed = False
+        self.J4_zero_button_is_pressed = False
+        self.J5_zero_button_is_pressed = False
+        self.J6_zero_button_is_pressed = False
 
         context.add_widget(self._widget)
         self.setUpEventHandlers()
@@ -126,6 +175,20 @@ class RqtCartesianController(Plugin):
         self.publisher_linear_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_linear_speed", 1)
         self.publisher_angular_speed_ = self._context.node.create_publisher(Float64, "/ros2_control_explorer/max_angular_speed", 1)
         self.publisher_spacemouse_select_ = self._context.node.create_publisher(Int64, "/ros2_control_explorer/spacemouse_select", 1)
+        self.publisher_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/zero_pressed", 1)
+        self.publisher_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/zero_released", 1)
+        self.publisher_J1_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J1_zero_pressed", 1)
+        self.publisher_J1_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J1_zero_released", 1)
+        self.publisher_J2_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J2_zero_pressed", 1)
+        self.publisher_J2_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J2_zero_released", 1)
+        self.publisher_J3_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J3_zero_pressed", 1)
+        self.publisher_J3_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J3_zero_released", 1)
+        self.publisher_J4_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J4_zero_pressed", 1)
+        self.publisher_J4_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J4_zero_released", 1)
+        self.publisher_J5_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J5_zero_pressed", 1)
+        self.publisher_J5_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J5_zero_released", 1)
+        self.publisher_J6_zero_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J6_zero_pressed", 1)
+        self.publisher_J6_zero_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/J6_zero_released", 1)
         self.publisher_home_pressed_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/home_pressed", 1)
         self.publisher_home_released_ = self._context.node.create_publisher(Bool, "/ros2_control_explorer/home_released", 1)
         timer_period = 0.02  # [sec] UI publishing rate
@@ -149,11 +212,50 @@ class RqtCartesianController(Plugin):
             
             # Always publish current home_pressed state (true while held, false when released)
             self.publisher_home_pressed_.publish(self.home_pressed)
+
+            self.publisher_zero_pressed_.publish(self.zero_pressed)
+
+            self.publisher_J1_zero_pressed_.publish(self.J1_zero_pressed)
+            self.publisher_J2_zero_pressed_.publish(self.J2_zero_pressed)
+            self.publisher_J3_zero_pressed_.publish(self.J3_zero_pressed)
+            self.publisher_J4_zero_pressed_.publish(self.J4_zero_pressed)
+            self.publisher_J5_zero_pressed_.publish(self.J5_zero_pressed)
+            self.publisher_J6_zero_pressed_.publish(self.J6_zero_pressed)
+
             
             # Only publish home_released signal once after button is released
             if self.home_released.data:
                 self.publisher_home_released_.publish(self.home_released)
                 self.home_released.data = False  # Reset after publishing once
+
+            if self.zero_released.data:
+                self.publisher_zero_released_.publish(self.zero_released)
+                self.zero_released.data = False  # Reset after publishing once
+
+            if self.J1_zero_released.data:
+                self.publisher_J1_zero_released_.publish(self.J1_zero_released)
+                self.J1_zero_released.data = False
+                
+            if self.J2_zero_released.data:
+                self.publisher_J2_zero_released_.publish(self.J2_zero_released)
+                self.J2_zero_released.data = False
+            
+            if self.J3_zero_released.data:
+                self.publisher_J3_zero_released_.publish(self.J3_zero_released)
+                self.J3_zero_released.data = False
+
+            if self.J4_zero_released.data:
+                self.publisher_J4_zero_released_.publish(self.J4_zero_released)
+                self.J4_zero_released.data = False
+
+            if self.J5_zero_released.data:
+                self.publisher_J5_zero_released_.publish(self.J5_zero_released)
+                self.J5_zero_released.data = False
+            
+            if self.J6_zero_released.data:
+                self.publisher_J6_zero_released_.publish(self.J6_zero_released)
+                self.J6_zero_released.data = False    
+
         except Exception as e:
             # Log error but don't crash the application
             self._context.node.get_logger().warn(f"Error in publisher_callback: {str(e)}")
@@ -176,6 +278,27 @@ class RqtCartesianController(Plugin):
 
         self._widget.home_btn.released.connect(self.OnHomeReleased)
         self._widget.home_btn.pressed.connect(self.OnHomePressed)
+
+        self._widget.zero_btn.released.connect(self.OnZeroReleased)
+        self._widget.zero_btn.pressed.connect(self.OnZeroPressed)
+
+        self._widget.J1_zero_btn.released.connect(self.OnJ1ZeroReleased)
+        self._widget.J1_zero_btn.pressed.connect(self.OnJ1ZeroPressed)
+
+        self._widget.J2_zero_btn.released.connect(self.OnJ2ZeroReleased)
+        self._widget.J2_zero_btn.pressed.connect(self.OnJ2ZeroPressed)
+
+        self._widget.J3_zero_btn.released.connect(self.OnJ3ZeroReleased)
+        self._widget.J3_zero_btn.pressed.connect(self.OnJ3ZeroPressed)
+
+        self._widget.J4_zero_btn.released.connect(self.OnJ4ZeroReleased)
+        self._widget.J4_zero_btn.pressed.connect(self.OnJ4ZeroPressed)
+
+        self._widget.J5_zero_btn.released.connect(self.OnJ5ZeroReleased)
+        self._widget.J5_zero_btn.pressed.connect(self.OnJ5ZeroPressed)
+
+        self._widget.J6_zero_btn.released.connect(self.OnJ6ZeroReleased)
+        self._widget.J6_zero_btn.pressed.connect(self.OnJ6ZeroPressed)
 
         self._widget.pos_x.sliderReleased.connect(self.onSliderReleased)
         self._widget.pos_y.sliderReleased.connect(self.onSliderReleased)
@@ -238,6 +361,118 @@ class RqtCartesianController(Plugin):
             self.home_pressed.data = True
             self.home_released.data = False
             self._context.node.get_logger().info("Home button pressed - starting homing process")
+    
+    def OnZeroReleased(self):
+        """Called when zero button is released - stops zero process immediately."""
+        if self.zero_button_is_pressed:  # Only process if button was actually pressed
+            self.zero_button_is_pressed = False
+            self.zero_pressed.data = False
+            self.zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("Zero button released - stopping zero process")
+
+    def OnZeroPressed(self):
+        """Called when zero button is pressed - starts continuous zero process."""
+        if not self.zero_button_is_pressed:  # Prevent multiple press events
+            self.zero_button_is_pressed = True
+            self.zero_pressed.data = True
+            self.zero_released.data = False
+            self._context.node.get_logger().info("Zero button pressed - starting zero process")
+
+    def OnJ1ZeroReleased(self):
+        """Called when J1 zero button is released - stops  J1 zero process immediately."""
+        if self.J1_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J1_zero_button_is_pressed = False
+            self.J1_zero_pressed.data = False
+            self.J1_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J1 zero button released - stopping J1 zero process")
+
+    def OnJ1ZeroPressed(self):
+        """Called when J1 zero button is pressed - starts continuous J1 zero process."""
+        if not self.J1_zero_button_is_pressed:  # Prevent multiple press events
+            self.J1_zero_button_is_pressed = True
+            self.J1_zero_pressed.data = True
+            self.J1_zero_released.data = False
+            self._context.node.get_logger().info("J1 zero button pressed - starting J1 zero process")
+
+    def OnJ2ZeroReleased(self):
+        """Called when J2 zero button is released - stops  J2 zero process immediately."""
+        if self.J2_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J2_zero_button_is_pressed = False
+            self.J2_zero_pressed.data = False
+            self.J2_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J2 zero button released - stopping J2 zero process")
+
+    def OnJ2ZeroPressed(self):
+        """Called when J2 zero button is pressed - starts continuous J2 zero process."""
+        if not self.J2_zero_button_is_pressed:  # Prevent multiple press events
+            self.J2_zero_button_is_pressed = True
+            self.J2_zero_pressed.data = True
+            self.J2_zero_released.data = False
+            self._context.node.get_logger().info("J2 zero button pressed - starting J2 zero process")
+
+    def OnJ3ZeroReleased(self):
+        """Called when J3 zero button is released - stops  J3 zero process immediately."""
+        if self.J3_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J3_zero_button_is_pressed = False
+            self.J3_zero_pressed.data = False
+            self.J3_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J3 zero button released - stopping J3 zero process")
+
+    def OnJ3ZeroPressed(self):
+        """Called when J3 zero button is pressed - starts continuous J3 zero process."""
+        if not self.J3_zero_button_is_pressed:  # Prevent multiple press events
+            self.J3_zero_button_is_pressed = True
+            self.J3_zero_pressed.data = True
+            self.J3_zero_released.data = False
+            self._context.node.get_logger().info("J3 zero button pressed - starting J3 zero process")
+
+    def OnJ4ZeroReleased(self):
+        """Called when J4 zero button is released - stops  J4 zero process immediately."""
+        if self.J4_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J4_zero_button_is_pressed = False
+            self.J4_zero_pressed.data = False
+            self.J4_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J4 zero button released - stopping J4 zero process")
+
+    def OnJ4ZeroPressed(self):
+        """Called when J4 zero button is pressed - starts continuous J4 zero process."""
+        if not self.J4_zero_button_is_pressed:  # Prevent multiple press events
+            self.J4_zero_button_is_pressed = True
+            self.J4_zero_pressed.data = True
+            self.J4_zero_released.data = False
+            self._context.node.get_logger().info("J4 zero button pressed - starting J4 zero process")
+
+    def OnJ5ZeroReleased(self):
+        """Called when J5 zero button is released - stops  J5 zero process immediately."""
+        if self.J5_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J5_zero_button_is_pressed = False
+            self.J5_zero_pressed.data = False
+            self.J5_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J5 zero button released - stopping J5 zero process")
+
+    def OnJ5ZeroPressed(self):
+        """Called when J5 zero button is pressed - starts continuous J5 zero process."""
+        if not self.J5_zero_button_is_pressed:  # Prevent multiple press events
+            self.J5_zero_button_is_pressed = True
+            self.J5_zero_pressed.data = True
+            self.J5_zero_released.data = False
+            self._context.node.get_logger().info("J5 zero button pressed - starting J5 zero process")
+
+    def OnJ6ZeroReleased(self):
+        """Called when J6 zero button is released - stops  J6 zero process immediately."""
+        if self.J6_zero_button_is_pressed:  # Only process if button was actually pressed
+            self.J6_zero_button_is_pressed = False
+            self.J6_zero_pressed.data = False
+            self.J6_zero_released.data = True  # Signal to stop zero and resume normal control
+            self._context.node.get_logger().info("J6 zero button released - stopping J6 zero process")
+
+    def OnJ6ZeroPressed(self):
+        """Called when J1 zero button is pressed - starts continuous J1 zero process."""
+        if not self.J6_zero_button_is_pressed:  # Prevent multiple press events
+            self.J6_zero_button_is_pressed = True
+            self.J6_zero_pressed.data = True
+            self.J6_zero_released.data = False
+            self._context.node.get_logger().info("J6 zero button pressed - starting J6 zero process")
 
     def onSliderReleased(self):
         # Reset velocities immediately  

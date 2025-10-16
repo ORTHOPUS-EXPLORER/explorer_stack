@@ -24,6 +24,13 @@ namespace space_control
         wheelchair = false;
         first_use = true;
         go_home = false;
+        go_zero = false;
+        go_J1_zero = false;
+        go_J2_zero = false;
+        go_J3_zero = false;
+        go_J4_zero = false;
+        go_J5_zero = false;
+        go_J6_zero = false;
         //init inverse and forward kinematic 
         ik_.init("tool0", sampling_period_);
         fk_.init("tool0");
@@ -48,6 +55,20 @@ namespace space_control
         q_command_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&QPSolving::callback_q_command_prec_, this, std::placeholders::_1));
         home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&QPSolving::callback_home_pressed_, this, std::placeholders::_1));
         home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&QPSolving::callback_home_released_, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_pressed", 10, std::bind(&QPSolving::callback_zero_pressed_, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_released", 10, std::bind(&QPSolving::callback_zero_released_, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_pressed", 10, std::bind(&QPSolving::callback_J1_zero_pressed_, this, std::placeholders::_1));
+        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_released", 10, std::bind(&QPSolving::callback_J1_zero_released_, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_pressed", 10, std::bind(&QPSolving::callback_J2_zero_pressed_, this, std::placeholders::_1));
+        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_released", 10, std::bind(&QPSolving::callback_J2_zero_released_, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_pressed", 10, std::bind(&QPSolving::callback_J3_zero_pressed_, this, std::placeholders::_1));
+        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_released", 10, std::bind(&QPSolving::callback_J3_zero_released_, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_pressed", 10, std::bind(&QPSolving::callback_J4_zero_pressed_, this, std::placeholders::_1));
+        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_released", 10, std::bind(&QPSolving::callback_J4_zero_released_, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&QPSolving::callback_J5_zero_pressed_, this, std::placeholders::_1));
+        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_released", 10, std::bind(&QPSolving::callback_J5_zero_released_, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&QPSolving::callback_J6_zero_pressed_, this, std::placeholders::_1));
+        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_released", 10, std::bind(&QPSolving::callback_J6_zero_released_, this, std::placeholders::_1));
         x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
 
         //init publishers
@@ -225,10 +246,164 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
        
     }
 
+    void QPSolving::callback_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_zero = true;
+        }
+        else{
+            go_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J1_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J1_zero = true;
+        }
+        else{
+            go_J1_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J1_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J1_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J2_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J2_zero = true;
+        }
+        else{
+            go_J2_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J2_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J2_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J3_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J3_zero = true;
+        }
+        else{
+            go_J3_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J3_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J3_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J4_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J4_zero = true;
+        }
+        else{
+            go_J4_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J4_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J4_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J5_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J5_zero = true;
+        }
+        else{
+            go_J5_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J5_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J5_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J6_zero_pressed_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J6_zero = true;
+        }
+        else{
+            go_J6_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
+    void QPSolving::callback_J6_zero_released_(const std_msgs::msg::Bool & msg)
+    {   
+        if(msg.data == true){
+            go_J6_zero = false;
+            ik_.reset();
+        }
+       
+    }
+
     void QPSolving::callback_x_des_updated_(const std_msgs::msg::Bool & msg)
     {   
         if(msg.data == true){
             go_home = false;
+            go_zero = false;
+            go_J1_zero = false;
+            go_J2_zero = false;
+            go_J3_zero = false;
+            go_J4_zero = false;
+            go_J5_zero = false;
+            go_J6_zero = false;
             ik_.reset();
         }
        
@@ -305,7 +480,7 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
         fk_.resolveForwardKinematic();
         fk_.getXCurrent(x_current_);
 
-        if (!go_home) {
+        if (!go_home && !go_zero && !go_J1_zero && !go_J2_zero && !go_J3_zero && !go_J4_zero && !go_J5_zero && !go_J6_zero) {
             ik_.setQCurrent(q_current_);
             ik_.setXCurrent(x_current_);
             ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, mode == Mode::FULL);
