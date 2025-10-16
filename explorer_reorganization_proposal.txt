@@ -1,0 +1,457 @@
+EXPLORER STACK REORGANIZATION PROPOSAL
+=====================================
+Restructuring to Match Franka ROS2 Architecture Pattern
+
+CURRENT STRUCTURE ANALYSIS
+==========================
+The current explorer/ package follows a monolithic approach where all functionality
+is contained within a single comprehensive package. This differs from the Franka
+architecture which uses separate packages for distinct responsibilities.
+
+PROPOSED NEW STRUCTURE
+======================
+
+explorer_stack/
+├── .git
+├── .gitignore
+├── .gitmodules
+├── README.md
+│
+├── actuator_standalone/                     [STANDALONE ACTUATOR PACKAGE - NO CHANGES]
+│
+├── explorer_msgs/                           [MESSAGE DEFINITIONS PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   └── msg/                                [OPTIONAL - Could move custom interfaces from libs/custom_interfaces]
+│       └── (Currently uses libs/custom_interfaces - could be consolidated here)
+│
+├── explorer_description/                    [ROBOT DESCRIPTION PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── README.md                           [MOVED - From current explorer/description/README.md]
+│   ├── launch/                             [MOVED - From current explorer/description/launch/]
+│   │   └── view_explorer.launch.py
+│   ├── meshes/                             [MOVED - From current explorer/description/meshes/]
+│   │   ├── collision/
+│   │   └── visual/
+│   ├── ros2_control/                       [MOVED - From current explorer/description/ros2_control/]
+│   │   ├── explorer.ros2_control.xacro
+│   │   └── explorer_actuators.ros2_control.xacro
+│   ├── urdf/                               [MOVED - From current explorer/description/urdf/]
+│   │   ├── explorer.srdf
+│   │   ├── explorer.urdf.xacro
+│   │   ├── explorer_POC1_description.urdf.xacro
+│   │   ├── explorer_POC2_description.urdf.xacro
+│   │   ├── explorer_joints.xacro
+│   │   └── inc/
+│   │       └── create_link.xacro
+│   ├── gazebo/                             [MOVED - From current explorer/description/gazebo/]
+│   │   └── explorer.gazebo.xacro           [Robot description with Gazebo-specific extensions]
+│   └── rviz/                               [MOVED - From current explorer/description/rviz/]
+│       └── view_robot.rviz
+│
+├── explorer_gazebo/                         [GAZEBO SIMULATION PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── README.md                           [NEW - Documentation for simulation setup]
+│   ├── launch/
+│   │   └── explorer_gazebo.launch.py       [NEW - Unified simulation launch file]
+│   └── worlds/                             [MOVED - From current explorer/description/worlds/]
+│       ├── empty_world.world
+│       └── simu.world
+│
+├── explorer_hardware/                       [HARDWARE INTERFACE PACKAGE - FUTURE]
+│   ├── CMakeLists.txt                      [FUTURE - ROS2 package build configuration]
+│   ├── package.xml                         [FUTURE - ROS2 package metadata and dependencies]
+│   ├── explorer_hardware.xml               [FUTURE - Plugin description for hardware interface]
+│   ├── include/
+│   │   └── explorer_hardware/
+│   │       └── explorer_hardware_interface.hpp [FUTURE - Robot-level hardware abstraction]
+│   └── src/
+│       └── explorer_hardware_interface.cpp     [FUTURE - Implementation coordinating VESC actuators]
+│
+├── explorer_controllers/                    [CONTROLLERS PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── include/
+│   │   └── explorer_controllers/          [NEW - Headers organized by controller type]
+│   │       ├── common/                     [Shared utilities across controllers]
+│   │       │   ├── input_integrator.hpp    [MOVED - From current explorer/src/reference_generator/include/]
+│   │       │   ├── output_integrator.hpp   [MOVED - From current explorer/src/reference_generator/include/]
+│   │       │   └── velocity_integrator.hpp [MOVED - From current explorer/src/robot_manager/include/]
+│   │       ├── qp_cartesian/               [Current QP-based cartesian controller]
+│   │       │   ├── qp_cartesian_controller.hpp [Main controller interface]
+│   │       │   ├── joint_output_integrator.hpp [MOVED - From current explorer/src/reference_generator/include/]
+│   │       │   ├── qp_solver.hpp           [MOVED - From qp_solving.h in reference_generator/]
+│   │       │   ├── forward_kinematic.hpp   [MOVED - From current explorer/src/robot_manager/include/]
+│   │       │   ├── inverse_kinematic.hpp   [MOVED - From current explorer/src/robot_manager/include/]
+│   │       │   └── types/
+│   │       │       └── space_base.hpp
+│   │       └── (future controller types can be added here)
+│   │           ├── impedance/              [Future: impedance controller]
+│   │           ├── joint_space/            [Future: joint space controller]
+│   │           └── admittance/             [Future: admittance controller]
+│   ├── src/                                [MOVED/REFACTORED - From current explorer/src/]
+│   │   ├── common/                         [Shared functionality across controllers]
+│   │   │   ├── input_integrator.cpp        [MOVED - From current explorer/src/reference_generator/]
+│   │   │   ├── output_integrator.cpp       [MOVED - From current explorer/src/reference_generator/]
+│   │   │   └── velocity_integrator.cpp     [MOVED - From current explorer/src/robot_manager/]
+│   │   └── qp_cartesian/                   [Current QP cartesian controller implementation]
+│   │       ├── qp_cartesian_controller.cpp [Main controller implementation]
+│   │       ├── joint_output_integrator.cpp [MOVED - From current explorer/src/reference_generator/]
+│   │       ├── qp_solving.cpp              [MOVED - From current explorer/src/reference_generator/]
+│   │       ├── forward_kinematic.cpp       [MOVED - From current explorer/src/robot_manager/]
+│   │       ├── inverse_kinematic.cpp       [MOVED - From current explorer/src/robot_manager/]
+│   │       └── types/
+│   │           └── space_base.cpp
+│   ├── config/                             [MOVED - Controller-specific configs from explorer/bringup/config/]
+│   │   ├── qp_cartesian/                   [Config for QP cartesian controller]
+│   │   │   └── (future controller-specific configs will go here)
+│   │   └── (future controller configs)
+│
+│
+├── explorer_input_devices/                  [INPUT DEVICE HANDLING PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── include/
+│   │   └── explorer_input_devices/        [RENAMED - From current explorer/src/input_device/include/ros2_control_explorer/]
+│   │       ├── device.h                    [MOVED - SpaceNav base device interface]
+│   │       ├── device_spacenav.h           [MOVED - SpaceNav 3D mouse device handler]
+│   │       ├── spacenav_config.h           [MOVED - SpaceNav configuration]
+│   │       └── xbox_gamepad_joint.h        [MOVED and RENAMED - From joystick_input.h in reference_generator/]
+│   ├── src/                                [MOVED - From current explorer/src/input_device/]
+│   │   ├── device.cpp                      [MOVED - SpaceNav base device implementation]
+│   │   ├── device_spacenav.cpp             [MOVED - SpaceNav 3D mouse implementation]
+│   │   └── xbox_gamepad_joint.cpp          [MOVED and RENAMED - From joystick_input.cpp in reference_generator/]
+│   └── config/                             [MOVED - Input-specific configs from explorer/bringup/config/]
+│       ├── xbox_gamepad_settings.yaml     [MOVED - Xbox gamepad configuration]
+│       └── spacenav_settings.yaml          [MOVED - SpaceNav configuration]
+│
+├── explorer_user_interfaces/               [USER INTERFACES PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── setup.py                            [MOVED - From current libs/rqt_armcontrol/setup.py]
+│   ├── setup.cfg                           [MOVED - From current libs/rqt_armcontrol/setup.cfg]
+│   ├── plugin.xml                          [MOVED - From current libs/rqt_armcontrol/plugin.xml]
+│   ├── rqt_armcontrol/                     [MOVED - From current libs/rqt_armcontrol/]
+│   │   ├── resource/                       [MOVED - From current libs/rqt_armcontrol/resource/]
+│   │   │   └── rqt_armcontrol.ui           [RQT UI definition files]
+│   │   ├── rqt_armcontrol/                 [MOVED - From current libs/rqt_armcontrol/rqt_armcontrol/]
+│   │   │   ├── __init__.py
+│   │   │   ├── rqt_armcontrol.py           [Main RQT arm control interface]
+│   │   │   ├── rqt_actuatorcontrol.py      [Actuator-level control interface]
+│   │   │   └── rqt_jointcontrol.py         [Joint-level control interface]
+│   │   └── test/                           [MOVED - From current libs/rqt_armcontrol/test/]
+│   └── (other future GUI interfaces)
+│
+├── explorer_bringup/                        [LAUNCH & CONFIGURATION PACKAGE - NEW]
+│   ├── CMakeLists.txt                      [NEW - ROS2 package build configuration]
+│   ├── package.xml                         [NEW - ROS2 package metadata and dependencies]
+│   ├── launch/                             [MOVED - From current explorer/bringup/launch/]
+│   │   ├── cartesian_control.launch.py     ---> TODO: renommer les lauch files 
+│   │   ├── explorer_cartesian.launch.py
+│   │   ├── explorer_joint.launch.py
+│   │   └── joint_control.launch.py
+│   └── config/                             [MOVED - System-level configs from explorer/bringup/config/]
+│       ├── bridge.yaml
+│       ├── explorer_controller.yaml        [STAYS - System-level controller configuration]
+│       ├── settings_POC1.yaml
+│       ├── settings_POC2.yaml
+│       ├── settings_joint_POC1.yaml
+│       └── settings_joint_POC2.yaml
+│
+├── explorer_ros2/                           [META-PACKAGE - NEW] -- PAS PRIORITAIRE, on pourra l'ajouter après
+│   ├── CMakeLists.txt                      [NEW - Meta-package build configuration]
+│   └── package.xml                         [NEW - Dependencies on all explorer_* packages for easy installation]
+│
+├── gripper_pincette/                        [GRIPPER PACKAGE - NO CHANGES]
+│
+├── libs/                                    [SHARED LIBRARIES - NO CHANGES]
+│
+└── orthopus_vesc_interface/                 [VESC HARDWARE INTERFACE - NO CHANGES]
+
+
+MIGRATION STRATEGY
+==================
+
+DETAILED COMPARISON: CURRENT vs PROPOSED
+----------------------------------------
+
+Current Structure (explorer/ package):
+├── CMakeLists.txt
+├── package.xml  
+├── README.md
+├── ros2_control_explorer.xml
+├── bringup/
+│   ├── config/ (8 files: bridge.yaml, explorer_controller.yaml, joy_settings.yaml, 
+│   │            settings_POC1.yaml, settings_POC2.yaml, settings_joint_POC1.yaml, 
+│   │            settings_joint_POC2.yaml, spacenav_settings.yaml)
+│   └── launch/ (4 files: cartesian_control.launch.py, explorer_cartesian.launch.py,
+│                explorer_joint.launch.py, joint_control.launch.py)
+├── description/
+│   ├── README.md
+│   ├── gazebo/ (explorer.gazebo.xacro)
+│   ├── launch/ (view_explorer.launch.py)
+│   ├── meshes/ (collision/ and visual/ with STL/DAE files)
+│   ├── ros2_control/ (explorer.ros2_control.xacro, explorer_actuators.ros2_control.xacro)
+│   ├── rviz/ (view_robot.rviz)
+│   ├── urdf/ (multiple XACRO files + inc/ folder)
+│   └── worlds/ (empty_world.world, simu.world)
+└── src/
+    ├── CMakeLists.txt
+    ├── README.md
+    ├── input_device/ (device.cpp, device_spacenav.cpp + include/)
+    ├── reference_generator/ (multiple .cpp files including joystick_input.cpp + include/)
+    └── robot_manager/ (multiple .cpp files + include/ + types/)
+
+MIGRATION PHASES (REVISED)
+=========================
+
+Phase 1: Preparation and Package Structure Creation
+--------------------------------------------------
+1.1. Backup current explorer/ package
+1.2. Create new package directories (IMMEDIATE):
+    - explorer_description/
+    - explorer_gazebo/
+    - explorer_controllers/
+    - explorer_input_devices/
+    - explorer_user_interfaces/
+    - explorer_bringup/
+    - (explorer_msgs/ - optional, can be deferred)
+    - (explorer_hardware/ - FUTURE, can be created later)
+
+1.3. Create basic CMakeLists.txt and package.xml for each new package
+1.4. Set up proper inter-package dependencies
+
+Phase 2: Description Package Migration
+-------------------------------------
+2.1. Move files to explorer_description/:
+    - description/README.md → README.md
+    - description/meshes/ → meshes/ (entire directory)
+    - description/ros2_control/ → ros2_control/ (entire directory)
+    - description/urdf/ → urdf/ (entire directory)
+    - description/gazebo/ → gazebo/ (entire directory, including explorer.gazebo.xacro)
+    - description/rviz/ → rviz/ (entire directory)
+    - description/launch/ → launch/ (entire directory)
+
+2.2. Update URDF/XACRO files to reference new package locations
+2.3. Test description package independently
+
+Phase 3: Simulation Package Migration
+------------------------------------
+3.1. Move files to explorer_gazebo/:
+    - description/worlds/ → worlds/ (entire directory)
+
+3.2. Create explorer_gazebo.launch.py (new unified simulation launch)
+3.3. Update Gazebo configurations to reference new package paths
+3.4. Test simulation package
+
+Phase 4: Controllers Package Migration (PRIORITY)
+-------------------------------------
+4.1. Move and reorganize source code to explorer_controllers/:
+    - src/reference_generator/input_integrator.* → src/common/ (shared integrator)
+    - src/reference_generator/output_integrator.* → src/common/ (shared integrator)
+    - src/robot_manager/velocity_integrator.* → src/common/ (shared integrator)
+    - src/robot_manager/forward_kinematic.* → src/common/ (shared kinematics)
+    - src/robot_manager/inverse_kinematic.* → src/common/ (shared kinematics)
+    - src/robot_manager/types/ → src/common/types/ (shared data types)
+    - src/reference_generator/joint_output_integrator.* → src/qp_cartesian/ (QP-specific)
+    - src/reference_generator/qp_solving.* → src/qp_cartesian/ (QP-specific)
+    - Create new qp_cartesian_controller.* as main controller interface
+
+4.2. Extract and organize controller-specific configs:
+    - (Future controller-specific configs will be created in explorer_controllers/config/)
+    - explorer_controller.yaml stays in explorer_bringup/config/ as system-level configuration
+
+4.3. Refactor code for modularity:
+    - Move shared utilities (integrators, kinematics) to common/
+    - Keep QP-specific logic under qp_cartesian/
+    - Design plugin system for future controllers
+
+4.4. Update CMakeLists.txt for modular controller compilation
+4.5. Test controller compilation and basic functionality
+
+Phase 5: Input Devices Package Migration
+---------------------------------------
+5.1. Move input device code to explorer_input_devices/:
+    - src/input_device/ → src/ (entire directory structure)
+    - src/reference_generator/joystick_input.cpp → src/xbox_gamepad_joint.cpp (rename)
+    - src/reference_generator/include/ros2_control_explorer/joystick_input.h → include/explorer_input_devices/xbox_gamepad_joint.h (rename and move)
+
+5.2. Move input-specific configs:
+    - bringup/config/joy_settings.yaml → config/
+    - bringup/config/spacenav_settings.yaml → config/
+
+5.3. Update include paths and package references:
+    - Change include namespace from "ros2_control_explorer" to "explorer_input_devices"
+    - Update all references to joystick_input to xbox_gamepad_joint
+    - Update CMakeLists.txt for new executable names
+
+5.4. Test input device functionality
+
+Phase 6: User Interfaces Package Migration
+-----------------------------------------
+6.1. Move user interface code to explorer_user_interfaces/:
+    - libs/rqt_armcontrol/ → explorer_user_interfaces/rqt_armcontrol/ (entire directory structure)
+    - Keep rqt_armcontrol/ subdirectory name to preserve Python package structure
+    - Update package.xml and setup.py with new package name and location
+
+6.2. Update RQT plugin configuration:
+    - Update plugin.xml to reference new package location
+    - Update imports and dependencies in Python files
+    - Test RQT plugin loading and functionality
+
+6.3. Prepare for future interface expansion:
+    - Create subdirectory structure for different UI types
+    - Document interface for adding new user interfaces
+
+6.4. Test user interface functionality
+
+Phase 7: Bringup Package Migration
+---------------------------------
+7.1. Move remaining files to explorer_bringup/:
+    - bringup/launch/ → launch/ (all 4 launch files)
+    - bringup/config/ → config/ (remaining system-level configs:
+      bridge.yaml, settings_POC1.yaml, settings_POC2.yaml,
+      settings_joint_POC1.yaml, settings_joint_POC2.yaml)
+
+7.2. Update all launch files to reference new package locations
+7.3. Test complete system integration with existing orthopus_vesc_interface
+
+Phase 8: Cleanup and Validation
+------------------------------
+8.1. Remove original explorer/ package (after backup verification)
+8.2. Update all package dependencies and imports
+8.3. Run comprehensive tests:
+    - Individual package builds
+    - Simulation functionality
+    - Real hardware functionality using existing orthopus_vesc_interface
+    - All launch configurations
+    - RQT user interfaces functionality
+
+8.4. Update documentation and README files
+8.5. Create migration guide for users
+
+Phase 9: Hardware Interface Development (FUTURE ENHANCEMENT)
+----------------------------------------------------------
+9.1. Create explorer_hardware/ package structure
+9.2. Develop robot-level hardware interface that:
+    - Coordinates multiple VESC actuators via orthopus_vesc_interface
+    - Provides unified robot state and command interface
+    - Implements ROS2 control hardware interface standard
+    - Handles joint-level coordination and safety
+
+9.3. Create new files in explorer_hardware/:
+    - explorer_hardware_interface.hpp
+    - explorer_hardware_interface.cpp  
+    - explorer_hardware.xml (plugin description)
+
+9.4. Gradually migrate from direct orthopus_vesc_interface usage to
+     the new robot-level hardware interface
+
+Phase 10: Optional Enhancements
+-----------------------------
+10.1. Create explorer_ros2 meta-package (if needed)
+10.2. Move custom interfaces from libs/custom_interfaces to explorer_msgs/
+10.3. Add additional testing and CI/CD configurations
+
+CRITICAL MIGRATION CONSIDERATIONS
+=================================
+
+File Movement Details:
+• 8 config files in bringup/config/ need to be distributed across packages
+• 4 launch files in bringup/launch/ stay together in explorer_bringup/
+• All description files (meshes, URDF, etc.) move as complete directories
+• Source code requires careful refactoring of include paths and CMakeLists.txt
+• joystick_input.* files move from reference_generator/ to explorer_input_devices/ and rename to xbox_gamepad_joint.*
+• Include namespace changes from "ros2_control_explorer" to "explorer_input_devices"
+
+Package Dependencies:
+• explorer_bringup depends on ALL other packages (launches the complete system)
+• explorer_gazebo depends on explorer_description (needs URDF and meshes)
+• Current system continues using orthopus_vesc_interface directly
+• explorer_controllers may depend on explorer_msgs if custom messages are used
+• explorer_hardware (FUTURE) will coordinate with orthopus_vesc_interface
+
+Build System Changes:
+• Each package needs proper CMakeLists.txt with correct find_package() calls
+• Header include paths change from "ros2_control_explorer/" to "explorer_*/"
+• Shared libraries and executables need updated linking
+• Hardware interface development is deferred - no immediate build changes needed
+
+VALIDATION CHECKPOINTS
+=====================
+
+After Each Phase:
+□ Package compiles without errors
+□ Dependencies resolve correctly  
+□ No broken include paths
+□ Configuration files load properly
+
+Final System Validation:
+□ All launch files work correctly
+□ Simulation launches and functions
+□ Hardware interface loads (if available)
+□ Input devices respond properly
+□ Complete system integration successful
+
+
+RECOMMENDED STRUCTURE: explorer_controllers/
+==========================================
+
+Internal Organization:
+├── common/           - Shared integrators, kinematics, utilities, and data types
+│   ├── input_integrator.*     - Input signal integration utilities
+│   ├── output_integrator.*    - Output signal integration utilities  
+│   ├── velocity_integrator.*  - Velocity integration utilities
+│   ├── forward_kinematic.*    - Forward kinematics calculations
+│   ├── inverse_kinematic.*    - Inverse kinematics calculations
+│   └── types/                 - Shared data type definitions
+├── qp_cartesian/     - Current QP-based cartesian controller
+│   ├── qp_cartesian_controller.*  - Main controller implementation
+│   ├── joint_output_integrator.*  - QP-specific joint output handling
+│   └── qp_solving.*               - QP optimization solver
+├── impedance/        - Future: impedance controller
+├── joint_space/      - Future: pure joint space controller
+├── admittance/       - Future: admittance controller
+└── hybrid/           - Future: hybrid force/position controller
+
+
+NEW FILES AND THEIR PURPOSE
+---------------------------
+
+Package Infrastructure Files (Required for each new package):
+• CMakeLists.txt files          - Build system configuration for each package
+• package.xml files             - ROS2 package metadata, dependencies, and versioning
+• explorer_hardware.xml         - Plugin description file for hardware interface registration
+• explorer_gazebo README.md     - Documentation for simulation setup and usage
+
+New Implementation Files:
+• explorer_hardware_interface.hpp/cpp  - Hardware abstraction layer that interfaces with
+                                         VESC controllers and provides standardized
+                                         hardware interface for ROS2 control
+• explorer_gazebo.launch.py            - Unified launch file for Gazebo simulation
+                                         that combines robot spawning and controller loading
+
+Meta-package Files:
+• explorer_ros2 package.xml            - Meta-package for easy installation of entire
+                                         Explorer stack with single command
+
+Package Responsibilities:
+• explorer_msgs/           - Message, service, action definitions
+• explorer_description/    - Robot URDF, meshes, visualization, ROS2 control configuration
+• explorer_gazebo/         - Simulation-specific functionality
+• explorer_hardware/       - Hardware interface implementation
+• explorer_controllers/    - Control algorithms and kinematics
+• explorer_input_devices/  - Input device handling (SpaceNav, Xbox gamepad)
+• explorer_user_interfaces/ - User interfaces (RQT plugins, web interfaces, mobile apps)
+• explorer_bringup/        - System launch and configuration
+• explorer_ros2/           - Meta-package for easy installation
+
+COMPATIBILITY CONSIDERATIONS
+============================
+
+Breaking Changes:
+• Package import paths will change
+• Launch file locations will change
+• Configuration file paths will change
