@@ -44,9 +44,9 @@ class RqtCartesianController(Plugin):
         self._widget = QWidget()
         self.setObjectName(self.title)
 
-        _, self.package_path = get_resource("packages", "rqt_armcontrol")
+        _, self.package_path = get_resource("packages", "explorer_user_interfaces")
         ui_file = os.path.join(
-            self.package_path, "share", "rqt_armcontrol", "resource", "rqt_armcontrol.ui"
+            self.package_path, "share", "explorer_user_interfaces", "resource", "rqt_armcontrol.ui"
         )
 
         loadUi(ui_file, self._widget)

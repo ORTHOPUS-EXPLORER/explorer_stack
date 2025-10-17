@@ -1,11 +1,11 @@
 from setuptools import setup
 
-package_name = 'rqt_armcontrol'
+package_name = 'explorer_user_interfaces'
 
 setup(
     name=package_name,
     version='0.0.1',
-    packages=[package_name],
+    packages=['rqt_armcontrol'],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name + "/resource", ["resource/rqt_armcontrol.ui"]),

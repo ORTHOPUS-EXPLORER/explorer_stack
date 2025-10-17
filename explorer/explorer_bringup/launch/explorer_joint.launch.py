@@ -179,7 +179,7 @@ def generate_launch_description():
     
     # Declare GUI controller node
     gui_control_node = Node(
-        package='rqt_armcontrol',
+        package='explorer_user_interfaces',
         executable='rqt_jointcontrol',
     )
 

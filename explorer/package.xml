@@ -34,6 +34,7 @@
   <depend>moveit_ros_planning_interface</depend>
   <depend>qpoases_ros2</depend> <!-- Imported as submodule -->
   <depend>explorer_msgs</depend>
+  <depend>explorer_user_interfaces</depend>
 
 
   <exec_depend>controller_manager</exec_depend>
