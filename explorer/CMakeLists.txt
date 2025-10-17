@@ -10,7 +10,7 @@ find_package(ament_cmake REQUIRED)
 add_subdirectory(src/)
 
 # INSTALL
-install(DIRECTORY description
+install(DIRECTORY explorer_description
                   bringup/launch
                   bringup/config
   DESTINATION share/ros2_control_explorer

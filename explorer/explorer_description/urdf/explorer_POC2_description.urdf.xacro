@@ -4,7 +4,7 @@
   <xacro:macro name="explorer_POC2_description">
 
   <!-- helper macro -->
-  <xacro:include filename="$(find ros2_control_explorer)/description/urdf/inc/create_link.xacro"/>
+  <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/inc/create_link.xacro"/>
 
   <xacro:create_link
       link_name="base_link"

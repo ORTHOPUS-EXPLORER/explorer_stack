@@ -29,7 +29,7 @@ def generate_launch_description():
     robot_description_command = Command([
         PathJoinSubstitution([FindExecutable(name="xacro")]),
         " ",
-        PathJoinSubstitution([FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]),
+        PathJoinSubstitution([FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.urdf.xacro"]),
         " ",
         "use_ignition:=false ",
         "use_actuator_interface:=", use_actuator_interface,
@@ -42,7 +42,7 @@ def generate_launch_description():
     semantic_content = Command([
         PathJoinSubstitution([FindExecutable(name="xacro")]),
         " ",
-        PathJoinSubstitution([FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.srdf"]),
+        PathJoinSubstitution([FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.srdf"]),
         " "
     ])
     robot_description_semantic = {"robot_description_semantic": semantic_content}
@@ -53,7 +53,7 @@ def generate_launch_description():
     ])
 
     rviz_config_file = PathJoinSubstitution([
-        FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"
+        FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"
     ])
 
     config_POC1 = PathJoinSubstitution([

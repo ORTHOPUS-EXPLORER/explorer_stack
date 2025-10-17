@@ -81,7 +81,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "description/urdf", "explorer.urdf.xacro"]
+                [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.urdf.xacro"]
             ),
             " ",
             "use_ignition:=false",
@@ -114,7 +114,7 @@ def generate_launch_description():
     )
     
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "description/rviz", "view_robot.rviz"]
+        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
     )
 
     control_node = Node(
