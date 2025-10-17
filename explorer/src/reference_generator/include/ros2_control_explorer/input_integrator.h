@@ -16,7 +16,7 @@
 #include "ros2_control_explorer/types/space_position.h"
 #include "ros2_control_explorer/types/space_velocity.h"
 
-#include "custom_interfaces/srv/pose.hpp"
+#include "explorer_msgs/srv/pose.hpp"
 
 #include <chrono>
 #include <functional>
@@ -62,7 +62,7 @@ namespace space_control
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr dx_desired_pub_;
         rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr x_des_updated_pub_;
 
-        rclcpp::Client<custom_interfaces::srv::Pose>::SharedPtr x_init_client_;
+        rclcpp::Client<explorer_msgs::srv::Pose>::SharedPtr x_init_client_;
 
         rclcpp::TimerBase::SharedPtr timer_;
 

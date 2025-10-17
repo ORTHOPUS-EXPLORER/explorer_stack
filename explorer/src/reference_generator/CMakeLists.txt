@@ -13,7 +13,7 @@ set(REF_GEN_DEPENDENCIES
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
-  custom_interfaces
+  explorer_msgs
   joy
 )
 

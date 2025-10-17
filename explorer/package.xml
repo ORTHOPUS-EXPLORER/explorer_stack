@@ -33,7 +33,7 @@
   <depend>moveit_ros_planning</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>qpoases_ros2</depend> <!-- Imported as submodule -->
-  <depend>custom_interfaces</depend>
+  <depend>explorer_msgs</depend>
 
 
   <exec_depend>controller_manager</exec_depend>

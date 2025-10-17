@@ -16,8 +16,8 @@
 #include "ros2_control_explorer/types/space_position.h"
 #include "ros2_control_explorer/types/space_velocity.h"
 
-#include "custom_interfaces/srv/pose.hpp"
-#include "custom_interfaces/srv/float64.hpp"
+#include "explorer_msgs/srv/pose.hpp"
+#include "explorer_msgs/srv/float64.hpp"
 
 #include <chrono>
 #include <functional>
@@ -66,8 +66,8 @@ namespace space_control
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr q_current_debug_pub_;
         
-        rclcpp::Service<custom_interfaces::srv::Pose>::SharedPtr x_init_service_;
-        rclcpp::Service<custom_interfaces::srv::Float64>::SharedPtr q_init_service_;
+        rclcpp::Service<explorer_msgs::srv::Pose>::SharedPtr x_init_service_;
+        rclcpp::Service<explorer_msgs::srv::Float64>::SharedPtr q_init_service_;
 
         rclcpp::TimerBase::SharedPtr timer_;
         
@@ -131,8 +131,8 @@ namespace space_control
         void callback_J6_zero_released_(const std_msgs::msg::Bool & msg);
         void callback_J6_zero_pressed_(const std_msgs::msg::Bool & msg);
         void timer_callback();
-        void callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req, std::shared_ptr<custom_interfaces::srv::Pose::Response> res);
-        void callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req, std::shared_ptr<custom_interfaces::srv::Float64::Response> res);
+        void callback_x_init_(const std::shared_ptr<explorer_msgs::srv::Pose::Request> req, std::shared_ptr<explorer_msgs::srv::Pose::Response> res);
+        void callback_q_init_(const std::shared_ptr<explorer_msgs::srv::Float64::Request> req, std::shared_ptr<explorer_msgs::srv::Float64::Response> res);
         void send_output();
         void publishDebugTopic_();
 

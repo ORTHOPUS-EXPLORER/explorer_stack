@@ -79,14 +79,14 @@ namespace space_control
         J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_released", 10, std::bind(&InputIntegrator::callback_J6_zero_released, this, std::placeholders::_1));
         J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&InputIntegrator::callback_J6_zero_pressed, this, std::placeholders::_1));
 
-        x_init_client_ = n_->create_client<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init");
+        x_init_client_ = n_->create_client<explorer_msgs::srv::Pose>("/ros2_control_explorer/x_init");
         
         //init publishers
         dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
         x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10);
         x_des_updated_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated",10);
 
-        auto request = std::make_shared<custom_interfaces::srv::Pose::Request>();
+        auto request = std::make_shared<explorer_msgs::srv::Pose::Request>();
 
         while(init_attempt_< 100000 && call_service_attempt_< 100000 && success_init_ == false){
             request->ready = true;

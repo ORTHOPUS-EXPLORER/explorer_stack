@@ -42,12 +42,12 @@ namespace space_control
         J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero, this, std::placeholders::_1));
         J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero, this, std::placeholders::_1));
 
-        q_init_client_ = n_->create_client<custom_interfaces::srv::Float64>("/ros2_control_explorer/q_init");
+        q_init_client_ = n_->create_client<explorer_msgs::srv::Float64>("/ros2_control_explorer/q_init");
 
         //init publisher
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
 
-        auto request = std::make_shared<custom_interfaces::srv::Float64::Request>();
+        auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
 
         while(init_attempt_< 100000 && call_service_attempt_< 100000 && success_init_ == false){
         request->ready = true;

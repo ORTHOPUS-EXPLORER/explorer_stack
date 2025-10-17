@@ -78,9 +78,9 @@ namespace space_control
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
 
-        x_init_service_ = n_->create_service<custom_interfaces::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
+        x_init_service_ = n_->create_service<explorer_msgs::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
         RCLCPP_INFO(n_->get_logger(), "x_init [input integrator]: creating service ...");
-        q_init_service_ = n_->create_service<custom_interfaces::srv::Float64>("/ros2_control_explorer/q_init", std::bind(&QPSolving::callback_q_init_, this, std::placeholders::_1, std::placeholders::_2));
+        q_init_service_ = n_->create_service<explorer_msgs::srv::Float64>("/ros2_control_explorer/q_init", std::bind(&QPSolving::callback_q_init_, this, std::placeholders::_1, std::placeholders::_2));
         RCLCPP_INFO(n_->get_logger(), "q_init [output integrator]: creating service ...");
     }
 
@@ -489,8 +489,8 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
         publishDebugTopic_();
     }
 
-    void QPSolving::callback_x_init_(const std::shared_ptr<custom_interfaces::srv::Pose::Request> req,
-                                           std::shared_ptr<custom_interfaces::srv::Pose::Response> res)
+    void QPSolving::callback_x_init_(const std::shared_ptr<explorer_msgs::srv::Pose::Request> req,
+                                           std::shared_ptr<explorer_msgs::srv::Pose::Response> res)
     {
         //RCLCPP_INFO(n_->get_logger(), "x_init [input integrator]: service called");
         (void)req;
@@ -520,8 +520,8 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
         res->pose = x_init_;
     }
 
-    void QPSolving::callback_q_init_(const std::shared_ptr<custom_interfaces::srv::Float64::Request> req,
-                                           std::shared_ptr<custom_interfaces::srv::Float64::Response> res)
+    void QPSolving::callback_q_init_(const std::shared_ptr<explorer_msgs::srv::Float64::Request> req,
+                                           std::shared_ptr<explorer_msgs::srv::Float64::Response> res)
     {
         //RCLCPP_INFO(n_->get_logger(), "q_init [output integrator]: service called");
         if(init == true){ 

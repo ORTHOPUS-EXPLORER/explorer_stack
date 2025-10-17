@@ -8,7 +8,7 @@
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/bool.hpp"
 
-#include "custom_interfaces/srv/float64.hpp"
+#include "explorer_msgs/srv/float64.hpp"
 
 #include <chrono>
 #include <functional>
@@ -41,7 +41,7 @@ namespace space_control
 
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
 
-        rclcpp::Client<custom_interfaces::srv::Float64>::SharedPtr q_init_client_;
+        rclcpp::Client<explorer_msgs::srv::Float64>::SharedPtr q_init_client_;
     
         rclcpp::TimerBase::SharedPtr timer_;
 
