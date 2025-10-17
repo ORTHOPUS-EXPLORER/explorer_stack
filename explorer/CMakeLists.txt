@@ -11,8 +11,8 @@ add_subdirectory(src/)
 
 # INSTALL
 install(DIRECTORY explorer_description
-                  bringup/launch
-                  bringup/config
+                  explorer_bringup/launch
+                  explorer_bringup/config
   DESTINATION share/ros2_control_explorer
 )
 
