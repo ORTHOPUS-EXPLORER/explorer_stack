@@ -55,8 +55,8 @@ def generate_launch_description():
     )
 
     world = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
-        'explorer_description/worlds',
+        get_package_share_directory('explorer_description'),
+        'worlds',
         'empty_world.world'
     )
 
@@ -80,7 +80,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.urdf.xacro"]
+                [FindPackageShare("explorer_description"), "urdf", "explorer.urdf.xacro"]
             ),
             " ",
             "use_ignition:=true",
@@ -99,7 +99,7 @@ def generate_launch_description():
     )
 
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
+        [FindPackageShare("explorer_description"), "rviz", "view_robot.rviz"]
     )
 
     node_robot_state_publisher = Node(

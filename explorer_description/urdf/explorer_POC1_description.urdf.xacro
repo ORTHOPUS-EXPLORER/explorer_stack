@@ -4,13 +4,13 @@
   <xacro:macro name="explorer_POC1_description">
 
   <!-- helper macro -->
-  <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/inc/create_link.xacro"/>    
+  <xacro:include filename="$(find explorer_description)/urdf/inc/create_link.xacro"/>    
 
   <xacro:create_link
       link_name="base_link"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="base_link_POC1"
       xyz_mass="0.000045 0.000001 0.026873"
       mass="0.520"
@@ -26,7 +26,7 @@
       link_name="link_1"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link1_POC1"
       xyz_mass="-0.000001 0.02935 0.029854"
       mass="0.318"
@@ -42,7 +42,7 @@
       link_name="link_2"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link2_POC1"
       xyz_mass="0.204774 0.000012 0.057505"
       mass="2.023"
@@ -58,7 +58,7 @@
       link_name="link_3"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link3_POC1"
       xyz_mass="0.138064 -0.000019  -0.007584"
       mass="1.074"
@@ -74,7 +74,7 @@
       link_name="link_4"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link4_POC1"
       xyz_mass="0.000006 0.044695  0.057883"
       mass="0.687"
@@ -90,7 +90,7 @@
       link_name="link_5"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link5_POC1"
       xyz_mass="0.000006 0.044695  0.057883"
       mass="0.687"
@@ -106,7 +106,7 @@
       link_name="link_6"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="gripper"
       xyz_mass="0.00224 -0.000032 0.077277"
       mass="0.407"

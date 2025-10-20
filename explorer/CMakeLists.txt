@@ -9,11 +9,6 @@ find_package(ament_cmake REQUIRED)
 
 add_subdirectory(src/)
 
-# INSTALL
-install(DIRECTORY explorer_description
-  DESTINATION share/ros2_control_explorer
-)
-
 ## EXPORTS
 find_package(pluginlib REQUIRED)
 # Export hardware plugins

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/explorer_joints.xacro" />
+  <xacro:include filename="$(find explorer_description)/urdf/explorer_joints.xacro" />
 
   <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1  host_id:=^|45 rt_stream_rate:=^|250 aux_stream_rate:=^|10">
 

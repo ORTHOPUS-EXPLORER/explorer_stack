@@ -63,8 +63,8 @@ def generate_launch_description():
                 PathJoinSubstitution([FindExecutable(name="xacro")]),
                 " ",
                 PathJoinSubstitution([
-                    FindPackageShare("ros2_control_explorer"),
-                    "explorer_description/urdf",
+                    FindPackageShare("explorer_description"),
+                    "urdf",
                     "explorer.urdf.xacro"
                 ]),
                 " ",
@@ -82,8 +82,8 @@ def generate_launch_description():
         description='If the spacenav 3D mouse is used')
     
     world = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
-        'explorer_description/worlds',
+        get_package_share_directory('explorer_description'),
+        'worlds',
         'empty_world.world'
     )
 
@@ -109,7 +109,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.srdf"]
+                [FindPackageShare("explorer_description"), "urdf", "explorer.srdf"]
             ),
             " ",
         ]
@@ -118,7 +118,7 @@ def generate_launch_description():
     robot_description_semantic = {"robot_description_semantic": semantic_content}
     
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
+        [FindPackageShare("explorer_description"), "rviz", "view_robot.rviz"]
     )
 
     ## Declare SpaceNav nodes (driver & input_device)

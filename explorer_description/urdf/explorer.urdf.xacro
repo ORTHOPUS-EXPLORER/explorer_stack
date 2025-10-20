@@ -25,7 +25,7 @@
 
   <xacro:unless value="$(arg use_POC2)">
     <!-- Import explorer macro -->
-    <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/explorer_POC1_description.urdf.xacro"/>
+    <xacro:include filename="$(find explorer_description)/urdf/explorer_POC1_description.urdf.xacro"/>
     <joint name="joint_6" type="revolute">
       <parent link="link_5"/>
       <child link="structure"/>
@@ -37,7 +37,7 @@
   </xacro:unless>
   <xacro:if value="$(arg use_POC2)">
     <!-- Import explorer macro -->
-    <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/explorer_POC2_description.urdf.xacro"/>
+    <xacro:include filename="$(find explorer_description)/urdf/explorer_POC2_description.urdf.xacro"/>
 
     <joint name="joint_6" type="revolute">
       <parent link="link_5"/>
@@ -71,11 +71,11 @@
 
   <!-- Import explorer ros2_control description -->
   <xacro:unless value="$(arg use_actuator_interface)">
-    <xacro:include filename="$(find ros2_control_explorer)/explorer_description/ros2_control/explorer.ros2_control.xacro" />
+    <xacro:include filename="$(find explorer_description)/ros2_control/explorer.ros2_control.xacro" />
     <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)" />
   </xacro:unless>
   <xacro:if value="$(arg use_actuator_interface)">
-    <xacro:include filename="$(find ros2_control_explorer)/explorer_description/ros2_control/explorer_actuators.ros2_control.xacro" />
+    <xacro:include filename="$(find explorer_description)/ros2_control/explorer_actuators.ros2_control.xacro" />
     <xacro:explorer_ros2_control 
       name="explorer" 
       use_ignition="$(arg use_ignition)" 
@@ -88,7 +88,7 @@
 
   <xacro:if value="$(arg use_ignition)">
     <!-- Import Gazebo definitions + plugin -->
-    <xacro:include filename="$(find ros2_control_explorer)/explorer_description/gazebo/explorer.gazebo.xacro" />
+    <xacro:include filename="$(find explorer_description)/gazebo/explorer.gazebo.xacro" />
     <xacro:explorer_gazebo/>
   </xacro:if>
 

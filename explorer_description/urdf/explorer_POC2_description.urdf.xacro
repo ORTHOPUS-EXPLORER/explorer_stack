@@ -4,13 +4,13 @@
   <xacro:macro name="explorer_POC2_description">
 
   <!-- helper macro -->
-  <xacro:include filename="$(find ros2_control_explorer)/explorer_description/urdf/inc/create_link.xacro"/>
+  <xacro:include filename="$(find explorer_description)/urdf/inc/create_link.xacro"/>
 
   <xacro:create_link
       link_name="base_link"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="base_link_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -26,7 +26,7 @@
       link_name="link_1"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link0_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -42,7 +42,7 @@
       link_name="link_2"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link1_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -58,7 +58,7 @@
       link_name="link_3"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link2_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -74,7 +74,7 @@
       link_name="link_4"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link3_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -90,7 +90,7 @@
       link_name="link_5"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="link4_POC2"
       xyz_mass="0 0 0"
       mass="1"
@@ -106,7 +106,7 @@
       link_name="link_6"
       xyz_offset="0 0 0"
       rpy_offset="0 0 0"
-      mesh_package="ros2_control_explorer"
+      mesh_package="explorer_description"
       mesh_name="gripper"
       xyz_mass="0 0 0"
       mass="1"

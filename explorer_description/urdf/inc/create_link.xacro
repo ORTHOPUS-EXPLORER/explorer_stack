@@ -19,13 +19,13 @@
       <visual>
         <origin xyz="${xyz_offset}" rpy="${rpy_offset}"/>
         <geometry>
-          <mesh filename="file://$(find ${mesh_package})/explorer_description/meshes/visual/${mesh_name}.dae" scale="0.001 0.001 0.001"/>
+          <mesh filename="file://$(find ${mesh_package})/meshes/visual/${mesh_name}.dae" scale="0.001 0.001 0.001"/>
         </geometry>
       </visual>
       <collision>
         <origin xyz="${xyz_offset}" rpy="${rpy_offset}"/>
         <geometry>
-          <mesh filename="file://$(find ${mesh_package})/explorer_description/meshes/collision/${mesh_name}.stl" scale="0.001 0.001 0.001"/>
+          <mesh filename="file://$(find ${mesh_package})/meshes/collision/${mesh_name}.stl" scale="0.001 0.001 0.001"/>
         </geometry>
       </collision>
       <inertial>
