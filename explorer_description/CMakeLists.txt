@@ -14,7 +14,6 @@ install(DIRECTORY gazebo
                   ros2_control
                   rviz
                   urdf
-                  worlds
   DESTINATION share/explorer_description
 )
 

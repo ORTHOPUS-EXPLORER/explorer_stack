@@ -55,7 +55,7 @@ def generate_launch_description():
     )
 
     world = os.path.join(
-        get_package_share_directory('explorer_description'),
+        get_package_share_directory('explorer_gazebo'),
         'worlds',
         'empty_world.world'
     )
