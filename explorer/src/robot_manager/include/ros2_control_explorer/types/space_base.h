@@ -79,65 +79,8 @@ public:
 
   class Orientationd : public Eigen::Quaterniond
   {
-  private:
-    mutable Eigen::Matrix3d rotation_matrix_;
-    mutable bool matrix_valid_;
-    mutable bool quat_valid_;
-    
   public:
     using Eigen::Quaterniond::Quaterniond;
-    
-    // Constructor from rotation matrix (preferred internal representation)
-    Orientationd(const Eigen::Matrix3d& R) : rotation_matrix_(R), matrix_valid_(true), quat_valid_(false) {
-      updateQuaternionFromMatrix();
-    }
-    
-    // Override assignment operators to maintain matrix representation
-    Orientationd& operator=(const Eigen::Quaterniond& q) {
-      Eigen::Quaterniond::operator=(q);
-      quat_valid_ = true;
-      matrix_valid_ = false;
-      updateMatrixFromQuaternion();
-      return *this;
-    }
-    
-    // Get rotation matrix (always continuous, no discontinuities)
-    const Eigen::Matrix3d& toRotationMatrix() const {
-      if (!matrix_valid_) {
-        updateMatrixFromQuaternion();
-      }
-      return rotation_matrix_;
-    }
-    
-    // Set from rotation matrix (preferred method)
-    void setRotationMatrix(const Eigen::Matrix3d& R) {
-      rotation_matrix_ = R;
-      matrix_valid_ = true;
-      quat_valid_ = false;
-      updateQuaternionFromMatrix();
-    }
-    
-    // Continuous quaternion update (maintains sign consistency)
-    void updateQuaternionContinuous(const Eigen::Quaterniond& prev_quat) {
-      if (!quat_valid_) {
-        updateQuaternionFromMatrix();
-      }
-      
-      // Ensure quaternion continuity using dot product
-      double dot_product = this->w() * prev_quat.w() + 
-                          this->x() * prev_quat.x() + 
-                          this->y() * prev_quat.y() + 
-                          this->z() * prev_quat.z();
-      
-      if (dot_product < 0.0) {
-        // Flip quaternion for continuity
-        this->w() = -this->w();
-        this->x() = -this->x();
-        this->y() = -this->y();
-        this->z() = -this->z();
-      }
-    }
-    
     Eigen::Vector4d toVector() const
     {
       Eigen::Vector4d vec;
@@ -146,29 +89,7 @@ public:
       vec(2) = y();
       vec(3) = z();
       return vec;
-    }
-    
-  private:
-    void updateMatrixFromQuaternion() const {
-      if (!quat_valid_) return;
-      rotation_matrix_ = this->toRotationMatrix();
-      matrix_valid_ = true;
-    }
-    
-    void updateQuaternionFromMatrix() const {
-      if (!matrix_valid_) return;
-      
-      // Convert rotation matrix to quaternion using Eigen's method
-      Eigen::Quaterniond q(rotation_matrix_);
-      
-      // Update quaternion components (const_cast needed for mutable update)
-      const_cast<Orientationd*>(this)->w() = q.w();
-      const_cast<Orientationd*>(this)->x() = q.x();
-      const_cast<Orientationd*>(this)->y() = q.y();
-      const_cast<Orientationd*>(this)->z() = q.z();
-      
-      quat_valid_ = true;
-    }
+    };
   };
 
   bool isAllZero() const
