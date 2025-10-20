@@ -1,4 +1,4 @@
-#include "ros2_control_explorer/joystick_input.h"
+#include "explorer_input_devices/xbox_gamepad_joint.h"
 
 namespace space_control
 {

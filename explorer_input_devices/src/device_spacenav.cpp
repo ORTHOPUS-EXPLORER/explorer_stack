@@ -5,8 +5,8 @@
  */
 #include "rclcpp/rclcpp.hpp"
 
-#include "ros2_control_explorer/device_spacenav.h"
-#include "ros2_control_explorer/spacenav_config.h"
+#include "explorer_input_devices/device_spacenav.h"
+#include "explorer_input_devices/spacenav_config.h"
 
 namespace input_device
 {

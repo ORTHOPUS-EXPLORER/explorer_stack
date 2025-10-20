@@ -12,7 +12,7 @@
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/int64.hpp"
 
-#include <ros2_control_explorer/device.h>
+#include <explorer_input_devices/device.h>
 
 namespace input_device
 {

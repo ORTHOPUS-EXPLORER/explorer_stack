@@ -5,7 +5,7 @@
  */
 #include "rclcpp/rclcpp.hpp"
 
-#include "ros2_control_explorer/device.h"
+#include "explorer_input_devices/device.h"
 
 namespace input_device
 {

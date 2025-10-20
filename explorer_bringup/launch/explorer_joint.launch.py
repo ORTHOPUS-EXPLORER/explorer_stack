@@ -189,9 +189,9 @@ def generate_launch_description():
         output="screen",
     )
 
-    joystick_input_node = Node(
-        package="ros2_control_explorer",
-        executable="joystick_input",
+    xbox_gamepad_joint_node = Node(
+        package="explorer_input_devices",
+        executable="xbox_gamepad_joint",
     )
 
     register_event_handler = []
@@ -234,7 +234,7 @@ def generate_launch_description():
         joint_state_broadcaster_spawner,
         gui_control_node,
         joy_node,
-        joystick_input_node,
+        xbox_gamepad_joint_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)

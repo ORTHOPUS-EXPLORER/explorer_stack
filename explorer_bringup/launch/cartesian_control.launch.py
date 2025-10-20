@@ -123,7 +123,7 @@ def generate_launch_description():
 
     ## Declare SpaceNav nodes (driver & input_device)
     spacenav_config =  PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "config", "spacenav_settings.yaml"]
+        [FindPackageShare("explorer_input_devices"), "config", "spacenav_settings.yaml"]
     )
 
     config_POC1 =  PathJoinSubstitution(
@@ -135,7 +135,7 @@ def generate_launch_description():
     )
     
     spacenav_node = Node(
-        package='explorer_bringup',
+        package='explorer_input_devices',
         executable='spacenav',
         parameters=[
             spacenav_config,

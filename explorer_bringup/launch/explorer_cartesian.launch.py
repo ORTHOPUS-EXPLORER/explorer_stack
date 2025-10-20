@@ -63,13 +63,13 @@ def generate_launch_description():
         FindPackageShare("explorer_bringup"), "config", "settings_POC2.yaml"])
 
     spacenav_config = PathJoinSubstitution([
-        FindPackageShare("explorer_bringup"),
+        FindPackageShare("explorer_input_devices"),
         "config",
         "spacenav_settings.yaml"
     ])
 
     spacenav_node = Node(
-        package='ros2_control_explorer',
+        package='explorer_input_devices',
         executable='spacenav',
         parameters=[
             spacenav_config,

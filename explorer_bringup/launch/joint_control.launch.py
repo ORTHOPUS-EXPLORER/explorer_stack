@@ -178,9 +178,9 @@ def generate_launch_description():
         output="screen",
     )
 
-    joystick_input_node = Node(
-        package="ros2_control_explorer",
-        executable="joystick_input",
+    xbox_gamepad_joint_node = Node(
+        package="explorer_input_devices",
+        executable="xbox_gamepad_joint",
     )
     
     bridge_config = os.path.join(
@@ -257,7 +257,7 @@ def generate_launch_description():
         gz_spawn_entity,
         gui_control_node,
         joy_node,
-        joystick_input_node,
+        xbox_gamepad_joint_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]

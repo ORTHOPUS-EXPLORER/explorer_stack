@@ -1,6 +1,6 @@
 
-#ifndef JOYSTICK_INPUT_H
-#define JOYSTICK_INPUT_H
+#ifndef XBOX_GAMEPAD_JOINT_H
+#define XBOX_GAMEPAD_JOINT_H
 
 #include <rclcpp/rclcpp.hpp>
 

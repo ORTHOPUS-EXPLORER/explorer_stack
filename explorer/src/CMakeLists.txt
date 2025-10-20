@@ -1,6 +1,5 @@
 # Subfolders
 add_subdirectory(robot_manager/)
-add_subdirectory(input_device/)
 add_subdirectory(reference_generator/)
 
 # find dependencies
