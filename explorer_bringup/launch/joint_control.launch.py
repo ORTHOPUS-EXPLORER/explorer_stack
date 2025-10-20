@@ -18,7 +18,7 @@ from ament_index_python.packages import get_package_share_path, get_package_shar
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
@@ -30,10 +30,7 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
-    spacenav = LaunchConfiguration('spacenav')
     poc2 = LaunchConfiguration("use_POC2")
-    robot_description_param = LaunchConfiguration("robot_description_param")
-
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -44,9 +41,9 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
+    DeclareLaunchArgument(
             'use_sim_time',
-            default_value=use_sim_time,
+            default_value= use_sim_time,
             description='If true, use simulated clock')
     )
     declared_arguments.append(
@@ -56,31 +53,7 @@ def generate_launch_description():
             description="Use POC2 urdf",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "robot_description_param",
-            default_value=Command([
-                PathJoinSubstitution([FindExecutable(name="xacro")]),
-                " ",
-                PathJoinSubstitution([
-                    FindPackageShare("ros2_control_explorer"),
-                    "explorer_description/urdf",
-                    "explorer.urdf.xacro"
-                ]),
-                " ",
-                "use_ignition:=true",
-                " ",
-                "use_POC2:=", poc2
-            ]),
-            description="Robot description (URDF) evaluated from xacro"
-        )
-    )
 
-    spacenav_arg = DeclareLaunchArgument(
-        name='spacenav',
-        default_value='True',
-        description='If the spacenav 3D mouse is used')
-    
     world = os.path.join(
         get_package_share_directory('ros2_control_explorer'),
         'explorer_description/worlds',
@@ -98,61 +71,35 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={'gz_args': '-g -v4 '}.items() #Rajouter -s pour que Gazebo s'affiche pas
+        launch_arguments={'gz_args': '-g -v4 '}.items()
     )
 
-    robot_description = {"robot_description": robot_description_param}
-
-    # Get SRDF via xacro
-    semantic_content = Command(
+    # Get URDF via xacro
+    robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.srdf"]
+                [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.urdf.xacro"]
             ),
             " ",
+            "use_ignition:=true",
+            " ",
+            "use_POC2:=",poc2,
         ]
     )
-
-    robot_description_semantic = {"robot_description_semantic": semantic_content}
-    
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
-    )
-
-    ## Declare SpaceNav nodes (driver & input_device)
-    spacenav_config =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "spacenav_settings.yaml"]
-    )
+    robot_description = {"robot_description": robot_description_content}
 
     config_POC1 =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_POC1.yaml"]
-    )
-
-    config_POC2 =  PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "config", "settings_POC2.yaml"]
+            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC1.yaml"]
     )
     
-    spacenav_node = Node(
-        package='ros2_control_explorer',
-        executable='spacenav',
-        parameters=[
-            spacenav_config,
-            {'static_rot_deadband':0.5},
-            {'static_trans_deadband':0.5}
-        ],
-        condition=IfCondition(spacenav)
+    config_POC2 =  PathJoinSubstitution(
+            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC2.yaml"]
     )
 
-    spacenav_driver_node = Node(
-        package='spacenav',
-        executable='spacenav_node',
-        parameters=[
-            {'static_rot_deadband':0.5},
-            {'static_trans_deadband':0.5}
-        ],
-        condition=IfCondition(spacenav),
+    rviz_config_file = PathJoinSubstitution(
+        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
     )
 
     node_robot_state_publisher = Node(
@@ -176,7 +123,6 @@ def generate_launch_description():
         ],
     )
 
-
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -189,47 +135,24 @@ def generate_launch_description():
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
     )
 
-    input_integrator_node = Node(
+    output_integrator_POC1_node = Node(
         package="ros2_control_explorer",
-        executable="input_integrator",
-        name="input_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
-    )
-
-    qp_solving_POC1_node = Node(
-        package="ros2_control_explorer",
-        executable="qp_solving",
+        executable="joint_output_integrator",
         parameters=[
             config_POC1,
-            robot_description,
-            robot_description_semantic,
             {'use_sim_time': use_sim_time}
         ],
         condition=UnlessCondition(poc2),
     )
 
-    qp_solving_POC2_node = Node(
+    output_integrator_POC2_node = Node(
         package="ros2_control_explorer",
-        executable="qp_solving",
+        executable="joint_output_integrator",
         parameters=[
             config_POC2,
-            robot_description,
-            robot_description_semantic,
             {'use_sim_time': use_sim_time}
         ],
         condition=IfCondition(poc2),
-    )
-
-    output_integrator_node = Node(
-        package="ros2_control_explorer",
-        executable="output_integrator",
-        name="output_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
-
     )
 
     rviz_node = Node(
@@ -241,16 +164,27 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
-    delayed_rviz = TimerAction(period=0.0,actions=[rviz_node])
+    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
     
     # Declare GUI controller node
     gui_control_node = Node(
         package='explorer_user_interfaces',
-        executable='rqt_armcontrol',
+        executable='rqt_jointcontrol',
+    )
+
+    joy_node = Node(
+        package="joy",
+        executable="joy_node",
+        output="screen",
+    )
+
+    joystick_input_node = Node(
+        package="ros2_control_explorer",
+        executable="joystick_input",
     )
     
     bridge_config = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
+        get_package_share_directory('explorer_bringup'),
         'config',
         'bridge.yaml'
     )
@@ -277,10 +211,10 @@ def generate_launch_description():
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
-            event_handler=OnProcessStart(
-                target_action=node_robot_state_publisher,
-                on_start=[joint_state_broadcaster_spawner],
-            )
+                event_handler=OnProcessExit(
+                    target_action=gz_spawn_entity,
+                    on_exit=[joint_state_broadcaster_spawner],
+                )
         )
     )
     register_event_handler.append(
@@ -295,7 +229,7 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[qp_solving_POC1_node],
+                    on_exit=[output_integrator_POC1_node],
                 )
         )
     )
@@ -303,27 +237,10 @@ def generate_launch_description():
         RegisterEventHandler(
                 event_handler=OnProcessExit(
                     target_action=robot_controller_spawner,
-                    on_exit=[qp_solving_POC2_node],
+                    on_exit=[output_integrator_POC2_node],
                 )
         )
     )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[input_integrator_node],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[output_integrator_node],
-                )
-        )
-    )
-
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
@@ -332,17 +249,15 @@ def generate_launch_description():
                 )
         )
     )
-    
 
     nodes = [
-        spacenav_arg,
         ignition_server,
         ignition_client,
-        spacenav_node,
-        spacenav_driver_node,
         node_robot_state_publisher,
         gz_spawn_entity,
         gui_control_node,
+        joy_node,
+        joystick_input_node,
         start_gazebo_ros_bridge_cmd,
         bridge,
     ]

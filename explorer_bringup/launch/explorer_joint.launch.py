@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -30,7 +26,11 @@ def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
     use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    can_port = LaunchConfiguration("can_port")
+    host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
+
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -48,30 +48,31 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_actuator_interface",
+            default_value="true",
+            description="Use VESCInterface to control the robot. Set to false for simulation",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "can_port",
+            default_value="vxcan1",
+            description="CAN Port for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "host_id",
+            default_value="45",
+            description="Host CAN ID for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "use_POC2",
             default_value="true",
             description="Use POC2 urdf",
         )
-    )
-
-    world = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
-        'description/worlds',
-        'empty_world.world'
-    )
-
-    ignition_server = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
-        ),
-        launch_arguments={'gz_args': ['-r -s -v4 ', world], 'on_exit_shutdown': 'true'}.items()
-    )
-
-    ignition_client = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
-        ),
-        launch_arguments={'gz_args': '-g -v4 '}.items()
     )
 
     # Get URDF via xacro
@@ -83,23 +84,47 @@ def generate_launch_description():
                 [FindPackageShare("ros2_control_explorer"), "explorer_description/urdf", "explorer.urdf.xacro"]
             ),
             " ",
-            "use_ignition:=true",
+            "use_ignition:=false",
             " ",
-            "use_POC2:=",poc2,
+            " use_actuator_interface:=",use_actuator_interface,
+            " ",
+            " can_port:=",can_port,
+            " ",
+            " host_id:=",host_id,
+            " ",
+            "use_POC2:=",poc2
         ]
     )
     robot_description = {"robot_description": robot_description_content}
 
-    config_POC1 =  PathJoinSubstitution(
-            [FindPackageShare("ros2_control_explorer"), "config", "settings_joint_POC1.yaml"]
-    )
-    
-    config_POC2 =  PathJoinSubstitution(
-            [FindPackageShare("ros2_control_explorer"), "config", "settings_joint_POC2.yaml"]
+    robot_controllers = PathJoinSubstitution(
+        [
+            FindPackageShare("explorer_bringup"),
+            "config",
+            "explorer_controller.yaml",
+        ]
     )
 
+    config_POC1 =  PathJoinSubstitution(
+            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC1.yaml"]
+    )
+
+    config_POC2 =  PathJoinSubstitution(
+            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC2.yaml"]
+    )
+    
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_explorer"), "explorer_description/rviz", "view_robot.rviz"]
+        [FindPackageShare("explorer_bringup"), "explorer_description/rviz", "view_robot.rviz"]
+    )
+
+    control_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[robot_controllers],
+        output="both",
+        remappings=[
+            ("~/robot_description", "/robot_description"),
+        ],
     )
 
     node_robot_state_publisher = Node(
@@ -107,20 +132,6 @@ def generate_launch_description():
         executable="robot_state_publisher",
         output="screen",
         parameters=[robot_description, {'use_sim_time': use_sim_time}],
-    )
-
-    gz_spawn_entity = Node(
-        package="ros_gz_sim",
-        executable="create",
-        output="screen",
-        arguments=[
-            "-topic",
-            "/robot_description",
-            "-name",
-            "explorer",
-            "-allow_renaming",
-            "true",
-        ],
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -154,7 +165,7 @@ def generate_launch_description():
         ],
         condition=IfCondition(poc2),
     )
-
+    
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -182,41 +193,8 @@ def generate_launch_description():
         package="ros2_control_explorer",
         executable="joystick_input",
     )
-    
-    bridge_config = os.path.join(
-        get_package_share_directory('ros2_control_explorer'),
-        'config',
-        'bridge.yaml'
-    )
-
-    start_gazebo_ros_bridge_cmd = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=[
-            '--ros-args',
-            '-p',
-            f'config_file:={bridge_config}',
-        ],
-        output='screen',
-    )
-
- # Bridge
-    bridge = Node(
-        package='ros_gz_image',
-        executable='image_bridge',
-        arguments=['camera', 'depth_camera', 'rgbd_camera/image', 'rgbd_camera/depth_image'],
-        output='screen'
-    )
 
     register_event_handler = []
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=gz_spawn_entity,
-                    on_exit=[joint_state_broadcaster_spawner],
-                )
-        )
-    )
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
@@ -251,15 +229,12 @@ def generate_launch_description():
     )
 
     nodes = [
-        ignition_server,
-        ignition_client,
+        control_node,
         node_robot_state_publisher,
-        gz_spawn_entity,
+        joint_state_broadcaster_spawner,
         gui_control_node,
         joy_node,
         joystick_input_node,
-        start_gazebo_ros_bridge_cmd,
-        bridge,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)

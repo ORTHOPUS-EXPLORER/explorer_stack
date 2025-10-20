@@ -48,7 +48,7 @@ def generate_launch_description():
     robot_description_semantic = {"robot_description_semantic": semantic_content}
 
     robot_controllers = PathJoinSubstitution([
-        FindPackageShare("ros2_control_explorer"),
+        FindPackageShare("explorer_bringup"),
         "config", "explorer_controller.yaml"
     ])
 
@@ -57,13 +57,13 @@ def generate_launch_description():
     ])
 
     config_POC1 = PathJoinSubstitution([
-        FindPackageShare("ros2_control_explorer"), "config", "settings_POC1.yaml"])
+        FindPackageShare("explorer_bringup"), "config", "settings_POC1.yaml"])
 
     config_POC2 = PathJoinSubstitution([
-        FindPackageShare("ros2_control_explorer"), "config", "settings_POC2.yaml"])
+        FindPackageShare("explorer_bringup"), "config", "settings_POC2.yaml"])
 
     spacenav_config = PathJoinSubstitution([
-        FindPackageShare("ros2_control_explorer"),
+        FindPackageShare("explorer_bringup"),
         "config",
         "spacenav_settings.yaml"
     ])

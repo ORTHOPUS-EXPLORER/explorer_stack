@@ -6,7 +6,7 @@
     <!-- ros_control plugin -->
     <gazebo>
       <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-        <parameters>$(find ros2_control_explorer)/config/explorer_controller.yaml</parameters>
+        <parameters>$(find explorer_bringup)/config/explorer_controller.yaml</parameters>
       </plugin>
 
     </gazebo>
