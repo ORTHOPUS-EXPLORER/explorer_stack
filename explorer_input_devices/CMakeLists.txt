@@ -52,7 +52,8 @@ ament_target_dependencies(xbox_gamepad_joint
   ${SPACENAV_DEPENDENCIES}
 )
 
-install(TARGETS xbox_gamepad_joint
+install(TARGETS spacenav
+                xbox_gamepad_joint
         DESTINATION lib/explorer_input_devices
 )
 
