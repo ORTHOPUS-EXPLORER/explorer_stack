@@ -190,7 +190,7 @@ def generate_launch_description():
     )
 
     input_integrator_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="input_integrator",
         name="input_integrator",
         parameters=[
@@ -199,7 +199,7 @@ def generate_launch_description():
     )
 
     qp_solving_POC1_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="qp_solving",
         parameters=[
             config_POC1,
@@ -211,7 +211,7 @@ def generate_launch_description():
     )
 
     qp_solving_POC2_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="qp_solving",
         parameters=[
             config_POC2,
@@ -223,7 +223,7 @@ def generate_launch_description():
     )
 
     output_integrator_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="output_integrator",
         name="output_integrator",
         parameters=[

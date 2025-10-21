@@ -124,26 +124,26 @@ def generate_launch_description():
     )
 
     input_integrator_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="input_integrator",
         name="input_integrator_node",
     )
 
     output_integrator_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="output_integrator",
         name="output_integrator_node",
     )
 
     qp_solving_POC1_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="qp_solving",
         parameters=[config_POC1, robot_description, robot_description_semantic],
         condition=UnlessCondition(poc2),
     )
 
     qp_solving_POC2_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="qp_solving",
         parameters=[config_POC2, robot_description, robot_description_semantic],
         condition=IfCondition(poc2),

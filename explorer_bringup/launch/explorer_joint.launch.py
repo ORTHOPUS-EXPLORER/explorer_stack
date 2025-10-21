@@ -147,7 +147,7 @@ def generate_launch_description():
     )
 
     output_integrator_POC1_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="joint_output_integrator",
         parameters=[
             config_POC1,
@@ -157,7 +157,7 @@ def generate_launch_description():
     )
 
     output_integrator_POC2_node = Node(
-        package="ros2_control_explorer",
+        package="explorer_controllers",
         executable="joint_output_integrator",
         parameters=[
             config_POC2,
