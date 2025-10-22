@@ -16,19 +16,18 @@ foreach(Dependency IN ITEMS ${HARDWARE_DEPENDENCIES})
 endforeach()
 
 
-add_library(hardware STATIC
+add_library(explorer_hardware SHARED
   src/explorer_hardware.cpp
-
 )
 
-target_include_directories(hardware
+target_include_directories(explorer_hardware
 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_hardware>
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-ament_target_dependencies(hardware
+ament_target_dependencies(explorer_hardware
 PUBLIC
   ${HARDWARE_DEPENDENCIES}
 )
@@ -37,6 +36,12 @@ find_package(pluginlib REQUIRED)
 # Export hardware plugins
 pluginlib_export_plugin_description_file(hardware_interface
   explorer_hardware.xml
+)
+
+# Install the library
+install(
+  TARGETS explorer_hardware
+  DESTINATION lib
 )
 
 ament_package()
