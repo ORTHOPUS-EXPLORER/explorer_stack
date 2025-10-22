@@ -10,7 +10,7 @@
           <plugin>gz_ros2_control/GazeboSimSystem</plugin>
         </xacro:if>
         <xacro:unless value="${use_ignition}">
-          <plugin>ros2_control_explorer/RobotSystem</plugin>
+          <plugin>explorer_hardware/RobotSystem</plugin>
         </xacro:unless>
       </hardware>
 
