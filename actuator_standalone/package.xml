@@ -19,7 +19,6 @@
   <depend>rcpputils</depend>
   <depend>rclcpp_components</depend>
   <depend>realtime_tools</depend>
-  <depend>ros2_control_explorer</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   

@@ -44,8 +44,6 @@
 
   <exec_depend>orthopus_vesc_interface</exec_depend>
 
-  <exec_depend>ros2_control_explorer</exec_depend>
-
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
