@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -25,11 +25,12 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    use_sim_time = LaunchConfiguration('use_sim_time', default=False)
     use_actuator_interface = LaunchConfiguration("use_actuator_interface")
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
+    rviz_delay = LaunchConfiguration("rviz_delay")
 
     # Declare arguments
     declared_arguments = []
@@ -41,9 +42,9 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-    DeclareLaunchArgument(
+        DeclareLaunchArgument(
             'use_sim_time',
-            default_value= use_sim_time,
+            default_value=use_sim_time,
             description='If true, use simulated clock')
     )
     declared_arguments.append(
@@ -74,6 +75,13 @@ def generate_launch_description():
             description="Use POC2 urdf",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "rviz_delay",
+            default_value="5.0",
+            description="Delay before starting RViz2 (seconds)",
+        )
+    )
 
     # Get URDF via xacro
     robot_description_content = Command(
@@ -86,13 +94,13 @@ def generate_launch_description():
             " ",
             "use_ignition:=false",
             " ",
-            " use_actuator_interface:=",use_actuator_interface,
+            "use_actuator_interface:=", use_actuator_interface,
             " ",
-            " can_port:=",can_port,
+            "can_port:=", can_port,
             " ",
-            " host_id:=",host_id,
+            "host_id:=", host_id,
             " ",
-            "use_POC2:=",poc2
+            "use_POC2:=", poc2
         ]
     )
     robot_description = {"robot_description": robot_description_content}
@@ -105,32 +113,29 @@ def generate_launch_description():
         ]
     )
 
-    config_POC1 =  PathJoinSubstitution(
-            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC1.yaml"]
-    )
-
-    config_POC2 =  PathJoinSubstitution(
-            [FindPackageShare("explorer_bringup"), "config", "settings_joint_POC2.yaml"]
-    )
-    
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "explorer_description/rviz", "view_robot.rviz"]
+        [FindPackageShare("explorer_description"), "rviz", "view_robot.rviz"]
     )
 
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[robot_controllers],
+        parameters=[robot_controllers, robot_description],
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
     )
 
+    delayed_control_node = TimerAction(
+        period=1.0,
+        actions=[control_node]
+    )
+
     node_robot_state_publisher = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
-        output="screen",
+        output="log",
         parameters=[robot_description, {'use_sim_time': use_sim_time}],
     )
 
@@ -138,34 +143,21 @@ def generate_launch_description():
         package="controller_manager",
         executable="spawner",
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        output="log",
+    )
+
+    delayed_joint_state_broadcaster = TimerAction(
+        period=3.0,
+        actions=[joint_state_broadcaster_spawner]
     )
 
     robot_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        output="log",
     )
 
-    output_integrator_POC1_node = Node(
-        package="explorer_controllers",
-        executable="joint_output_integrator",
-        parameters=[
-            config_POC1,
-            {'use_sim_time': use_sim_time}
-        ],
-        condition=UnlessCondition(poc2),
-    )
-
-    output_integrator_POC2_node = Node(
-        package="explorer_controllers",
-        executable="joint_output_integrator",
-        parameters=[
-            config_POC2,
-            {'use_sim_time': use_sim_time}
-        ],
-        condition=IfCondition(poc2),
-    )
-    
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -175,66 +167,31 @@ def generate_launch_description():
         condition=IfCondition(gui),
     )
 
-    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
-    
-    # Declare GUI controller node
-    gui_control_node = Node(
-        package='explorer_user_interfaces',
-        executable='rqt_jointcontrol',
-    )
+    delayed_rviz = TimerAction(period=rviz_delay, actions=[rviz_node])
 
-    joy_node = Node(
-        package="joy",
-        executable="joy_node",
-        output="screen",
-    )
-
-    xbox_gamepad_joint_node = Node(
-        package="explorer_input_devices",
-        executable="xbox_gamepad_joint",
-    )
-
-    register_event_handler = []
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=joint_state_broadcaster_spawner,
-                    on_exit=[robot_controller_spawner],
-                )
+    delayed_robot_controller = RegisterEventHandler(
+        OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[robot_controller_spawner]
         )
     )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[output_integrator_POC1_node],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[output_integrator_POC2_node],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=robot_controller_spawner,
-                    on_exit=[delayed_rviz],
-                )
+
+    delayed_rviz_handler = RegisterEventHandler(
+        OnProcessExit(
+            target_action=robot_controller_spawner,
+            on_exit=[delayed_rviz]
         )
     )
 
     nodes = [
-        control_node,
+        delayed_control_node,
         node_robot_state_publisher,
-        joint_state_broadcaster_spawner,
-        gui_control_node,
-        joy_node,
-        xbox_gamepad_joint_node,
+        delayed_joint_state_broadcaster,
+    ]
+
+    register_event_handler = [
+        delayed_robot_controller,
+        delayed_rviz_handler,
     ]
 
     return LaunchDescription(declared_arguments + nodes + register_event_handler)
