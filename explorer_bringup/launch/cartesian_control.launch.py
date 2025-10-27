@@ -104,11 +104,12 @@ def generate_launch_description():
             description="Robot description (URDF) evaluated from xacro"
         )
     )
-
-    spacenav_arg = DeclareLaunchArgument(
-        name='spacenav',
-        default_value='True',
-        description='If the spacenav 3D mouse is used')
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            name='spacenav',
+            default_value='True',
+            description='If the spacenav 3D mouse is used')
+    )
 
     # Include robot simulation (when simulation=true)
     robot_simulation = IncludeLaunchDescription(
@@ -230,7 +231,6 @@ def generate_launch_description():
     )
 
     nodes = [
-        spacenav_arg,
         robot_simulation,
         robot_hardware,
         spacenav_node,
