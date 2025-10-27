@@ -15,12 +15,12 @@ ros2 run pyvesc_explorer app_sim
 
 3. Launch Robot controller (and Explorer Comm bridge)
 ```
-ros2 launch ros2_control_explorer explorer.launch.py use_bridge:=true
+ros2 launch explorer_bringup hardware_base.launch.py use_bridge:=true
 ```
 
 4. Publish some commands
 ```
-ros2 launch ros2_control_explorer explorer_publish.launch.py
+ros2 launch explorer_bringup cartesian_control.launch.py
 ```
 
 Notes:
