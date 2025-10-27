@@ -14,7 +14,7 @@ namespace space_control
         joy_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("/joy", 10, std::bind(&JoystickInput::callback_input, this, std::placeholders::_1));
     
         //init publishers
-        dq_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10);
+        dq_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/explorer_input_devices/xbox_gamepad_joint/dq_output", 10);
 
     }
 

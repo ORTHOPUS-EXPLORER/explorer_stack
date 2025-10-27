@@ -57,34 +57,34 @@ namespace space_control
         x_current_.orientation.w() = 1.0;
 
         //init suscribers
-        input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/ros2_control_explorer/input_device_velocity", 10, std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
+        input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>("/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 10, std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
 
-        linear_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_linear_speed", 10, std::bind(&InputIntegrator::callback_linear_speed, this, std::placeholders::_1));
-        angular_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_explorer/max_angular_speed", 10, std::bind(&InputIntegrator::callback_angular_speed, this, std::placeholders::_1));
-        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_current", 10, std::bind(&InputIntegrator::callback_x_current, this, std::placeholders::_1));
-        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&InputIntegrator::callback_home_released, this, std::placeholders::_1));
-        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&InputIntegrator::callback_home_pressed, this, std::placeholders::_1));
-        zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_released", 10, std::bind(&InputIntegrator::callback_zero_released, this, std::placeholders::_1));
-        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_pressed", 10, std::bind(&InputIntegrator::callback_zero_pressed, this, std::placeholders::_1));
-        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_released", 10, std::bind(&InputIntegrator::callback_J1_zero_released, this, std::placeholders::_1));
-        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_pressed", 10, std::bind(&InputIntegrator::callback_J1_zero_pressed, this, std::placeholders::_1));
-        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_released", 10, std::bind(&InputIntegrator::callback_J2_zero_released, this, std::placeholders::_1));
-        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_pressed", 10, std::bind(&InputIntegrator::callback_J2_zero_pressed, this, std::placeholders::_1));
-        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_released", 10, std::bind(&InputIntegrator::callback_J3_zero_released, this, std::placeholders::_1));
-        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_pressed", 10, std::bind(&InputIntegrator::callback_J3_zero_pressed, this, std::placeholders::_1));
-        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_released", 10, std::bind(&InputIntegrator::callback_J4_zero_released, this, std::placeholders::_1));
-        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_pressed", 10, std::bind(&InputIntegrator::callback_J4_zero_pressed, this, std::placeholders::_1));
-        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_released", 10, std::bind(&InputIntegrator::callback_J5_zero_released, this, std::placeholders::_1));
-        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&InputIntegrator::callback_J5_zero_pressed, this, std::placeholders::_1));
-        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_released", 10, std::bind(&InputIntegrator::callback_J6_zero_released, this, std::placeholders::_1));
-        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&InputIntegrator::callback_J6_zero_pressed, this, std::placeholders::_1));
+        linear_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/explorer_user_interfaces/rqt_armcontrol/max_linear_speed", 10, std::bind(&InputIntegrator::callback_linear_speed, this, std::placeholders::_1));
+        angular_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/explorer_user_interfaces/rqt_armcontrol/max_angular_speed", 10, std::bind(&InputIntegrator::callback_angular_speed, this, std::placeholders::_1));
+        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10, std::bind(&InputIntegrator::callback_x_current, this, std::placeholders::_1));
+        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_released", 10, std::bind(&InputIntegrator::callback_home_released, this, std::placeholders::_1));
+        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10, std::bind(&InputIntegrator::callback_home_pressed, this, std::placeholders::_1));
+        zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_released", 10, std::bind(&InputIntegrator::callback_zero_released, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10, std::bind(&InputIntegrator::callback_zero_pressed, this, std::placeholders::_1));
+        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_released", 10, std::bind(&InputIntegrator::callback_J1_zero_released, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10, std::bind(&InputIntegrator::callback_J1_zero_pressed, this, std::placeholders::_1));
+        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_released", 10, std::bind(&InputIntegrator::callback_J2_zero_released, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10, std::bind(&InputIntegrator::callback_J2_zero_pressed, this, std::placeholders::_1));
+        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_released", 10, std::bind(&InputIntegrator::callback_J3_zero_released, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10, std::bind(&InputIntegrator::callback_J3_zero_pressed, this, std::placeholders::_1));
+        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_released", 10, std::bind(&InputIntegrator::callback_J4_zero_released, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&InputIntegrator::callback_J4_zero_pressed, this, std::placeholders::_1));
+        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_released", 10, std::bind(&InputIntegrator::callback_J5_zero_released, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&InputIntegrator::callback_J5_zero_pressed, this, std::placeholders::_1));
+        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_released", 10, std::bind(&InputIntegrator::callback_J6_zero_released, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&InputIntegrator::callback_J6_zero_pressed, this, std::placeholders::_1));
 
-        x_init_client_ = n_->create_client<explorer_msgs::srv::Pose>("/ros2_control_explorer/x_init");
+        x_init_client_ = n_->create_client<explorer_msgs::srv::Pose>("/explorer_controllers/qp_solving/x_init");
         
         //init publishers
-        dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10);
-        x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10);
-        x_des_updated_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated",10);
+        dx_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controllers/input_integrator/dx_desired", 10);
+        x_desired_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controllers/input_integrator/x_desired", 10);
+        x_des_updated_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/explorer_controllers/input_integrator/x_des_updated",10);
 
         auto request = std::make_shared<explorer_msgs::srv::Pose::Request>();
 

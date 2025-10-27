@@ -15,7 +15,7 @@ DeviceSpacenav::DeviceSpacenav(rclcpp::Node::SharedPtr n) : Device(n)
   device_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("spacenav/joy", 10,
                   std::bind(&DeviceSpacenav::callbackJoy_, this, std::placeholders::_1));
   
-  select_sub_ = n_->create_subscription<std_msgs::msg::Int64>("/ros2_control_explorer/spacemouse_select", 10, std::bind(&DeviceSpacenav::callback_spacemouse_select_, this, std::placeholders::_1));
+  select_sub_ = n_->create_subscription<std_msgs::msg::Int64>("/explorer_user_interfaces/rqt_armcontrol/spacemouse_select", 10, std::bind(&DeviceSpacenav::callback_spacemouse_select_, this, std::placeholders::_1));
 
   debounce_button_left_ = n_->now();
   debounce_button_right_ = n_->now();

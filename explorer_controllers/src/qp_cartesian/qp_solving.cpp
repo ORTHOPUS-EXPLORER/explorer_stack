@@ -50,37 +50,37 @@ namespace space_control
 
         //init subscribers
         current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", rclcpp::SensorDataQoS(), std::bind(&QPSolving::callback_current_pos_, this, std::placeholders::_1));
-        dx_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/dx_desired", 10, std::bind(&QPSolving::callback_dx_input_, this, std::placeholders::_1));
-        x_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_desired", 10, std::bind(&QPSolving::callback_x_input_, this, std::placeholders::_1));
+        dx_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/input_integrator/dx_desired", 10, std::bind(&QPSolving::callback_dx_input_, this, std::placeholders::_1));
+        x_input_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/input_integrator/x_desired", 10, std::bind(&QPSolving::callback_x_input_, this, std::placeholders::_1));
         q_command_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&QPSolving::callback_q_command_prec_, this, std::placeholders::_1));
-        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_pressed", 10, std::bind(&QPSolving::callback_home_pressed_, this, std::placeholders::_1));
-        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/home_released", 10, std::bind(&QPSolving::callback_home_released_, this, std::placeholders::_1));
-        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_pressed", 10, std::bind(&QPSolving::callback_zero_pressed_, this, std::placeholders::_1));
-        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/zero_released", 10, std::bind(&QPSolving::callback_zero_released_, this, std::placeholders::_1));
-        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_pressed", 10, std::bind(&QPSolving::callback_J1_zero_pressed_, this, std::placeholders::_1));
-        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J1_zero_released", 10, std::bind(&QPSolving::callback_J1_zero_released_, this, std::placeholders::_1));
-        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_pressed", 10, std::bind(&QPSolving::callback_J2_zero_pressed_, this, std::placeholders::_1));
-        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J2_zero_released", 10, std::bind(&QPSolving::callback_J2_zero_released_, this, std::placeholders::_1));
-        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_pressed", 10, std::bind(&QPSolving::callback_J3_zero_pressed_, this, std::placeholders::_1));
-        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J3_zero_released", 10, std::bind(&QPSolving::callback_J3_zero_released_, this, std::placeholders::_1));
-        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_pressed", 10, std::bind(&QPSolving::callback_J4_zero_pressed_, this, std::placeholders::_1));
-        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J4_zero_released", 10, std::bind(&QPSolving::callback_J4_zero_released_, this, std::placeholders::_1));
-        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_pressed", 10, std::bind(&QPSolving::callback_J5_zero_pressed_, this, std::placeholders::_1));
-        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J5_zero_released", 10, std::bind(&QPSolving::callback_J5_zero_released_, this, std::placeholders::_1));
-        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_pressed", 10, std::bind(&QPSolving::callback_J6_zero_pressed_, this, std::placeholders::_1));
-        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/J6_zero_released", 10, std::bind(&QPSolving::callback_J6_zero_released_, this, std::placeholders::_1));
-        x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/ros2_control_explorer/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
+        home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10, std::bind(&QPSolving::callback_home_pressed_, this, std::placeholders::_1));
+        home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_released", 10, std::bind(&QPSolving::callback_home_released_, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10, std::bind(&QPSolving::callback_zero_pressed_, this, std::placeholders::_1));
+        zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_released", 10, std::bind(&QPSolving::callback_zero_released_, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10, std::bind(&QPSolving::callback_J1_zero_pressed_, this, std::placeholders::_1));
+        J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_released", 10, std::bind(&QPSolving::callback_J1_zero_released_, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10, std::bind(&QPSolving::callback_J2_zero_pressed_, this, std::placeholders::_1));
+        J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_released", 10, std::bind(&QPSolving::callback_J2_zero_released_, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10, std::bind(&QPSolving::callback_J3_zero_pressed_, this, std::placeholders::_1));
+        J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_released", 10, std::bind(&QPSolving::callback_J3_zero_released_, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&QPSolving::callback_J4_zero_pressed_, this, std::placeholders::_1));
+        J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_released", 10, std::bind(&QPSolving::callback_J4_zero_released_, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&QPSolving::callback_J5_zero_pressed_, this, std::placeholders::_1));
+        J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_released", 10, std::bind(&QPSolving::callback_J5_zero_released_, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&QPSolving::callback_J6_zero_pressed_, this, std::placeholders::_1));
+        J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_released", 10, std::bind(&QPSolving::callback_J6_zero_released_, this, std::placeholders::_1));
+        x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_controllers/input_integrator/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
 
         //init publishers
-        dq_output_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/dq_output", 10);
-        x_current_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/ros2_control_explorer/x_current", 10);
-        q_current_debug_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/ros2_control_explorer/debug/q_current", 10);
+        dq_output_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10);
+        x_current_pub_ = n_->create_publisher<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10);
+        q_current_debug_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/debug/q_current", 10);
 
         timer_ = n_->create_wall_timer(10ms, std::bind(&QPSolving::timer_callback, this));
 
-        x_init_service_ = n_->create_service<explorer_msgs::srv::Pose>("/ros2_control_explorer/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
+        x_init_service_ = n_->create_service<explorer_msgs::srv::Pose>("/explorer_controllers/qp_solving/x_init", std::bind(&QPSolving::callback_x_init_, this, std::placeholders::_1, std::placeholders::_2));
         RCLCPP_INFO(n_->get_logger(), "x_init [input integrator]: creating service ...");
-        q_init_service_ = n_->create_service<explorer_msgs::srv::Float64>("/ros2_control_explorer/q_init", std::bind(&QPSolving::callback_q_init_, this, std::placeholders::_1, std::placeholders::_2));
+        q_init_service_ = n_->create_service<explorer_msgs::srv::Float64>("/explorer_controllers/qp_solving/q_init", std::bind(&QPSolving::callback_q_init_, this, std::placeholders::_1, std::placeholders::_2));
         RCLCPP_INFO(n_->get_logger(), "q_init [output integrator]: creating service ...");
     }
 

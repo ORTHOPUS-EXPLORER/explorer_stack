@@ -84,7 +84,7 @@ class RqtJointController(Plugin):
         self.joint.name = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
         self.joint.position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-        self.publisher_ = self._context.node.create_publisher(Float64MultiArray, "/ros2_control_explorer/dq_output", 1)
+        self.publisher_ = self._context.node.create_publisher(Float64MultiArray, "/explorer_user_interfaces/rqt_jointcontrol/dq_output", 1)
         timer_period = 0.02  # [sec] UI publishing rate
         self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
 
