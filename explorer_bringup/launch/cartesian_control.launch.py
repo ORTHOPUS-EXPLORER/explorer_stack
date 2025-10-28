@@ -64,7 +64,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "can_port",
-            default_value="vxcan1",
+            default_value="can0",
             description="CAN Port for VESC Communication",
         )
     )
