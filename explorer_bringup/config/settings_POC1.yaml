@@ -13,6 +13,10 @@ qp_solving:
     #  Minimize cartesian pose difference : x-x_des
     gamma_weight  : [1000.0, 1000.0, 1000.0, 250.0, 250.0, 250.0, 250.0]
     gamma_multiplier : 1
+    joint_centering_weight : [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    joint_centering_multiplier : 0
+
+    movement_detection_threshold : 1e-6  # velocity magnitude threshold to detect intentional robot movement
 
     ### --- JOINT LIMITS --- ###
     j1:
