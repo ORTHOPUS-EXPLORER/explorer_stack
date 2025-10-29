@@ -146,6 +146,9 @@ def generate_launch_description():
     gui_control_node = Node(
         package='explorer_user_interfaces',
         executable='rqt_jointcontrol',
+        remappings=[
+            ( '/explorer_user_interfaces/rqt_jointcontrol/dq_output', '/explorer_controllers/qp_solving/dq_output'),
+        ]
     )
 
     joy_node = Node(
