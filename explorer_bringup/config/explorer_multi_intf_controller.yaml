@@ -1,0 +1,97 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+      auto_start: false
+
+    explorer_multi_intf_controller:
+      type: explorer_command_controllers/MultiIntfController
+      auto_start: false
+
+explorer_multi_intf_controller:
+  ros__parameters:
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+      - right_finger_joint
+    settings:
+      joint_1: { 
+        state: "position", 
+        command: "position", 
+        mode: "integrate",
+        cmd_min: -0.2,
+        cmd_max:  0.2,
+        step_max: 0.0005,
+        cmd_init_from_state: true,
+        ref_mult: 0.01,
+      }
+      joint_2: {
+        state: "position",
+        command: "position",
+        mode: "integrate",
+        cmd_min: -1.57,
+        cmd_max: -0.78,
+        step_max: 0.0005,
+        cmd_init_from_state: true,
+        ref_mult: 0.01,
+      }
+      joint_3: {
+        state: "position",
+        command: "position",
+        mode: "integrate",
+        cmd_min: -0.78,
+        cmd_max:  0.78,
+        step_max: 0.0005,
+        cmd_init_from_state: true,
+        ref_mult: 0.01,
+      }
+      joint_4: {
+        state: "position",
+        command: "velocity",
+        mode: "forward",
+        cmd_min: -1.0,
+        cmd_max:  1.0,
+        step_max: 0.2,
+        cmd_init_value: 0.0,
+        cmd_init_from_state: false,
+        ref_mult: 50.0,
+      }
+      joint_5: {
+        state: "position",
+        command: "velocity",
+        mode: "forward",
+        cmd_min: -1.0,
+        cmd_max:  1.0,
+        step_max: 0.2,
+        cmd_init_value: 0.0,
+        cmd_init_from_state: false,
+        ref_mult: 50.0,
+      }
+      joint_6: {
+        state: "position",
+        command: "velocity",
+        mode: "forward",
+        cmd_min: -1.0,
+        cmd_max:  1.0,
+        step_max: 0.2,
+        cmd_init_value: 0.0,
+        cmd_init_from_state: false,
+        ref_mult: 50.0,
+      }
+      right_finger_joint: {
+        state: "position",
+        command: "position",
+        mode: "integrate",
+        cmd_min:  0.15,
+        cmd_max:  0.65,
+        step_max: 0.001,
+        cmd_init_from_state: false,
+        cmd_init_value: 0.5,
+        ref_mult: 0.01,
+      }

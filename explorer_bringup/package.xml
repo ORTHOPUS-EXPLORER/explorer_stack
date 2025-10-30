@@ -43,6 +43,7 @@
   <exec_depend>joy</exec_depend> 
 
   <exec_depend>orthopus_vesc_interface</exec_depend>
+  <exec_depend>explorer_command_controllers</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
