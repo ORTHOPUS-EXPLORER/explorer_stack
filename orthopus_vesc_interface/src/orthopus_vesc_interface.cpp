@@ -341,17 +341,17 @@ return_type VESCInterface::perform_command_mode_switch([[maybe_unused]] const st
           auto pctrl = j_data.ctrl;
           j_data.ctrl &= ~orthopus::ORTHOPUS_CTRL_MODE_MSK;  // Clear last command
 
-          if(intf == "position" )
+          if(intf == hardware_interface::HW_IF_POSITION )
           {
             j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_POS;
             RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to POS mode", j_name.c_str());
           } 
-          else if(intf == "velocity")
+          else if(intf == hardware_interface::HW_IF_VELOCITY )
           {
             j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
             RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to VEL mode", j_name.c_str());
           } 
-          else if(intf == "effort")
+          else if(intf == hardware_interface::HW_IF_EFFORT )
           {
             j_data.ctrl |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
             RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to TRQ mode", j_name.c_str());
