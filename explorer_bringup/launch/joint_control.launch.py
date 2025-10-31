@@ -23,13 +23,15 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     # Initialize Arguments
+        # Common
     gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time')
+    poc2 = LaunchConfiguration("use_POC2")
+        # Simulation
     simulation = LaunchConfiguration('simulation')
-    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    use_sim_time = LaunchConfiguration('use_sim_time')
+        # Real hardware
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
-    poc2 = LaunchConfiguration("use_POC2")
 
     # Declare arguments
     declared_arguments = []
@@ -42,6 +44,14 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "use_POC2",
+            default_value="true",
+            description="Use POC2 urdf",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
             'simulation',
             default_value='true',
             description='If true, use simulation (Gazebo), if false use real hardware')
@@ -52,13 +62,7 @@ def generate_launch_description():
             default_value='true',
             description='If true, use simulated clock. Auto-set based on simulation mode if not specified')
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_actuator_interface",
-            default_value="true",
-            description="Use VESCInterface to control the robot. Set to false for simulation",
-        )
-    )
+
     declared_arguments.append(
         DeclareLaunchArgument(
             "can_port",
@@ -73,13 +77,7 @@ def generate_launch_description():
             description="Host CAN ID for VESC Communication",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_POC2",
-            default_value="true",
-            description="Use POC2 urdf",
-        )
-    )
+
 
     # Include robot simulation (when simulation=true)
     robot_simulation = IncludeLaunchDescription(
@@ -90,8 +88,8 @@ def generate_launch_description():
         launch_arguments={
             'use_POC2': poc2,
             'gui': gui,
+            'rviz_delay': '5.0',
             'use_sim_time': use_sim_time,
-            'rviz_delay': '5.0'
         }.items(),
         condition=IfCondition(simulation)
     )
@@ -103,13 +101,11 @@ def generate_launch_description():
             "/launch/hardware_base.launch.py"
         ]),
         launch_arguments={
+            'use_POC2': poc2,
             'gui': gui,
-            'use_sim_time': use_sim_time,
-            'use_actuator_interface': use_actuator_interface,
+            'rviz_delay': '5.0',
             'can_port': can_port,
             'host_id': host_id,
-            'use_POC2': poc2,
-            'rviz_delay': '5.0'
         }.items(),
         condition=UnlessCondition(simulation)
     )

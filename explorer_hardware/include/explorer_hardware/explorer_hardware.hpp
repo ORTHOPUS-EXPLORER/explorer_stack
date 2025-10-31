@@ -31,16 +31,6 @@ public:
   return_type write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) override;
 
 protected:
-  /// The size of this vector is (standard_interfaces_.size() x nr_joints)
-  std::vector<double> joint_position_command_;
-  std::vector<double> joint_velocities_command_;
-  std::vector<double> joint_position_;
-  std::vector<double> joint_velocities_;
-  std::vector<double> ft_states_;
-  std::vector<double> ft_command_;
-
-  std::unordered_map<std::string, std::vector<std::string>> joint_interfaces = {
-    {"position", {}}, {"velocity", {}}};
 };
 
 }  // namespace explorer_hardware

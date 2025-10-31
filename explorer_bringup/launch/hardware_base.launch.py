@@ -24,16 +24,22 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     # Initialize Arguments
+    poc2 = LaunchConfiguration("use_POC2")
     gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time', default=False)
-    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
+    rviz_delay = LaunchConfiguration("rviz_delay")
+
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
-    poc2 = LaunchConfiguration("use_POC2")
-    rviz_delay = LaunchConfiguration("rviz_delay")
 
     # Declare arguments
     declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_POC2",
+            default_value="true",
+            description="Use POC2 urdf",
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "gui",
@@ -43,15 +49,9 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            'use_sim_time',
-            default_value=use_sim_time,
-            description='If true, use simulated clock')
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_actuator_interface",
-            default_value="true",
-            description="Use VESCInterface to control the robot. Set to false for simulation",
+            "rviz_delay",
+            default_value="5.0",
+            description="Delay before starting RViz2 (seconds)",
         )
     )
     declared_arguments.append(
@@ -68,87 +68,67 @@ def generate_launch_description():
             description="Host CAN ID for VESC Communication",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_POC2",
-            default_value="true",
-            description="Use POC2 urdf",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "rviz_delay",
-            default_value="5.0",
-            description="Delay before starting RViz2 (seconds)",
-        )
-    )
 
     # Get URDF via xacro
-    robot_description_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("explorer_description"), "urdf", "explorer.urdf.xacro"]
-            ),
-            " ",
-            "use_ignition:=false",
-            " ",
-            "use_actuator_interface:=", use_actuator_interface,
-            " ",
-            "can_port:=", can_port,
-            " ",
-            "host_id:=", host_id,
-            " ",
-            "use_POC2:=", poc2
-        ]
-    )
-    robot_description = {"robot_description": robot_description_content}
+    robot_description = {
+        "robot_description": Command(
+            [
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                PathJoinSubstitution(
+                    [FindPackageShare("explorer_description"), "urdf", "explorer.urdf.xacro"]
+                ),
+                " ",
+                "use_POC2:=", poc2,
+                " ",
+                "simulation:=false",
+                " ",
+                "can_port:=", can_port,
+                " ",
+                "host_id:=", host_id,
 
-    robot_controllers = PathJoinSubstitution(
-        [
-            FindPackageShare("explorer_bringup"),
-            "config",
-            "explorer_controller.yaml",
-        ]
-    )
-
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("explorer_description"), "rviz", "view_robot.rviz"]
-    )
-
-    control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[robot_controllers, robot_description],
-        output="both",
-        remappings=[
-            ("~/robot_description", "/robot_description"),
-        ],
-    )
+            ]
+            )
+    }
 
     delayed_control_node = TimerAction(
-        period=1.0,
-        actions=[control_node]
-    )
-
-    node_robot_state_publisher = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="log",
-        parameters=[robot_description, {'use_sim_time': use_sim_time}],
+        period = 1.0,
+        actions = [
+            Node(package="controller_manager",
+                    executable="ros2_control_node",
+                    parameters=[
+                        PathJoinSubstitution([FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]), 
+                        robot_description
+                    ],
+                    output="both",
+                    remappings=[
+                        ("~/robot_description", "/robot_description"),
+                    ],
+                ),
+        ]
     )
 
     joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
-        output="log",
-    )
+                package="controller_manager",
+                executable="spawner",
+                arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+                output="log",
+            )
 
     delayed_joint_state_broadcaster = TimerAction(
         period=3.0,
-        actions=[joint_state_broadcaster_spawner]
+        actions = [
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                output="log",
+                parameters=[
+                    robot_description, 
+                    {'use_sim_time': False}
+                ],
+            ),
+            joint_state_broadcaster_spawner,            
+        ]
     )
 
     robot_controller_spawner = Node(
@@ -163,35 +143,35 @@ def generate_launch_description():
         executable="rviz2",
         name="rviz2",
         output="log",
-        arguments=["-d", rviz_config_file],
+        arguments = [
+            "-d", PathJoinSubstitution([FindPackageShare("explorer_description"), "rviz", "view_robot.rviz"]
+        )],
         condition=IfCondition(gui),
     )
-
-    delayed_rviz = TimerAction(period=rviz_delay, actions=[rviz_node])
 
     delayed_robot_controller = RegisterEventHandler(
         OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
-            on_exit=[robot_controller_spawner]
+            on_exit = [
+                robot_controller_spawner
+            ]
         )
     )
 
     delayed_rviz_handler = RegisterEventHandler(
         OnProcessExit(
             target_action=robot_controller_spawner,
-            on_exit=[delayed_rviz]
+            on_exit = [
+                TimerAction(period=rviz_delay, actions=[rviz_node])
+            ]
         )
     )
 
     nodes = [
         delayed_control_node,
-        node_robot_state_publisher,
         delayed_joint_state_broadcaster,
-    ]
-
-    register_event_handler = [
         delayed_robot_controller,
         delayed_rviz_handler,
     ]
 
-    return LaunchDescription(declared_arguments + nodes + register_event_handler)
+    return LaunchDescription(declared_arguments + nodes)

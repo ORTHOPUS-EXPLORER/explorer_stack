@@ -3,7 +3,7 @@
 
   <xacro:include filename="$(find explorer_description)/urdf/explorer_joints.xacro" />
 
-  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1  host_id:=^|45 rt_stream_rate:=^|250 aux_stream_rate:=^|10">
+  <xacro:macro name="explorer_ros2_control" params="name can_port:=^|vxcan1  host_id:=^|45 rt_stream_rate:=^|250 aux_stream_rate:=^|10">
 
     <xacro:macro name="hw_intf_params">
       <plugin>orthopus_vesc_interface/VESCInterface</plugin>
@@ -61,18 +61,6 @@
     </hardware>
     <xacro:explorer_joint_6 />
     <xacro:explorer_gripper_servo_joint />
-  </ros2_control>
-
-  <ros2_control name="${name}_gripper" type="system">
-    <hardware>
-      <!-- <xacro:if value="${use_ignition}">
-        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-      </xacro:if> -->
-      <xacro:unless value="${use_ignition}">
-        <plugin>explorer_hardware/RobotSystem</plugin>
-      </xacro:unless>
-    </hardware>
-    <xacro:explorer_gripper_joints />
   </ros2_control>
 
   </xacro:macro>
