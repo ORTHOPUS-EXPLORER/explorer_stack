@@ -118,13 +118,14 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
     )
+    
     controllers_control_node = Node(package="controller_manager",
         executable="ros2_control_node",
         parameters=[
             PathJoinSubstitution([FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]),
         ],
         output="both",
-    ),
+    )
     
     register_event_handler = []
     register_event_handler.append(
