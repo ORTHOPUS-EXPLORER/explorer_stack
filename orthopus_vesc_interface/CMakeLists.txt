@@ -9,6 +9,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(orthopus_vesc REQUIRED)
+find_package(orthopus_vesc_interfaces REQUIRED)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -41,6 +42,7 @@ PUBLIC
   rclcpp_lifecycle
   realtime_tools
   orthopus_vesc
+  orthopus_vesc_interfaces
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -49,7 +51,6 @@ target_compile_definitions(${PROJECT_NAME}
 PRIVATE
   "ORTHOPUS_ROS_BUILDING_LIBRARY"
 )
-
 
 install(
   TARGETS ${PROJECT_NAME}
@@ -82,6 +83,7 @@ ament_export_dependencies(
   pluginlib
   rclcpp
   rclcpp_lifecycle
+  orthopus_vesc_interfaces
 )
 
 ament_export_targets(

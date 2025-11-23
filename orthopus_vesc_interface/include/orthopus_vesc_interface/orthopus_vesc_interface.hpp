@@ -12,6 +12,8 @@
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "control_msgs/msg/dynamic_joint_state.hpp"
+#include "orthopus_vesc_interfaces/srv/help.hpp"
+#include "orthopus_vesc_interfaces/srv/cmd.hpp"
 
 #include "orthopus_vesc/host.hpp"
 
@@ -57,6 +59,17 @@ public:
   hardware_interface::return_type write(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
   std::string _name;
+  std::shared_ptr<rclcpp::Node> _node;
+  rclcpp::Service<orthopus_vesc_interfaces::srv::Help>::SharedPtr _help_srv;
+  rclcpp::Service<orthopus_vesc_interfaces::srv::Cmd>::SharedPtr  _cmd_srv;
+  typedef struct
+  {
+    rclcpp::Time time;
+    std::string str;
+  } printMsg_t;
+  rclcpp::Time            _print_buf_start{0};
+  rclcpp::Duration        _print_buf_duration = rclcpp::Duration::from_seconds(0);
+  std::vector<printMsg_t> _print_buf;
 
   //std::vector<hardware_interface::CommandInterface> _command_interfaces;
   std::vector<hardware_interface::StateInterface> _state_interfaces;

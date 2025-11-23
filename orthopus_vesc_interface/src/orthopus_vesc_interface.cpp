@@ -1,8 +1,10 @@
+#include <chrono>
 #include <sstream>  // for from_str, below
 
 #include "orthopus_vesc_interface/orthopus_vesc_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 using namespace std::chrono_literals;
 using namespace hardware_interface;
@@ -19,6 +21,11 @@ T from_str(const std::string& str, const T& def_v)
   return ss.fail() ? def_v : out;
 }
 
+rclcpp::QoS qos_services =
+  rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1))
+    .reliable()
+    .durability_volatile();
+
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
 CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 {
@@ -26,6 +33,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     return CallbackReturn::ERROR;
 
   _name = info.name;
+  _node = std::make_unique<rclcpp::Node>(_name);
 
   if(!_vesc_host)
   {
@@ -114,6 +122,22 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Timeout waiting for VESC '%d'. Abort", board_id);  
     return CallbackReturn::ERROR;
   }
+  _vesc_dev->_print_hdlr = [&](const std::string& s) -> void
+  {
+    const auto now = rclcpp::Clock().now();
+    
+    if(_print_buf_duration.seconds() > 0.0)
+    {
+      if(now < _print_buf_start + _print_buf_duration)
+      {
+        _print_buf.emplace_back(printMsg_t{now, s});
+      }
+      else
+        _print_buf_duration *= 0.0;
+      return;
+    }
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[%s] <= %s", _name.c_str(), s.c_str());
+  };
   
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[%s]] Init with BoardID '%d'", _name.c_str(), board_id);
   //spdlog::debug("==> {:np}", spdlog::to_hex(_vesc_dev->fw()->uuid));
@@ -218,10 +242,35 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
   return _command_interfaces;
 }
 
-
 CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully configured!", _name.c_str());
+
+  _help_srv = _node->create_service<orthopus_vesc_interfaces::srv::Help>("~/help", [this]
+    (const std::shared_ptr<orthopus_vesc_interfaces::srv::Help::Request> req,
+        std::shared_ptr<orthopus_vesc_interfaces::srv::Help::Response> resp)
+  {
+    (void)req;
+    RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),"VESCHost: %p - %s", (void*)_vesc_host.get(), this->_name.c_str());
+    resp->help = "Hello World";
+  });
+
+  _cmd_srv = _node->create_service<orthopus_vesc_interfaces::srv::Cmd>("~/command", [this]
+    (const std::shared_ptr<orthopus_vesc_interfaces::srv::Cmd::Request> req,
+        std::shared_ptr<orthopus_vesc_interfaces::srv::Cmd::Response> resp)
+  {
+    const auto wait_ms = std::chrono::milliseconds(req->wait_for_ms);
+    //const auto now = vescpp::Time::now();
+    _print_buf.clear();
+
+    _print_buf_duration = rclcpp::Duration(wait_ms);
+    _print_buf_start    = rclcpp::Clock().now();
+    _vesc_dev->sendCmd(req->cmd, wait_ms); // It waits an appropriate time for us, so we're good
+    for(const auto& s: _print_buf)
+      resp->ret += s.str+"\n";        
+    _print_buf.clear();
+  });
+
 
   return CallbackReturn::SUCCESS;
 }
@@ -384,6 +433,8 @@ return_type VESCInterface::read([[maybe_unused]] const rclcpp::Time& time, [[may
 {
   // Async, Measures are streamed by the devices, directly to orthopus::VESCTarget
   // TODO: Sanity checks (trigger error if delay since last meas reached a timeout for instance)
+  if(_node)
+    rclcpp::spin_some(_node->get_node_base_interface());
   return return_type::OK;
 }
 
