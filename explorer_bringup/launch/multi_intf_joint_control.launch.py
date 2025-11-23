@@ -8,8 +8,6 @@ from launch_ros.substitutions import FindPackageShare
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from common import *
-
 
 def generate_launch_description():
     # Initialize Arguments
@@ -23,8 +21,6 @@ def generate_launch_description():
 
     # Declare arguments
     declared_arguments = []
-
-    set_common_args()
 
     declared_arguments.append(
         DeclareLaunchArgument(
