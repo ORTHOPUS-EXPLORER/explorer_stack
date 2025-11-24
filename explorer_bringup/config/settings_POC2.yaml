@@ -60,6 +60,13 @@ qp_solving:
     model_group_name            : "arm"
     end_effector_name           : "tool0"
 
+    ### --- CONTROL FRAMES --- ###
+    # Control frames can be "World" or "Tool"
+    # World: velocities/positions interpreted in world/base frame
+    # Tool: velocities/positions interpreted in tool/end-effector frame
+    position_control_frame      : "World"    # Change to "Tool" for tool-frame position control
+    orientation_control_frame   : "World"    # Change to "Tool" for tool-frame orientation control
+
     joint_max_vel               : 0.5
 
 

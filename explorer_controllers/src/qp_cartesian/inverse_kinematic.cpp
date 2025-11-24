@@ -38,6 +38,24 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   n_->get_parameter("gamma_multiplier", gamma_multiplier);
   n_->get_parameter("joint_centering_multiplier", joint_centering_multiplier);
   
+  // Control frame parameters
+  std::string position_frame_str, orientation_frame_str;
+  if (!n_->get_parameter("position_control_frame", position_frame_str)) {
+    position_frame_str = "World";  // Default to World frame
+    RCLCPP_INFO(n_->get_logger(), "Using default position_control_frame: %s", position_frame_str.c_str());
+  }
+  if (!n_->get_parameter("orientation_control_frame", orientation_frame_str)) {
+    orientation_frame_str = "World";  // Default to World frame
+    RCLCPP_INFO(n_->get_logger(), "Using default orientation_control_frame: %s", orientation_frame_str.c_str());
+  }
+  
+  // Set control frames from parameters
+  position_ctrl_frame_ = (position_frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+  orientation_ctrl_frame_ = (orientation_frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+  
+  RCLCPP_INFO(n_->get_logger(), "Control frames - Position: %s, Orientation: %s", 
+              position_frame_str.c_str(), orientation_frame_str.c_str());
+  
   // Joint centering threshold parameter
   if (!n_->get_parameter("j5_alignment_threshold", j5_alignment_threshold_)) {
     j5_alignment_threshold_ = 0.2;  // Default: ~11 degrees
@@ -148,6 +166,18 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
   };
 
+  auto callback_position_control_frame = [this](const rclcpp::Parameter & p) {
+    std::string frame_str = p.as_string();
+    position_ctrl_frame_ = (frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+    RCLCPP_INFO(n_->get_logger(), "Position control frame changed to: %s", frame_str.c_str());
+  };
+
+  auto callback_orientation_control_frame = [this](const rclcpp::Parameter & p) {
+    std::string frame_str = p.as_string();
+    orientation_ctrl_frame_ = (frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+    RCLCPP_INFO(n_->get_logger(), "Orientation control frame changed to: %s", frame_str.c_str());
+  };
+
   cb_handle_alpha_weight = param_subscriber_->add_parameter_callback("alpha_weight", callback_alpha_weight);
   cb_handle_alpha_multiplier = param_subscriber_->add_parameter_callback("alpha_multiplier", callback_alpha_multiplier);
   cb_handle_beta_weight = param_subscriber_->add_parameter_callback("beta_weight", callback_beta_weight);
@@ -156,6 +186,8 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   cb_handle_gamma_multiplier = param_subscriber_->add_parameter_callback("gamma_multiplier", callback_gamma_multiplier);
   cb_handle_joint_centering_weight = param_subscriber_->add_parameter_callback("joint_centering_weight", callback_joint_centering_weight);
   cb_handle_joint_centering_multiplier = param_subscriber_->add_parameter_callback("joint_centering_multiplier", callback_joint_centering_multiplier);
+  cb_handle_position_control_frame = param_subscriber_->add_parameter_callback("position_control_frame", callback_position_control_frame);
+  cb_handle_orientation_control_frame = param_subscriber_->add_parameter_callback("orientation_control_frame", callback_orientation_control_frame);
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
@@ -306,7 +338,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
     RCLCPP_ERROR(n_->get_logger(), "This control frame is not already handle !");
   }
   SpaceVelocity dx_desired_in_frame;
-  computeVelocityInFrame_(dx_desired_in_frame, dx_desired, R_0to1_transpose);
+  computeVelocityInFrame_(dx_desired_in_frame, dx_desired, R_0to1);
 
   /*********************************************************/
 
@@ -551,7 +583,7 @@ void InverseKinematic::computeVelocityInFrame_(SpaceVelocity& dx_desired_in_fram
    * with :
    *     - p0 : the linear velocity in world frame
    *     - p1 : the linear velocity in tool frame
-   *     - R_0to1 : the rotation matrix of the tool link in the world frame
+   *     - R_0to1 : the rotation matrix FROM tool TO world frame (tool->world transformation)
    */
   dx_desired_in_frame.setPosition(R_0to1 * dx_desired.getPosition());
 

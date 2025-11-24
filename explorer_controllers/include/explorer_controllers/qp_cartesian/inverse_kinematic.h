@@ -147,6 +147,8 @@ private:
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_gamma_multiplier;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_centering_weight;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_centering_multiplier;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_position_control_frame;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_orientation_control_frame;
 
   void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
   void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
