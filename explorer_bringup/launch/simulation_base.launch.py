@@ -23,6 +23,7 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -77,8 +78,8 @@ def generate_launch_description():
         output="screen",
         parameters=[
             # Use xacro to get URDF
-            {"robot_description": Command(
-                [
+            {"robot_description": ParameterValue(
+                Command([
                     PathJoinSubstitution([FindExecutable(name="xacro")]),
                     " ",
                     PathJoinSubstitution(
@@ -87,7 +88,8 @@ def generate_launch_description():
                     " ", "simulation:=true",
                     " ", "use_ignition:=true",
                     " ", "use_POC2:=", poc2,
-                ]
+                ]),
+                value_type=str
             )}, 
             {'use_sim_time': use_sim_time}
         ],

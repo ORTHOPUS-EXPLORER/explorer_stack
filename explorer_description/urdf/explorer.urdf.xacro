@@ -71,6 +71,24 @@
     <origin xyz="-0.011 0 0" rpy="0 ${-pi/2} 0"/>
   </joint>
 
+  <!-- Additional tool frames with lateral offsets for different drink sizes -->
+  <link name="drink_small"/>
+  <link name="drink_big"/>
+  
+  <joint name="joint-drink-small" type="fixed">
+    <parent link="tool0"/>
+    <child link="drink_small"/>
+    <!-- Lateral shift: 30mm in Y direction for small drinks -->
+    <origin xyz="0 -0.035 0.035" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="joint-drink-big" type="fixed">
+    <parent link="tool0"/>
+    <child link="drink_big"/>
+    <!-- Lateral shift: 60mm in Y direction for big drinks -->
+    <origin xyz="0 -0.045 0.045" rpy="0 0 0"/>
+  </joint>
+
   <xacro:gripper_pincette/>
 
   <!-- Import explorer ros2_control description -->

@@ -18,6 +18,7 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -144,7 +145,7 @@ def generate_launch_description():
         condition=UnlessCondition(simulation)
     )
 
-    robot_description = {"robot_description": robot_description_param}
+    robot_description = {"robot_description": ParameterValue(robot_description_param, value_type=str)}
 
     # Get SRDF via xacro
     semantic_content = Command(
@@ -158,7 +159,7 @@ def generate_launch_description():
         ]
     )
 
-    robot_description_semantic = {"robot_description_semantic": semantic_content}
+    robot_description_semantic = {"robot_description_semantic": ParameterValue(semantic_content, value_type=str)}
 
     config_POC1 = PathJoinSubstitution(
         [FindPackageShare("explorer_bringup"), "config", "settings_POC1.yaml"])

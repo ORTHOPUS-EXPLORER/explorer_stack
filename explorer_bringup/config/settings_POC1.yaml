@@ -49,7 +49,7 @@ qp_solving:
     end_effector_name           : "tool0"
 
     ### --- CONTROL FRAMES --- ###
-    # Control frames can be "World" or "Tool"
+    # Control frames can be "World", "Tool", "DrinkSmall", or "DrinkBig"
     # World: velocities/positions interpreted in world/base frame
     # Tool: velocities/positions interpreted in tool/end-effector frame
     position_control_frame      : "World"    # Change to "Tool" for tool-frame position control

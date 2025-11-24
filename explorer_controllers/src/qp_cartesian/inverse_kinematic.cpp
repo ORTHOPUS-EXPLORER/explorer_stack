@@ -50,8 +50,25 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   }
   
   // Set control frames from parameters
-  position_ctrl_frame_ = (position_frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
-  orientation_ctrl_frame_ = (orientation_frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+  if (position_frame_str == "Tool") {
+    position_ctrl_frame_ = ControlFrame::Tool;
+  } else if (position_frame_str == "DrinkSmall") {
+    position_ctrl_frame_ = ControlFrame::DrinkSmall;
+  } else if (position_frame_str == "DrinkBig") {
+    position_ctrl_frame_ = ControlFrame::DrinkBig;
+  } else {
+    position_ctrl_frame_ = ControlFrame::World;
+  }
+  
+  if (orientation_frame_str == "Tool") {
+    orientation_ctrl_frame_ = ControlFrame::Tool;
+  } else if (orientation_frame_str == "DrinkSmall") {
+    orientation_ctrl_frame_ = ControlFrame::DrinkSmall;
+  } else if (orientation_frame_str == "DrinkBig") {
+    orientation_ctrl_frame_ = ControlFrame::DrinkBig;
+  } else {
+    orientation_ctrl_frame_ = ControlFrame::World;
+  }
   
   RCLCPP_INFO(n_->get_logger(), "Control frames - Position: %s, Orientation: %s", 
               position_frame_str.c_str(), orientation_frame_str.c_str());
@@ -168,13 +185,29 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
 
   auto callback_position_control_frame = [this](const rclcpp::Parameter & p) {
     std::string frame_str = p.as_string();
-    position_ctrl_frame_ = (frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+    if (frame_str == "Tool") {
+      position_ctrl_frame_ = ControlFrame::Tool;
+    } else if (frame_str == "DrinkSmall") {
+      position_ctrl_frame_ = ControlFrame::DrinkSmall;
+    } else if (frame_str == "DrinkBig") {
+      position_ctrl_frame_ = ControlFrame::DrinkBig;
+    } else {
+      position_ctrl_frame_ = ControlFrame::World;
+    }
     RCLCPP_INFO(n_->get_logger(), "Position control frame changed to: %s", frame_str.c_str());
   };
 
   auto callback_orientation_control_frame = [this](const rclcpp::Parameter & p) {
     std::string frame_str = p.as_string();
-    orientation_ctrl_frame_ = (frame_str == "Tool") ? ControlFrame::Tool : ControlFrame::World;
+    if (frame_str == "Tool") {
+      orientation_ctrl_frame_ = ControlFrame::Tool;
+    } else if (frame_str == "DrinkSmall") {
+      orientation_ctrl_frame_ = ControlFrame::DrinkSmall;
+    } else if (frame_str == "DrinkBig") {
+      orientation_ctrl_frame_ = ControlFrame::DrinkBig;
+    } else {
+      orientation_ctrl_frame_ = ControlFrame::World;
+    }
     RCLCPP_INFO(n_->get_logger(), "Orientation control frame changed to: %s", frame_str.c_str());
   };
 
@@ -333,6 +366,16 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
     R_0to1 = x_current_.getOrientation().toRotationMatrix();
     R_0to1_transpose = R_0to1.transpose();
   }
+  else if (position_ctrl_frame_ == ControlFrame::DrinkSmall)
+  {
+    R_0to1 = x_current_.getOrientation().toRotationMatrix();
+    R_0to1_transpose = R_0to1.transpose();
+  }
+  else if (position_ctrl_frame_ == ControlFrame::DrinkBig)
+  {
+    R_0to1 = x_current_.getOrientation().toRotationMatrix();
+    R_0to1_transpose = R_0to1.transpose();
+  }
   else
   {
     RCLCPP_ERROR(n_->get_logger(), "This control frame is not already handle !");
@@ -346,11 +389,35 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
   kinematic_state_->setVariablePositions(q_current_);
   kinematic_state_->updateLinkTransforms();
 
-  /* Get jacobian */
+  /* Get jacobian for the appropriate control frame */
   Vector3d reference_point_position(0.0, 0.0, 0.0);
   MatrixXd jacobian;
-  getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
-               reference_point_position, jacobian, true);
+  
+  // Determine which frame to use for Jacobian computation based on control frame
+  std::string jacobian_frame = end_effector_link_;  // Default to tool0
+  if (orientation_ctrl_frame_ == ControlFrame::DrinkSmall || position_ctrl_frame_ == ControlFrame::DrinkSmall) {
+    jacobian_frame = "drink_small";
+  } else if (orientation_ctrl_frame_ == ControlFrame::DrinkBig || position_ctrl_frame_ == ControlFrame::DrinkBig) {
+    jacobian_frame = "drink_big";
+  }
+  
+  // Check if the selected frame exists, fallback to tool0 if not
+  try {
+    getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(jacobian_frame),
+                 reference_point_position, jacobian, true);
+    
+    if (jacobian_frame != end_effector_link_) {
+      RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 10000, 
+                            "Using Jacobian computed for frame: %s", jacobian_frame.c_str());
+    }
+  } catch (const std::exception& e) {
+    // Fallback to tool0 if drink frame not found
+    RCLCPP_WARN_THROTTLE(n_->get_logger(), *n_->get_clock(), 10000, 
+                         "Frame '%s' not found, falling back to %s: %s", 
+                         jacobian_frame.c_str(), end_effector_link_.c_str(), e.what());
+    getJacobian_(kinematic_state_, joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
+                 reference_point_position, jacobian, true);
+  }
   //kinematic_state_->getJacobian(joint_model_group_, kinematic_state_->getLinkModel(end_effector_link_),
   //             reference_point_position, jacobian, true);
 
@@ -613,6 +680,14 @@ void InverseKinematic::computeVelocityInFrame_(SpaceVelocity& dx_desired_in_fram
   {
     r_dot = x_current_.getOrientation() * r_half_omega;
   }
+  else if (orientation_ctrl_frame_ == ControlFrame::DrinkSmall)
+  {
+    r_dot = x_current_.getOrientation() * r_half_omega;
+  }
+  else if (orientation_ctrl_frame_ == ControlFrame::DrinkBig)
+  {
+    r_dot = x_current_.getOrientation() * r_half_omega;
+  }
   else
   {
     RCLCPP_ERROR(n_->get_logger(), "This control frame is not already handle !");
@@ -655,6 +730,19 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
   else if (orientation_ctrl_frame_ == ControlFrame::Tool)
   {
     Rdes_conj = xR_(x_des_quat) * CONJ_MAT;
+  }
+  else if (orientation_ctrl_frame_ == ControlFrame::DrinkSmall)
+  {
+    Rdes_conj = xR_(x_des_quat) * CONJ_MAT;
+  }
+  else if (orientation_ctrl_frame_ == ControlFrame::DrinkBig)
+  {
+    Rdes_conj = xR_(x_des_quat) * CONJ_MAT;
+  }
+  else
+  {
+    // Default to world frame if unknown
+    Rdes_conj = Rx_(x_des_quat) * CONJ_MAT;
   }
 
   // Conditional joint centering: only active when J5 is near zero (J4 and J6 aligned) AND robot is being moved

@@ -45,7 +45,9 @@ public:
   enum class ControlFrame
   {
     World,
-    Tool
+    Tool,
+    DrinkSmall,
+    DrinkBig
   };
 
   InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_number);
