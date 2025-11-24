@@ -143,7 +143,7 @@ def generate_launch_description():
     register_event_handler.append(
         RegisterEventHandler(
             event_handler=OnProcessExit(
-                target_action=controllers_control_node,
+                target_action=joint_state_broadcaster_spawner,
                 on_exit=[
                     TimerAction(period=rviz_delay, actions=[
                         Node(
@@ -158,6 +158,7 @@ def generate_launch_description():
                                 )
                             ],
                             condition=IfCondition(gui),
+                            parameters=[{'use_sim_time': use_sim_time}]
                         )
                     ])
                 ],
