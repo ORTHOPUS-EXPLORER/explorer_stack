@@ -1,7 +1,6 @@
 #include <unordered_map>
 #include <string>
 #include <functional>
-#include <chrono>
 #include <ctime>
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
@@ -11,6 +10,7 @@
 #include "std_msgs/msg/int32.hpp"
 #include "yaml-cpp/yaml.h"
 #include <fstream>
+#include "explorer_user_interfaces_cpp/button_handler.h"
 
 
 using namespace std::chrono;
@@ -68,6 +68,8 @@ namespace space_control
     protected:
     private:
         rclcpp::Node::SharedPtr n_;
+        
+        ButtonHandler button_handler;
 
         // Subscribers
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
@@ -84,14 +86,11 @@ namespace space_control
         std::unordered_map<std::string, std::function<void(AxisInfo)>> control_behaviors_;
 
         // Joystick state variables
-        float axis_1;
-        float axis_2;
-        bool short_click;
-        bool long_click;
-        bool button_prec;
+        mutable std::mutex mutex_axis_;
+        float axis_1 RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0;
+        float axis_2 RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0;
 
-        int threshold_button = 500; // milliseconds
-        std::chrono::time_point<std::chrono::steady_clock> start;
+        int button_threshold_ms;
 
         ModeData data;
 
@@ -99,12 +98,15 @@ namespace space_control
         float speed_factor;
         int speed_level;
         float joy_prec;
+        float speed_change_threshold;
+        float speed_level_multiplier;
 
         // Velocity messages
         geometry_msgs::msg::TwistStamped cartesian_vel_;
         std_msgs::msg::Float64MultiArray joint_vel_;
 
         ModeData loadModeData(const std::string& filename);
+        bool validateModeData(const ModeData& data);
 
         void callback_joystick(const sensor_msgs::msg::Joy & msg);
 
@@ -113,6 +115,11 @@ namespace space_control
         // Execute behavior based on axis information
         void executeBehavior(const AxisInfo& axis);
 
+        // Read joystick axis value
+        float ReadAxisValue(const AxisInfo& axis_info);
+
+        void resetVelocities();
+
         // Behavior functions
         void cartesian_linear(const AxisInfo& axis_info);
         void cartesian_rotation(const AxisInfo& axis_info); 
@@ -120,5 +127,6 @@ namespace space_control
         void change_speed(const AxisInfo& axis_info);
 
     };
+
 
 }

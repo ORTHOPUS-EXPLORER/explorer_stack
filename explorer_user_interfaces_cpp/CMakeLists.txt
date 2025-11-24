@@ -22,7 +22,10 @@ foreach(Dependency IN ITEMS ${INTERFACES_DEPENDENCIES})
 endforeach()
 
 
-add_executable(command_node src/command_node.cpp)
+add_executable(command_node 
+  src/command_node.cpp
+  src/button_handler.cpp
+  )
 
 target_include_directories(command_node
   PUBLIC
@@ -35,7 +38,9 @@ ament_target_dependencies(command_node
   yaml_cpp_vendor
 )
 
-target_link_libraries(command_node yaml-cpp)
+target_link_libraries(command_node 
+  yaml-cpp
+)
 
 install(TARGETS command_node
   DESTINATION lib/${PROJECT_NAME}
