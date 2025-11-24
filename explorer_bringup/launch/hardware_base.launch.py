@@ -20,6 +20,7 @@ from launch.conditions import IfCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -71,7 +72,7 @@ def generate_launch_description():
 
     # Get URDF via xacro
     robot_description = {
-        "robot_description": Command(
+        "robot_description": ParameterValue(Command(
             [
                 PathJoinSubstitution([FindExecutable(name="xacro")]),
                 " ",
@@ -88,7 +89,7 @@ def generate_launch_description():
                 "host_id:=", host_id,
 
             ]
-            )
+            ), value_type=str)
     }
 
     delayed_control_node = TimerAction(
