@@ -12,8 +12,14 @@
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "control_msgs/msg/dynamic_joint_state.hpp"
-#include "orthopus_vesc_interfaces/srv/help.hpp"
+
+#include "orthopus_vesc_interfaces/srv/dev.hpp"
 #include "orthopus_vesc_interfaces/srv/cmd.hpp"
+#include "orthopus_vesc_interfaces/srv/set_mode.hpp"
+
+#include <memory>
+#include <realtime_tools/realtime_publisher.h>
+#include "orthopus_vesc_interfaces/msg/state.hpp"
 
 #include "orthopus_vesc/host.hpp"
 
@@ -60,8 +66,12 @@ public:
 
   std::string _name;
   std::shared_ptr<rclcpp::Node> _node;
-  rclcpp::Service<orthopus_vesc_interfaces::srv::Help>::SharedPtr _help_srv;
+  rclcpp::Service<orthopus_vesc_interfaces::srv::Dev>::SharedPtr _dev_srv;
+  rclcpp::Service<orthopus_vesc_interfaces::srv::SetMode>::SharedPtr  _set_mode_srv;
   rclcpp::Service<orthopus_vesc_interfaces::srv::Cmd>::SharedPtr  _cmd_srv;
+  rclcpp::Publisher<orthopus_vesc_interfaces::msg::State>::SharedPtr  _state_pub;
+  std::unique_ptr<realtime_tools::RealtimePublisher<orthopus_vesc_interfaces::msg::State>> _state_rtpub;
+    
   typedef struct
   {
     rclcpp::Time time;
