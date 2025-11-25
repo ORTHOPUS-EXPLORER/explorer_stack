@@ -326,7 +326,7 @@ namespace space_control
     }
 
     // Read joystick axis value
-    float CommandNode::ReadAxisValue(const AxisInfo& axis_info) {
+    float CommandNode::readAxisValue(const AxisInfo& axis_info) {
         float value = 0.0;
         std::lock_guard<std::mutex> lock_axis(mutex_axis_);
         if(axis_info.joystick_axis == "ax1" ) {
@@ -353,7 +353,7 @@ namespace space_control
         // Determine joystick axis value
         float value = 0.0;
         
-        value = ReadAxisValue(axis_info);
+        value = readAxisValue(axis_info);
         
         // Assign to the appropriate Cartesian linear velocity component
         if (axis_info.control_name == "cartesian_X") {
@@ -369,7 +369,7 @@ namespace space_control
         // Determine joystick axis value
         float value = 0.0;
         
-        value = ReadAxisValue(axis_info);
+        value = readAxisValue(axis_info);
         
         // Assign to the appropriate Cartesian angular velocity component
         if (axis_info.control_name == "rotation_X") {
@@ -385,7 +385,7 @@ namespace space_control
         // Determine joystick axis value
         float value = 0.0;
         
-        value = ReadAxisValue(axis_info);
+        value = readAxisValue(axis_info);
 
         // Assign to the appropriate joint velocity component
         if (axis_info.control_name == "joint_1") {

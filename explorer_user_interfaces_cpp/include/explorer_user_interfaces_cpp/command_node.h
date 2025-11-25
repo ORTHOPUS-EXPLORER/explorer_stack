@@ -116,7 +116,7 @@ namespace space_control
         void executeBehavior(const AxisInfo& axis);
 
         // Read joystick axis value
-        float ReadAxisValue(const AxisInfo& axis_info);
+        float readAxisValue(const AxisInfo& axis_info);
 
         void resetVelocities();
 
