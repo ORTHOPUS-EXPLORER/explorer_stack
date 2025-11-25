@@ -13,8 +13,9 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   msg/State.msg
-  srv/Help.srv
   srv/Cmd.srv
+  srv/SetMode.srv
+  srv/Dev.srv
   DEPENDENCIES  std_msgs 
                 geometry_msgs 
                 builtin_interfaces
