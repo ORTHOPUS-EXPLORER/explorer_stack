@@ -204,7 +204,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       const std::string& sstr = orthopus::State2Text(j_data.status);
       const std::string& estr = orthopus::Err2Text(j_data.status);
       const std::string& mstr = orthopus::Mode2Text(j_data.status);
-      RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] State: 0x%04X: State: '%s' Error '%s' Mode '%s'", _name.c_str(), j_data.status, sstr.c_str(), estr.c_str(), mstr.c_str());
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Got State: 0x%04X: State: '%s' Error '%s' Mode '%s'", _name.c_str(), j_data.status, sstr.c_str(), estr.c_str(), mstr.c_str());
       if(!_state_rtpub)
         return;
       _state_rtpub->lock();
@@ -326,6 +326,10 @@ CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecyc
         RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Enable stream, with ctrlWord 0x%04x, posMeas: %f posRef: %f", j_name.c_str(), j->ctrl, j->meas.at("position").v, j->refs.at("position").v);
         j->stream = true;
       }
+      const std::string& sstr = orthopus::State2Text(j->ctrl);
+      const std::string& estr = orthopus::Err2Text(j->ctrl);
+      const std::string& mstr = orthopus::Mode2Text(j->ctrl);
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Set Ctrl: 0x%04X: State: '%s' Error '%s' Mode '%s'", _name.c_str(), j->ctrl, sstr.c_str(), estr.c_str(), mstr.c_str());
       resp->ret = true;
     }
   });
