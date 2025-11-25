@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)  # Add this line to specify the minimum CMa
 project(explorer_controllers)
 
 find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # find dependencies
 set(CONTROLLERS_DEPENDENCIES
@@ -29,6 +30,11 @@ set(CONTROLLERS_DEPENDENCIES
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/ControlFrameSelection.msg"
+)
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
 
 add_executable(input_integrator
@@ -103,6 +109,8 @@ ament_target_dependencies(qp_solving
   ${CONTROLLERS_DEPENDENCIES}
 )
 
+target_link_libraries(qp_solving "${cpp_typesupport_target}")
+
 target_link_libraries(qp_solving
   controllers
 )
@@ -133,4 +141,5 @@ PUBLIC
   ${CONTROLLERS_DEPENDENCIES}
 )
 
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()

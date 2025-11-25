@@ -70,6 +70,7 @@ namespace space_control
         J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&QPSolving::callback_J6_zero_pressed_, this, std::placeholders::_1));
         J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_released", 10, std::bind(&QPSolving::callback_J6_zero_released_, this, std::placeholders::_1));
         x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_controllers/input_integrator/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
+        control_frame_sub_ = n_->create_subscription<explorer_controllers::msg::ControlFrameSelection>("/explorer_controllers/qp_solving/control_frame_selection", 10, std::bind(&QPSolving::callback_control_frame_selection_, this, std::placeholders::_1));
 
         //init publishers
         dq_output_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10);
@@ -574,6 +575,46 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
         }
         q_current_debug_pub_->publish(q_current_debug);
 
+    }
+
+    void QPSolving::callback_control_frame_selection_(const explorer_controllers::msg::ControlFrameSelection::SharedPtr msg)
+    {
+        // Convert message frame enum to internal enum
+        auto convertFrameToInternal = [this](uint8_t msg_frame) -> space_control::InverseKinematic::ControlFrame {
+            switch(msg_frame) {
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_WORLD: 
+                    return space_control::InverseKinematic::ControlFrame::World;
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_TOOL: 
+                    return space_control::InverseKinematic::ControlFrame::Tool;
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_DRINK_SMALL: 
+                    return space_control::InverseKinematic::ControlFrame::DrinkSmall;
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_DRINK_BIG: 
+                    return space_control::InverseKinematic::ControlFrame::DrinkBig;
+                default: 
+                    RCLCPP_WARN(n_->get_logger(), "Unknown frame type %d, defaulting to World", msg_frame);
+                    return space_control::InverseKinematic::ControlFrame::World;
+            }
+        };
+
+        auto convertFrameToString = [](uint8_t msg_frame) -> std::string {
+            switch(msg_frame) {
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_WORLD: return "World";
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_TOOL: return "Tool";
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_DRINK_SMALL: return "DrinkSmall";
+                case explorer_controllers::msg::ControlFrameSelection::FRAME_DRINK_BIG: return "DrinkBig";
+                default: return "Unknown";
+            }
+        };
+        
+        // Set frames directly in the inverse kinematics solver
+        ik_.setPositionControlFrame(convertFrameToInternal(msg->position_control_frame));
+        ik_.setOrientationControlFrame(convertFrameToInternal(msg->orientation_control_frame));
+        
+        // Log the change
+        RCLCPP_INFO(n_->get_logger(), 
+                   "Control frames updated via topic - Position: %s, Orientation: %s",
+                   convertFrameToString(msg->position_control_frame).c_str(), 
+                   convertFrameToString(msg->orientation_control_frame).c_str());
     }
  
 }
