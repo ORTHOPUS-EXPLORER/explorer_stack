@@ -606,15 +606,36 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState & msg) 
             }
         };
         
-        // Set frames directly in the inverse kinematics solver
-        ik_.setPositionControlFrame(convertFrameToInternal(msg->position_control_frame));
-        ik_.setOrientationControlFrame(convertFrameToInternal(msg->orientation_control_frame));
+        // Convert requested frames to internal format
+        auto requested_position_frame = convertFrameToInternal(msg->position_control_frame);
+        auto requested_orientation_frame = convertFrameToInternal(msg->orientation_control_frame);
         
-        // Log the change
-        RCLCPP_INFO(n_->get_logger(), 
-                   "Control frames updated via topic - Position: %s, Orientation: %s",
-                   convertFrameToString(msg->position_control_frame).c_str(), 
-                   convertFrameToString(msg->orientation_control_frame).c_str());
+        // Get current frames
+        auto current_position_frame = ik_.getPositionControlFrame();
+        auto current_orientation_frame = ik_.getOrientationControlFrame();
+        
+        // Only update and log if frames are different
+        bool position_changed = (current_position_frame != requested_position_frame);
+        bool orientation_changed = (current_orientation_frame != requested_orientation_frame);
+        
+        if (position_changed || orientation_changed) {
+            // Set frames directly in the inverse kinematics solver
+            if (position_changed) {
+                ik_.setPositionControlFrame(requested_position_frame);
+            }
+            if (orientation_changed) {
+                ik_.setOrientationControlFrame(requested_orientation_frame);
+            }
+            
+            // Log the change
+            RCLCPP_INFO(n_->get_logger(), 
+                       "Control frames updated via topic - Position: %s%s, Orientation: %s%s",
+                       convertFrameToString(msg->position_control_frame).c_str(),
+                       position_changed ? " (changed)" : "",
+                       convertFrameToString(msg->orientation_control_frame).c_str(),
+                       orientation_changed ? " (changed)" : "");
+        }
+        // If no frames changed, we don't log anything to avoid flooding
     }
  
 }
