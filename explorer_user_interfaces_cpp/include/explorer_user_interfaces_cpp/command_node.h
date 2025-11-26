@@ -11,6 +11,7 @@
 #include "yaml-cpp/yaml.h"
 #include <fstream>
 #include "explorer_user_interfaces_cpp/button_handler.h"
+#include "explorer_msgs/msg/control_frame_selection.hpp"
 
 
 using namespace std::chrono;
@@ -79,6 +80,7 @@ namespace space_control
         rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_pub_;
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr mode_name_pub_;
         rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
+        rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
 
         rclcpp::TimerBase::SharedPtr timer_;
         
@@ -105,6 +107,8 @@ namespace space_control
         geometry_msgs::msg::TwistStamped cartesian_vel_;
         std_msgs::msg::Float64MultiArray joint_vel_;
 
+        explorer_msgs::msg::ControlFrameSelection frame_id_;
+
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);
 
@@ -125,6 +129,7 @@ namespace space_control
         void cartesian_rotation(const AxisInfo& axis_info); 
         void joint_direct(const AxisInfo& axis_info);
         void change_speed(const AxisInfo& axis_info);
+        void drink(const AxisInfo& axis_info);
 
     };
 

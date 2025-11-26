@@ -33,6 +33,7 @@ namespace space_control
             {"joint_5",      std::bind(&CommandNode::joint_direct, this, std::placeholders::_1)},
             {"joint_6",      std::bind(&CommandNode::joint_direct, this, std::placeholders::_1)},
             {"change_speed",      std::bind(&CommandNode::change_speed, this, std::placeholders::_1)},
+            {"drink",      std::bind(&CommandNode::drink, this, std::placeholders::_1)},
         };
 
         n_->declare_parameter<std::string>("mode_file", "");
@@ -58,6 +59,7 @@ namespace space_control
         cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("command_node/cartesian_velocity_command", 10);
         mode_name_pub_ = n->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
         speed_level_pub_ = n->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
+        frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/qp_solving/control_frame_selection", 10);
 
         // Timer callback 
         timer_ = n->create_timer(100ms, std::bind(&CommandNode::timer, this));
@@ -73,6 +75,9 @@ namespace space_control
 
         // Initialize Cartesian and joint velocities to zero
         resetVelocities();
+
+        frame_id_.position_control_frame = 0;
+        frame_id_.orientation_control_frame = 0;
     }
 
     // Load mode configuration from YAML file
@@ -307,6 +312,7 @@ namespace space_control
         // Publish the computed velocities
         cartesian_vel_pub_->publish(cartesian_vel_);
         joint_vel_pub_->publish(joint_vel_);
+        frame_id_pub_->publish(frame_id_);
 
         // Handle mode switching based on button clicks
         if(button_handler.isShortClick() && mode.buttons.short_click != "") {
@@ -379,6 +385,8 @@ namespace space_control
         } else if (axis_info.control_name == "rotation_Z") {
             cartesian_vel_.twist.angular.z = value;
         }
+
+        frame_id_.orientation_control_frame = 0;
     }
 
     void CommandNode::joint_direct(const AxisInfo& axis_info) {
@@ -404,7 +412,10 @@ namespace space_control
             joint_vel_.data[4] = value;
         }
         else if (axis_info.control_name == "joint_6") {
-            joint_vel_.data[5] = value;
+            cartesian_vel_.twist.angular.x = value;
+            // Set control frame to end-effector for joint 6 control
+            frame_id_.orientation_control_frame = 1;
+            
         } 
 
     }
@@ -437,6 +448,19 @@ namespace space_control
 
         joy_prec = value;
         speed_factor = speed_level_multiplier * speed_level;
+    }
+
+    void CommandNode::drink(const AxisInfo& axis_info) {
+        // Determine joystick axis value
+        float value = 0.0;
+        
+        value = readAxisValue(axis_info);
+
+        // Assign to the appropriate joint velocity component for drinking action
+        cartesian_vel_.twist.angular.x = value;
+
+        // Set control frame to end-effector for drinking action
+        frame_id_.orientation_control_frame = 3;
     }
 
 

@@ -14,6 +14,7 @@ set(INTERFACES_DEPENDENCIES
   rclcpp
   std_msgs
   geometry_msgs
+  explorer_msgs
   joy
 )
 
