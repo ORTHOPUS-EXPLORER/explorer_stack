@@ -17,7 +17,7 @@
 
 #include "explorer_msgs/srv/pose.hpp"
 #include "explorer_msgs/srv/float64.hpp"
-#include "explorer_controllers/msg/control_frame_selection.hpp"
+#include "explorer_msgs/msg/control_frame_selection.hpp"
 
 #include <chrono>
 #include <functional>
@@ -61,7 +61,7 @@ namespace space_control
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_released_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr x_des_updated_sub_;
-        rclcpp::Subscription<explorer_controllers::msg::ControlFrameSelection>::SharedPtr control_frame_sub_;
+        rclcpp::Subscription<explorer_msgs::msg::ControlFrameSelection>::SharedPtr control_frame_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_pub_;
@@ -131,7 +131,7 @@ namespace space_control
         void callback_J5_zero_pressed_(const std_msgs::msg::Bool & msg);
         void callback_J6_zero_released_(const std_msgs::msg::Bool & msg);
         void callback_J6_zero_pressed_(const std_msgs::msg::Bool & msg);
-        void callback_control_frame_selection_(const explorer_controllers::msg::ControlFrameSelection::SharedPtr msg);
+        void callback_control_frame_selection_(const explorer_msgs::msg::ControlFrameSelection::SharedPtr msg);
         void timer_callback();
         void callback_x_init_(const std::shared_ptr<explorer_msgs::srv::Pose::Request> req, std::shared_ptr<explorer_msgs::srv::Pose::Response> res);
         void callback_q_init_(const std::shared_ptr<explorer_msgs::srv::Float64::Request> req, std::shared_ptr<explorer_msgs::srv::Float64::Response> res);

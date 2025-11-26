@@ -1,8 +1,8 @@
 # Switch position frame to Tool, orientation frame to DrinkSmall
-ros2 topic pub --once /explorer_controllers/qp_solving/control_frame_selection explorer_controllers/msg/ControlFrameSelection "{position_control_frame: 1, orientation_control_frame: 2}"
+ros2 topic pub --once /explorer_controllers/qp_solving/control_frame_selection explorer_msgs/msg/ControlFrameSelection "{position_control_frame: 1, orientation_control_frame: 2}"
 
 # Switch both frames to World
-ros2 topic pub --once /explorer_controllers/qp_solving/control_frame_selection explorer_controllers/msg/ControlFrameSelection "{position_control_frame: 0, orientation_control_frame: 0}"
+ros2 topic pub --once /explorer_controllers/qp_solving/control_frame_selection explorer_msgs/msg/ControlFrameSelection "{position_control_frame: 0, orientation_control_frame: 0}"
 
 # Set position control frame to Tool (1), orientation to World (0)
 ros2 param set /qp_solving position_control_frame Tool
