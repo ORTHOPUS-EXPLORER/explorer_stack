@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorer Robot Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .main-square {
+            width: 30mm;
+            height: 30mm;
+            min-width: 113px;
+            min-height: 113px;
+            max-width: 120px;
+            max-height: 120px;
+            background: #fff;
+            border: 2px solid #222;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+        .left-col {
+            width: 80%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .top-row {
+            display: flex;
+            flex-direction: row;
+            height: 80%;
+        }
+        .image-cell {
+            width: 100%;
+            height: 80%;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            border-right: 2px solid #222;
+            border-bottom: 2px solid #222;
+        }
+        .image-square {
+            width: 100%;
+            height: 100%;
+            max-width: 96px;
+            max-height: 96px;
+            background: #e5e7eb;
+            border: 2px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .bottom-row {
+            display: flex;
+            flex-direction: row;
+            height: 20%;
+            border-right: 2px solid #222;
+        }
+        .mode-cell {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 0.5rem;
+        }
+        .led-col {
+            width: 20%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            border-left: 2px solid #222;
+            border-bottom: 2px solid #222;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="main-square">
+            <div class="left-col">
+                <div class="image-cell">
+                    <div class="image-square">
+                        <img id="mode-image" 
+                             src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}" 
+                             alt="Mode Image" 
+                             class="max-w-full max-h-full"
+                             style="display: none;"
+                             onload="this.style.display='block'; this.parentNode.style.background='transparent';"
+                             onerror="this.style.display='none';">
+                        <span class="text-gray-500 text-sm" id="no-image-text">No Image</span>
+                    </div>
+                </div>
+                <div class="bottom-row">
+                    <div class="mode-cell">
+                        <div id="current-mode" class="text-2xl font-bold text-blue-600">{{ current_mode }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="led-col">
+                <div id="status-led" class="status-led status-led-{{ led_color or 0 }}" style="margin-top: 8px;"></div>
+                <div id="status-led-2" class="status-led status-led-{{ led_color or 0 }}" style="margin-top: 6px;"></div>
+                <div id="speed-level" class="text-xs font-bold text-gray-900 mt-1" style="text-align: center;">
+                    {{ speed_level if speed_level is not none else '--' }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
