@@ -117,20 +117,16 @@ class ExplorerWebGUI {
         }
     }
     
-    updateLED(colorValue) {
-        const statusLed = document.getElementById('status-led');
-        
-        if (statusLed) {
-            // Remove all status LED classes
-            statusLed.className = 'status-led';
-            
-            // Add new status class based on integer value
-            const clampedValue = Math.max(0, Math.min(7, colorValue)); // Clamp between 0-7
-            statusLed.classList.add(`status-led-${clampedValue}`);
-            
-            console.log(`LED color updated to: ${clampedValue}`);
+updateLED(active) {
+    const statusLed = document.getElementById('status-led');
+    if (statusLed) {
+        if (active) {
+            statusLed.classList.add('active');
+        } else {
+            statusLed.classList.remove('active');
         }
     }
+}
     
     updateSpeedLevel(level) {
         const speedLevelElement = document.getElementById('speed-level');
