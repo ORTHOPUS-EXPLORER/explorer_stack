@@ -44,7 +44,7 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 0.75
-        image: "joint_6.png" 
+        image: "drink.png" 
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
@@ -97,7 +97,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 1.0
-        image: ""
+        image: "speed.png"
     button:
       - long_click: ""
       - short_click: "B1"

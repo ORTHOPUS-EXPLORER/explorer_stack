@@ -92,41 +92,69 @@ class ExplorerWebGUI {
     }
     
     updateModeImage(mode) {
-        const modeImage = document.getElementById('mode-image');
-        const noImageText = document.getElementById('no-image-text');
         const modeImageContainer = document.getElementById('mode-image-container');
-        
-        if (modeImage && mode) {
-            // Try to load mode-specific image
-            const imagePath = `/static/images/${mode}_simple.png`;
-            
-            // Create a test image to check if it exists
-            const testImg = new Image();
-            testImg.onload = () => {
-                modeImage.src = imagePath;
-                modeImage.style.display = 'block';
-                if (noImageText) noImageText.style.display = 'none';
-                if (modeImageContainer) modeImageContainer.style.backgroundColor = 'transparent';
-            };
-            testImg.onerror = () => {
-                // Fallback to default image
-                modeImage.style.display = 'none';
-                if (noImageText) noImageText.style.display = 'block';
-            };
-            testImg.src = imagePath;
+        const noImageText = document.getElementById('no-image-text');
+        if (!modeImageContainer) return;
+
+        // Remove previous overlays (but keep background)
+        Array.from(modeImageContainer.querySelectorAll('.mode-overlay')).forEach(img => img.remove());
+        if (noImageText) noImageText.style.display = 'none';
+
+        // Get config (assume available as window.explorerConfig)
+        const config = window.explorerConfig;
+        if (!config || !config.button_mappings) {
+            console.warn('No config or button_mappings found');
+            return;
         }
+        // Try both direct and uppercase mode keys
+        let mapping = config.button_mappings[mode];
+        if (!mapping) mapping = config.button_mappings[mode.toUpperCase()];
+        if (!mapping || !mapping.axes) {
+            console.warn('No mapping or axes found for mode:', mode);
+            return;
+        }
+        let overlayFound = false;
+        mapping.axes.forEach(axis => {
+            if (axis.image) {
+                // Debug: show the full image path and check if it exists in the DOM
+                const imagePath = `/static/images/${axis.image}`;
+                console.log('Trying overlay image:', imagePath);
+                const overlayImg = document.createElement('img');
+                overlayImg.src = imagePath;
+                overlayImg.className = 'mode-overlay';
+                overlayImg.style.position = 'absolute';
+                overlayImg.style.top = '0';
+                overlayImg.style.left = '0';
+                overlayImg.style.width = '100%';
+                overlayImg.style.height = '100%';
+                overlayImg.style.objectFit = 'contain';
+                overlayImg.style.zIndex = '2';
+                overlayImg.style.pointerEvents = 'none';
+                overlayImg.onload = () => {
+                    overlayImg.style.display = 'block';
+                    console.log('Overlay image loaded:', imagePath);
+                };
+                overlayImg.onerror = () => {
+                    overlayImg.style.display = 'none';
+                    console.warn('Overlay image failed to load:', imagePath);
+                };
+                modeImageContainer.appendChild(overlayImg);
+                overlayFound = true;
+            }
+        });
+        if (!overlayFound && noImageText) noImageText.style.display = 'block';
     }
     
-updateLED(active) {
-    const statusLed = document.getElementById('status-led');
-    if (statusLed) {
-        if (active) {
-            statusLed.classList.add('active');
-        } else {
-            statusLed.classList.remove('active');
+    updateLED(active) {
+        const statusLed = document.getElementById('status-led');
+        if (statusLed) {
+            if (active) {
+                statusLed.classList.add('active');
+            } else {
+                statusLed.classList.remove('active');
+            }
         }
     }
-}
     
     updateSpeedLevel(level) {
         const speedLevelElement = document.getElementById('speed-level');
