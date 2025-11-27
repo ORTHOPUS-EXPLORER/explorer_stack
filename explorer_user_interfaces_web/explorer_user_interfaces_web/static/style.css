@@ -1,33 +1,18 @@
 /* Explorer Robot Web GUI Styles */
 
-/* Status LED Styles */
 .status-led, #drink-led {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    transition: all 0.3s ease;
     box-shadow: 0 0 4px rgba(0,0,0,0.3);
-    background-color: #6b7280; /* Default gray */
+    background-color: #bbb; /* Inactive: light gray */
+    transition: background 0.3s;
 }
 
-/* Main status LED color (can be updated by JS) */
 .status-led.active {
-    background-color: #3b82f6; /* Blue for active */
-    box-shadow: 0 0 10px #3b82f6;
+    background-color: #10b981 !important; /* Active: green */
 }
 
-/* Drink LED color */
 #drink-led.active {
-    background-color: #10b981 !important; /* Green for drink mode */
-    box-shadow: 0 0 10px #10b981;
-}
-
-/* Status Update Animation */
-.status-update {
-    animation: highlight 0.5s ease;
-}
-
-@keyframes highlight {
-    0% { background-color: #dbeafe; }
-    100% { background-color: transparent; }
+    background-color: #3b82f6 !important; /* Active: blue */
 }
