@@ -33,6 +33,10 @@ class RosBridge:
         # Use a thread-safe queue for updates
         self.update_queue = queue.Queue()
         
+        # Load mode config once at startup
+        config_path = ros_node.get_parameter('mode_config_path').value if ros_node.has_parameter('mode_config_path') else None
+        self.mode_config = load_mode_config(config_path)
+        
         # ROS2 subscribers
         self.mode_subscriber = self.node.create_subscription(
             String,
@@ -66,7 +70,25 @@ class RosBridge:
         if new_mode != self.current_mode:
             self.current_mode = new_mode
             self.node.get_logger().info(f'Mode changed to: {self.current_mode}')
-            # Put update in queue
+            # Check drink axis in config
+            drink_active = False
+            # Assume self.mode_config is loaded and available
+            button_mappings = getattr(self, 'mode_config', {}).get('button_mappings', {})
+            mapping = button_mappings.get(new_mode, {})
+            axes = mapping.get('axes', [])
+            for axis in axes:
+                if axis.get('control_name', '').lower() == 'drink':
+                    drink_active = True
+                    break
+            print(f"[DEBUG] Backend: drink_active for mode {new_mode}: {drink_active}")
+            # Put update in queue for drink LED
+            self.update_queue.put({
+                "type": "drink_led_update",
+                "active": drink_active,
+                "mode": self.current_mode,
+                "timestamp": time.time()
+            })
+            # Put update in queue for mode
             self.update_queue.put({
                 "type": "mode_update",
                 "mode": self.current_mode,

@@ -1,85 +1,25 @@
 /* Explorer Robot Web GUI Styles */
 
-/* Status LED Styles - Based on integer values */
-.status-led {
+/* Status LED Styles */
+.status-led, #drink-led {
     width: 16px;
     height: 16px;
     border-radius: 50%;
     transition: all 0.3s ease;
     box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    background-color: #6b7280; /* Default gray */
 }
 
-/* LED Colors based on integer values */
-.status-led-0 {
-    background-color: #6b7280; /* Gray - Default/Unknown */
-    box-shadow: 0 0 8px rgba(107, 114, 128, 0.4);
+/* Main status LED color (can be updated by JS) */
+.status-led.active {
+    background-color: #3b82f6; /* Blue for active */
+    box-shadow: 0 0 10px #3b82f6;
 }
 
-.status-led-1 {
-    background-color: #ef4444; /* Red */
-    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-}
-
-.status-led-2 {
-    background-color: #f59e0b; /* Orange/Amber */
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-    animation: blink 1s infinite;
-}
-
-.status-led-3 {
-    background-color: #10b981; /* Green */
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-}
-
-.status-led-4 {
-    background-color: #3b82f6; /* Blue */
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-    animation: pulse 2s infinite;
-}
-
-.status-led-5 {
-    background-color: #8b5cf6; /* Purple */
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
-}
-
-.status-led-6 {
-    background-color: #ec4899; /* Pink */
-    box-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
-}
-
-.status-led-7 {
-    background-color: #06b6d4; /* Cyan */
-    box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
-}
-
-/* LED Animations */
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 0.7;
-        transform: scale(1.2);
-    }
-}
-
-@keyframes blink {
-    0%, 50% {
-        opacity: 1;
-    }
-    51%, 100% {
-        opacity: 0.3;
-    }
-}
-
-/* Mode Display Enhancements */
-#mode-image-container {
-    transition: all 0.3s ease;
-}
-
-#mode-image {
-    transition: opacity 0.3s ease;
+/* Drink LED color */
+#drink-led.active {
+    background-color: #10b981 !important; /* Green for drink mode */
+    box-shadow: 0 0 10px #10b981;
 }
 
 /* Status Update Animation */

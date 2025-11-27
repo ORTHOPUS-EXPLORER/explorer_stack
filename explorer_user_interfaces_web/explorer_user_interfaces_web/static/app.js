@@ -46,7 +46,10 @@ class ExplorerWebGUI {
     
     handleMessage(data) {
         console.log('Received message:', data);
-        
+        if (data.type === 'drink_led_update') {
+            console.log('[DEBUG] Frontend: drink_led_update received:', data);
+            this.updateDrinkLED(data.active);
+        }
         switch (data.type) {
             case 'initial':
                 this.updateMode(data.mode);
@@ -70,6 +73,10 @@ class ExplorerWebGUI {
     
     updateMode(mode) {
         const currentModeElement = document.getElementById('current-mode');
+        console.log('[DEBUG] updateMode called with:', mode);
+        if (mode === 'drink' || (typeof mode === 'string' && mode.toLowerCase().includes('drink'))) {
+            console.log('[DEBUG] DRINK MODE ACTIVE (frontend)');
+        }
         if (currentModeElement) {
             currentModeElement.textContent = mode;
             
@@ -129,6 +136,17 @@ class ExplorerWebGUI {
         const speedLevelElement = document.getElementById('speed-level');
         if (speedLevelElement) {
             speedLevelElement.textContent = (level !== undefined && level !== null) ? level : '--';
+        }
+    }
+    
+    updateDrinkLED(active) {
+        const drinkLed = document.getElementById('drink-led');
+        if (drinkLed) {
+            if (active) {
+                drinkLed.classList.add('active');
+            } else {
+                drinkLed.classList.remove('active');
+            }
         }
     }
     
