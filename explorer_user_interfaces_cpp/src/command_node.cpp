@@ -90,7 +90,6 @@ namespace space_control
             default_data.mode_info.name = "default";
             default_data.mode_info.display_name = "Default Mode";
             default_data.mode_info.description = "Fallback mode";
-            default_data.mode_info.default_image = "default.png";
             return default_data;
         };
 
@@ -111,7 +110,6 @@ namespace space_control
             data.mode_info.name = info["name"].as<std::string>("");
             data.mode_info.display_name = info["display_name"].as<std::string>("");
             data.mode_info.description = info["description"].as<std::string>("");
-            data.mode_info.default_image = info["default_image"].as<std::string>("");
         }
 
         // Parse button modes and their configurations
@@ -128,8 +126,6 @@ namespace space_control
                     current_mode_name = mode.name;
                     first = false;
                 }
-
-                mode.image = button_mode["image"].as<std::string>("");
 
                 // axes
                 if (button_mode["axes"]) {
@@ -170,33 +166,33 @@ namespace space_control
 
     bool CommandNode::validateModeData(const ModeData& data)
     {
-        // --- Vérification mode_info ---
+        // --- mode_info verification ---
         if (data.mode_info.name.empty() || data.mode_info.display_name.empty()) {
             RCLCPP_ERROR(n_->get_logger(), 
                 "Invalid YAML: mode_info.name or display_name missing");
             return false;
         }
-
+        // --- button_modes_map verification ---
         if (data.button_modes_map.empty()) {
             RCLCPP_ERROR(n_->get_logger(),
                 "Invalid YAML: button_mappings must contain at least one mode");
             return false;
         }
 
-        // Liste de comportements valides déclarés dans control_behaviors_
+        // Valid control names
         std::unordered_set<std::string> valid_control_names;
         for(const auto& kv : control_behaviors_) valid_control_names.insert(kv.first);
 
-        // Axes joystick valides
+        // Valid joystick axes
         std::unordered_set<std::string> valid_axes = {"ax1", "ax2"};
 
-        // --- Validation interne des modes ---
+        // --- Validate each button mode ---
         for (auto& [name, mode] : data.button_modes_map) {
 
             // Axes check
             for (const auto& axis : mode.axes) {
 
-                // Cas : contrôle désactivé volontairement
+                // Special case: empty control_name means inactive axis
                 if (axis.control_name.empty()) {
                     if (axis.direction != 0) {
                         RCLCPP_ERROR(n_->get_logger(),
@@ -216,33 +212,33 @@ namespace space_control
                             name.c_str());
                         return false;
                     }
-            
                     // skip the rest of validation for this axis
                     continue;
                 }
             
-                // Cas normal : comportement valide obligatoire
+                // Normal validations
+                // control_name verification
                 if (!valid_control_names.count(axis.control_name)) {
                     RCLCPP_ERROR(n_->get_logger(),
                         "Invalid control_name '%s' in mode '%s'",
                         axis.control_name.c_str(), name.c_str());
                     return false;
                 }
-            
+                // joystick_axis verification
                 if (!valid_axes.count(axis.joystick_axis)) {
                     RCLCPP_ERROR(n_->get_logger(),
                         "Invalid joystick_axis '%s' in mode '%s' (must be ax1 or ax2)",
                         axis.joystick_axis.c_str(), name.c_str());
                     return false;
                 }
-            
+                // direction verification
                 if (axis.direction != 1 && axis.direction != -1) {
                     RCLCPP_ERROR(n_->get_logger(),
                         "direction must be 1 or -1 in mode '%s' axis '%s'",
                         name.c_str(), axis.control_name.c_str());
                     return false;
                 }
-            
+                // scale verification
                 if (axis.scale <= 0) {
                     RCLCPP_ERROR(n_->get_logger(),
                         "scale must be > 0 in mode '%s' axis '%s'",

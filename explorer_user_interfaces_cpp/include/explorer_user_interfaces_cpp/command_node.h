@@ -46,7 +46,6 @@ namespace space_control
         std::string name; 
         std::vector<AxisInfo> axes;
         ButtonAction buttons;
-        std::string image;
     };
     
     // Information about the overall mode
@@ -54,7 +53,6 @@ namespace space_control
         std::string name;
         std::string display_name;
         std::string description;
-        std::string default_image;
     };
     
     // Complete mode data structure
