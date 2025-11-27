@@ -6,6 +6,7 @@
 #include "sensor_msgs/msg/joy.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "yaml-cpp/yaml.h"
@@ -81,6 +82,7 @@ namespace space_control
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr mode_name_pub_;
         rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
         rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub_;
 
         rclcpp::TimerBase::SharedPtr timer_;
         
@@ -106,6 +108,7 @@ namespace space_control
         // Velocity messages
         geometry_msgs::msg::TwistStamped cartesian_vel_;
         std_msgs::msg::Float64MultiArray joint_vel_;
+        std_msgs::msg::Float64 gripper_vel_;
 
         explorer_msgs::msg::ControlFrameSelection frame_id_;
 
@@ -130,6 +133,7 @@ namespace space_control
         void joint_direct(const AxisInfo& axis_info);
         void change_speed(const AxisInfo& axis_info);
         void drink(const AxisInfo& axis_info);
+        void gripper(const AxisInfo& axis_info);
 
     };
 

@@ -7,14 +7,14 @@ mode_info:
 button_mappings:
   B1:
     axes:
-      - control_name: "cartesian_X"
+      - control_name: "cartesian_Y"
         joystick_axis: "ax1"
         direction: 1
-        scale: 0.1  
-      - control_name: "cartesian_Y"
+        scale: 3.0  
+      - control_name: "cartesian_X"
         joystick_axis: "ax2"
-        direction: -1
-        scale: 0.1
+        direction: 1
+        scale: 3.0
     button:
       - long_click: "A1"
       - short_click: "B2"
@@ -25,30 +25,60 @@ button_mappings:
       - control_name: "joint_6"
         joystick_axis: "ax1"
         direction: 1
-        scale: 0.1 
+        scale: 0.75 
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
-        direction: -1
-        scale: 0.1
+        direction: 1
+        scale: 3.0
     button:
-      - long_click: ""
+      - long_click: "DRINK"
       - short_click: "B3"
     image: "B2_simple.png"
   
-  B3:
+  DRINK:
     axes:
       - control_name: "drink"
         joystick_axis: "ax1"
         direction: 1
-        scale: 0.1
+        scale: 0.75
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
-        direction: -1
-        scale: 0.1
+        direction: 1
+        scale: 3.0
+    button:
+      - long_click: ""
+      - short_click: "B2"
+    image: "B3_simple.png"
+
+  B3:
+    axes:
+      - control_name: "rotation_Z"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 0.75 
+      - control_name: "rotation_Y"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 0.75
+    button:
+      - long_click: ""
+      - short_click: "B4"
+    image: "B3_simple.png"
+
+  B4:
+    axes:
+      - control_name: "gripper"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 1.0 
+      - control_name: ""
+        joystick_axis: ""
+        direction: 0
+        scale: 0.0
     button:
       - long_click: ""
       - short_click: "B1"
-    image: "B3_simple.png"
+    image: "B2_simple.png"
 
   A1:
     axes:

@@ -34,6 +34,7 @@ namespace space_control
             {"joint_6",      std::bind(&CommandNode::joint_direct, this, std::placeholders::_1)},
             {"change_speed",      std::bind(&CommandNode::change_speed, this, std::placeholders::_1)},
             {"drink",      std::bind(&CommandNode::drink, this, std::placeholders::_1)},
+            {"gripper",      std::bind(&CommandNode::gripper, this, std::placeholders::_1)}
         };
 
         n_->declare_parameter<std::string>("mode_file", "");
@@ -60,6 +61,7 @@ namespace space_control
         mode_name_pub_ = n->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
         speed_level_pub_ = n->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
         frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/qp_solving/control_frame_selection", 10);
+        gripper_pub_ = n->create_publisher<std_msgs::msg::Float64>("command_node/gripper_velocity_command", 10);
 
         // Timer callback 
         timer_ = n->create_timer(100ms, std::bind(&CommandNode::timer, this));
@@ -323,6 +325,7 @@ namespace space_control
         }
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
+        gripper_pub_->publish(gripper_vel_);
     }
 
     void CommandNode::executeBehavior(const AxisInfo& axis) {
@@ -352,6 +355,7 @@ namespace space_control
         cartesian_vel_.twist.linear = geometry_msgs::msg::Vector3();
         cartesian_vel_.twist.angular = geometry_msgs::msg::Vector3();
         joint_vel_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        gripper_vel_.data = 0.0;
     }
 
     // Behavior implementations
@@ -463,6 +467,15 @@ namespace space_control
         frame_id_.orientation_control_frame = 3;
     }
 
+    void CommandNode::gripper(const AxisInfo& axis_info) {
+        // Determine joystick axis value
+        float value = 0.0;
+        
+        value = readAxisValue(axis_info);
+
+        // Assign to gripper velocity
+        gripper_vel_.data = value;
+    }
 
 }
 
