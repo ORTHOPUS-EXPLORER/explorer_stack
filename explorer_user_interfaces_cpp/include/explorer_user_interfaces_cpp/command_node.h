@@ -9,6 +9,7 @@
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "geometry_msgs/msg/pose.hpp"
 #include "yaml-cpp/yaml.h"
 #include <fstream>
 #include "explorer_user_interfaces_cpp/button_handler.h"
@@ -73,6 +74,7 @@ namespace space_control
 
         // Subscribers
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
 
         // Publishers
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
@@ -103,6 +105,10 @@ namespace space_control
         float speed_change_threshold;
         float speed_level_multiplier;
 
+        bool complex_mode_;
+        double v_x;
+        double v_y;
+
         // Velocity messages
         geometry_msgs::msg::TwistStamped cartesian_vel_;
         std_msgs::msg::Float64MultiArray joint_vel_;
@@ -110,10 +116,14 @@ namespace space_control
 
         explorer_msgs::msg::ControlFrameSelection frame_id_;
 
+        geometry_msgs::msg::Pose x_current_;
+
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);
 
         void callback_joystick(const sensor_msgs::msg::Joy & msg);
+
+        void callback_x_current(const geometry_msgs::msg::Pose & msg);
 
         void timer();
         
@@ -125,6 +135,8 @@ namespace space_control
 
         void resetVelocities();
 
+        void complex_calculation();
+
         // Behavior functions
         void cartesian_linear(const AxisInfo& axis_info);
         void cartesian_rotation(const AxisInfo& axis_info); 
@@ -132,7 +144,8 @@ namespace space_control
         void change_speed(const AxisInfo& axis_info);
         void drink(const AxisInfo& axis_info);
         void gripper(const AxisInfo& axis_info);
-
+        void complex(const AxisInfo& axis_info);
+    
     };
 
 

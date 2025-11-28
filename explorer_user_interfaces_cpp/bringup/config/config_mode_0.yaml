@@ -7,12 +7,12 @@ mode_info:
 button_mappings:
   B1:
     axes:
-      - control_name: "cartesian_Y"
+      - control_name: "complex_Y"
         joystick_axis: "ax1"
         direction: 1
         scale: 3.0
         image: "cartesian_Y.png"  
-      - control_name: "cartesian_X"
+      - control_name: "complex_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
@@ -44,7 +44,7 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 0.75
-        image: "drink.png" 
+        image: "joint_6.png" 
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
@@ -97,7 +97,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 1.0
-        image: "speed.png"
+        image: ""
     button:
       - long_click: ""
       - short_click: "B1"

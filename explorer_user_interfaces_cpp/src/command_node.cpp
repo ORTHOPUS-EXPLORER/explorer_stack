@@ -34,7 +34,9 @@ namespace space_control
             {"joint_6",      std::bind(&CommandNode::joint_direct, this, std::placeholders::_1)},
             {"change_speed",      std::bind(&CommandNode::change_speed, this, std::placeholders::_1)},
             {"drink",      std::bind(&CommandNode::drink, this, std::placeholders::_1)},
-            {"gripper",      std::bind(&CommandNode::gripper, this, std::placeholders::_1)}
+            {"gripper",      std::bind(&CommandNode::gripper, this, std::placeholders::_1)},
+            {"complex_X",      std::bind(&CommandNode::complex, this, std::placeholders::_1)},
+            {"complex_Y",      std::bind(&CommandNode::complex, this, std::placeholders::_1)}
         };
 
         n_->declare_parameter<std::string>("mode_file", "");
@@ -55,6 +57,7 @@ namespace space_control
         
         // Initialize subscribers and publishers
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
+        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
 
         joint_vel_pub_ = n->create_publisher<std_msgs::msg::Float64MultiArray>("command_node/joint_velocity_command", 10);
         cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("command_node/cartesian_velocity_command", 10);
@@ -74,6 +77,8 @@ namespace space_control
         speed_factor = 1.0;
         speed_level = 2;
         joy_prec = 0.0;
+
+        complex_mode_ = false;
 
         // Initialize Cartesian and joint velocities to zero
         resetVelocities();
@@ -296,15 +301,25 @@ namespace space_control
         button_handler.update(button_actual);
     }
 
+    void CommandNode::callback_x_current(const geometry_msgs::msg::Pose & msg) {
+        x_current_ = msg;
+    }
+
     void CommandNode::timer() {
         // Reset velocities
         resetVelocities();
+
+        complex_mode_ = false;
 
         ButtonMode mode = data.button_modes_map[current_mode_name];
 
         // Execute control behaviors for each axis in the current mode
         for (const auto& axis : mode.axes) {
             executeBehavior(axis);
+        }
+
+        if(complex_mode_) {
+            complex_calculation();
         }
 
         // Publish the computed velocities
@@ -352,6 +367,17 @@ namespace space_control
         cartesian_vel_.twist.angular = geometry_msgs::msg::Vector3();
         joint_vel_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         gripper_vel_.data = 0.0;
+    }
+
+    void CommandNode::complex_calculation() {
+        double omega_z = 0.0;
+        double x_E = x_current_.position.x;
+        double y_E = x_current_.position.y;
+        double denom = x_E * x_E + y_E * y_E;
+        if(denom > 1e-6) {
+            omega_z = (x_E * v_y - y_E * v_x) / denom;
+        }
+        cartesian_vel_.twist.angular.z = omega_z;
     }
 
     // Behavior implementations
@@ -473,6 +499,26 @@ namespace space_control
         gripper_vel_.data = value;
     }
 
+
+    void CommandNode::complex(const AxisInfo& axis_info) {
+        // Placeholder for complex behavior implementation
+        float value = 0.0;
+
+        complex_mode_ = true;
+   
+        value = readAxisValue(axis_info);
+
+        // Assign to appropriate complex mode variables
+        if (axis_info.control_name == "complex_X") {
+            v_x = value;
+            cartesian_vel_.twist.linear.x = value;
+        }
+        if (axis_info.control_name == "complex_Y") {
+            v_y = value;
+            cartesian_vel_.twist.linear.y = value;
+        }
+    }
+    
 }
 
 using namespace space_control;
