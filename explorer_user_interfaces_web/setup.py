@@ -22,7 +22,7 @@ setup(
             'explorer_user_interfaces_web/templates/index.html'
         ]),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'pynput'],
     zip_safe=True,
     maintainer='isea.jean@orthopus.com',
     maintainer_email='isea.jean@orthopus.com',
@@ -32,6 +32,7 @@ setup(
     entry_points={
         'console_scripts': [
             'web_gui_node = explorer_user_interfaces_web.web_gui_node:main',
+            'keyboard_to_joy = explorer_user_interfaces_web.keyboard_to_joy.keyboard_to_joy:main',
         ],
     },
 )
