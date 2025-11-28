@@ -15,11 +15,11 @@
             max-width: 120px;
             max-height: 120px;
             background: #fff;
-            border: 2px solid #222;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: row;
             overflow: hidden;
+            border: black 1px solid;
         }
         .left-col {
             width: 80%;
@@ -38,8 +38,6 @@
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
-            border-right: 2px solid #222;
-            border-bottom: 2px solid #222;
         }
         .image-square {
             width: 100%;
@@ -47,7 +45,6 @@
             max-width: 96px;
             max-height: 96px;
             background: #e5e7eb;
-            border: 2px solid #222;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -76,7 +73,8 @@
             display: flex;
             flex-direction: row;
             height: 20%;
-            border-right: 2px solid #222;
+            background: #eeeeee;
+            border-top: black 1px solid;
         }
         .mode-cell {
             width: 100%;
@@ -92,8 +90,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            border-left: 2px solid #222;
-            border-bottom: 2px solid #222;
+            background: #eeeeee;
+            border-left: black 1px solid;
         }
     </style>
 </head>
@@ -119,7 +117,7 @@
                 </div>
                 <div class="bottom-row">
                     <div class="mode-cell">
-                        <div id="current-mode" class="text-2xl font-bold text-blue-600">{{ current_mode }}</div>
+                        <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
                     </div>
                 </div>
             </div>
