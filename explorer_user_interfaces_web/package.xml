@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>Web-based GUI for Explorer robot control interfaces</description>
 
-  <maintainer email="isea.jean@orthopus.com"></maintainer>
+  <maintainer email="thomas.solatges@orthopus.com"></maintainer>
 
   <license>Apache-2.0</license>
 
