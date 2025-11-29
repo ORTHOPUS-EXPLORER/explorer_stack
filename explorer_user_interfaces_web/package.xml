@@ -25,9 +25,6 @@
   <exec_depend>python3-pip</exec_depend>
   <exec_depend>python3-pynput</exec_depend>
   
-  <!-- Note: fastapi and uvicorn are not available through rosdep -->
-  <!-- Install manually with: pip3 install -r requirements.txt -->
-
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
