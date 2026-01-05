@@ -4,17 +4,21 @@ namespace space_control
 {
     CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
     : n_(n),
-      button_handler()
+      button_handler(),
+      trajectory_manager(),
+      controller_switcher(n)
     {
         RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
         n_->declare_parameter<int>("button_threshold_ms", 500);
         n_->declare_parameter<double>("speed_change_threshold", 0.95);
         n_->declare_parameter<double>("speed_level_multiplier", 0.25);
+        n_->declare_parameter<double>("sampling_period", 0.01);
 
         button_threshold_ms = n_->get_parameter("button_threshold_ms").as_int();
         speed_change_threshold = n_->get_parameter("speed_change_threshold").as_double();
         speed_level_multiplier = n_->get_parameter("speed_level_multiplier").as_double();
+        sampling_period_ = n_->get_parameter("sampling_period").as_double();
 
         button_handler.init(button_threshold_ms);
 
@@ -36,16 +40,18 @@ namespace space_control
             {"drink",      std::bind(&CommandNode::drink, this, std::placeholders::_1)},
             {"gripper",      std::bind(&CommandNode::gripper, this, std::placeholders::_1)},
             {"complex_X",      std::bind(&CommandNode::complex, this, std::placeholders::_1)},
-            {"complex_Y",      std::bind(&CommandNode::complex, this, std::placeholders::_1)}
+            {"complex_Y",      std::bind(&CommandNode::complex, this, std::placeholders::_1)},
+            {"trajectory_control",      std::bind(&CommandNode::trajectory_control, this, std::placeholders::_1)}
         };
 
         n_->declare_parameter<std::string>("mode_file", "");
+        n_->declare_parameter<std::string>("trajectory_file", "");
 
         // Get the value of the mode_file parameter
         std::string mode_file;
         n_->get_parameter("mode_file", mode_file);
 
-         // Load mode configuration from YAML file
+        // Load mode configuration from YAML file
         data = loadModeData(mode_file);
 
         if (!validateModeData(data)) {
@@ -54,20 +60,27 @@ namespace space_control
             rclcpp::shutdown();
             return;
         }
-        
+
+        // Get the value of the trajectory_file parameter
+        std::string trajectory_file;
+        n_->get_parameter("trajectory_file", trajectory_file);
+
+        trajectory_manager.loadTrajectory(trajectory_file);
+
         // Initialize subscribers and publishers
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
-        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
+        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/command_node/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
+        q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
 
         joint_vel_pub_ = n->create_publisher<std_msgs::msg::Float64MultiArray>("command_node/joint_velocity_command", 10);
         cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("command_node/cartesian_velocity_command", 10);
         mode_name_pub_ = n->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
         speed_level_pub_ = n->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
-        frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/qp_solving/control_frame_selection", 10);
+        frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/command_node/control_frame_selection", 10);
         gripper_pub_ = n->create_publisher<std_msgs::msg::Float64>("command_node/gripper_velocity_command", 10);
-
-        // Timer callback 
-        timer_ = n->create_timer(100ms, std::bind(&CommandNode::timer, this));
+        trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>("joint_trajectory_controller/joint_trajectory", 10);
+        reset_qp_solving_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
+        retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
 
         // Initialize joystick axes and button states
         axis_1 = 0.0;
@@ -85,6 +98,12 @@ namespace space_control
 
         frame_id_.position_control_frame = 0;
         frame_id_.orientation_control_frame = 0;
+
+        lock_ = true;
+        retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
+
+        // Timer callback
+        timer_ = n_->create_wall_timer(std::chrono::duration<double>(sampling_period_), std::bind(&CommandNode::timer, this));
     }
 
     // Load mode configuration from YAML file
@@ -276,8 +295,6 @@ namespace space_control
         return true;
     }
 
-    
-
     void CommandNode::callback_joystick(const sensor_msgs::msg::Joy & msg) {
         bool button_actual;
         std::lock_guard<std::mutex> lock_axis(mutex_axis_); 
@@ -305,7 +322,208 @@ namespace space_control
         x_current_ = msg;
     }
 
+    void CommandNode::callback_q_current_(const sensor_msgs::msg::JointState & msg) {
+        if (!init) {
+            current_pos_ = msg;
+            // Check for explorer
+            bool valid_explorer = std::all_of(expected_names_explorer.begin(), expected_names_explorer.end(), [&](const std::string &name) {
+                if (
+                    name == "left_external_rod_joint_mimic" ||
+                    name == "left_fingertip_joint_mimic" ||
+                    name == "left_finger_joint_mimic" ||
+                    name == "right_external_rod_joint_mimic" ||
+                    name == "right_fingertip_joint_mimic"
+                ) {
+                    // allow them to be missing
+                    return true;
+                }
+                return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
+            });
+    
+            // Check for wheelchair
+            bool all_wheelchair =
+                std::all_of(expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
+                            [&](const std::string &name) {
+                                return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
+                            });
+    
+            // Check for any wheelchair joints present
+            bool any_wheelchair =
+                std::any_of(expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
+                            [&](const std::string &name) {
+                                return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
+                            });
+    
+            // CASES:
+            if (valid_explorer && all_wheelchair) {
+                mode = Mode::FULL;
+                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
+            } else if (valid_explorer && !any_wheelchair) {
+                mode = Mode::EXPLORER;
+                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
+            } else {
+                mode = Mode::INVALID;
+                RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Invalid joint configuration detected! Initialization failed.");
+                // Optionally, handle the error (throw, return, etc)
+                // return;
+            }
+    
+            if (valid_explorer && all_wheelchair) {
+                mode = Mode::FULL;
+                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
+                
+                // Build order: wheelchair first, then explorer
+                joint_order.clear();
+                joint_order.reserve(expected_names_wheelchair.size() + expected_names_explorer.size());
+                for (const auto &name : expected_names_wheelchair) {
+                    auto it = std::find(msg.name.begin(), msg.name.end(), name);
+                    joint_order.push_back(std::distance(msg.name.begin(), it));
+                }
+                for (const auto &name : expected_names_explorer) {
+                    auto it = std::find(msg.name.begin(), msg.name.end(), name);
+                    if (it != msg.name.end()) {
+                        joint_order.push_back(std::distance(msg.name.begin(), it));
+                    } else if (
+                        name == "left_external_rod_joint_mimic" ||
+                        name == "left_fingertip_joint_mimic" ||
+                        name == "left_finger_joint_mimic" ||
+                        name == "right_external_rod_joint_mimic" ||
+                        name == "right_fingertip_joint_mimic"
+                    ) {
+                        // fallback to "right_finger_joint"
+                        auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
+                        if (fallback_it != msg.name.end()) {
+                            joint_order.push_back(std::distance(msg.name.begin(), fallback_it));
+                            RCLCPP_WARN(n_->get_logger(), "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
+                        } else {
+                            RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
+                        }
+                    } else {
+                        RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Joint %s not found!", name.c_str());
+                    }
+                }
+                init = true;
+                return;
+            } else if (valid_explorer && !any_wheelchair) {
+                mode = Mode::EXPLORER;
+                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
+                
+                // Build order: just the explorer
+                joint_order.clear();
+                joint_order.reserve(expected_names_explorer.size());
+                for (const auto &name : expected_names_explorer) {
+                    auto it = std::find(msg.name.begin(), msg.name.end(), name);
+                    if (it != msg.name.end()) {
+                        joint_order.push_back(std::distance(msg.name.begin(), it));
+                    } else if (
+                        name == "left_external_rod_joint_mimic" ||
+                        name == "left_fingertip_joint_mimic" ||
+                        name == "left_finger_joint_mimic" ||
+                        name == "right_external_rod_joint_mimic" ||
+                        name == "right_fingertip_joint_mimic"
+                    ) {
+                        auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
+                        if (fallback_it != msg.name.end()) {
+                            joint_order.push_back(std::distance(msg.name.begin(), fallback_it));
+                            RCLCPP_WARN(n_->get_logger(), "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
+                        } else {
+                            RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
+                            return;
+                        }
+                    } else {
+                        RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Joint %s not found and no fallback defined", name.c_str());
+                        return;
+                    }
+                }
+    
+                // Debug: Print out sizes to check bounds
+                RCLCPP_INFO(n_->get_logger(), "joint_order.size() = %zu", joint_order.size());
+                RCLCPP_INFO(n_->get_logger(), "current_pos_.name.size() = %zu", current_pos_.name.size());
+    
+                // Decide safe upper bound
+                int safe_limit = std::min<int>(joint_order.size(), current_pos_.name.size());
+                int n_to_print = std::min<int>(safe_limit, (wheelchair ? 20 : 12));
+    
+                for (int i = 0; i < n_to_print; i++) {
+                    RCLCPP_INFO(n_->get_logger(), "Joint order[%d]: %d, Name: %s", 
+                                i, 
+                                joint_order[i], 
+                                current_pos_.name[joint_order[i]].c_str());
+                }
+                // If there's a mismatch, warn
+                if (joint_order.size() < static_cast<size_t>(n_to_print) || current_pos_.name.size() < static_cast<size_t>(n_to_print)) {
+                    RCLCPP_WARN(n_->get_logger(), "WARNING: joint_order or current_pos_.name was smaller than expected! Potential config problem.");
+                }
+                init = true;
+                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Init done.");
+                return;
+            }
+        }
+    
+        current_pos_ = msg;
+    }
+
+    void CommandNode::handle_controller_state()
+    {
+        switch (control_state_) {
+
+            case ControlState::FORWARD:
+                reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(false));
+                if (trajectory_requested_) {
+                    RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO TRAJECTORY MODE");
+                    control_state_ = ControlState::SWITCHING_TO_TRAJ;
+                }
+                break;
+
+            case ControlState::SWITCHING_TO_TRAJ:
+                if (!switch_in_progress_) {
+                    switch_in_progress_ = true;
+                    if (controller_switcher.switch_controller({"forward_position_controller"}, {"joint_trajectory_controller"})) {
+                        RCLCPP_INFO(n_->get_logger(), "Switched to joint_trajectory_controller");
+                        control_state_ = ControlState::TRAJECTORY;
+                        switch_in_progress_ = false;
+                    } else {
+                        RCLCPP_ERROR(n_->get_logger(), "Failed to switch to joint_trajectory_controller");
+                        control_state_ = ControlState::FORWARD;
+                        switch_in_progress_ = false;
+                    }
+                }
+                break;
+
+            case ControlState::TRAJECTORY:
+                if (!trajectory_requested_) {
+                    RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO FORWARD MODE");
+                    control_state_ = ControlState::SWITCHING_TO_FORWARD;
+                }
+                break;
+
+            case ControlState::SWITCHING_TO_FORWARD:
+                if (!switch_in_progress_) {
+                    switch_in_progress_ = true;
+
+                    trajectory_manager.reset();
+                    
+                    reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(true));
+
+                    if (controller_switcher.switch_controller({"joint_trajectory_controller"}, {"forward_position_controller"})) {
+                        RCLCPP_INFO(n_->get_logger(), "Switched to forward_position_controller");
+                        control_state_ = ControlState::FORWARD;
+                        RCLCPP_INFO(n_->get_logger(), "→ FORWARD MODE");
+                        switch_in_progress_ = false;
+                    } else {
+                        RCLCPP_INFO(n_->get_logger(), "Failed to switch to forward_position_controller");
+                        control_state_ = ControlState::TRAJECTORY;
+                        switch_in_progress_ = false;
+                    }
+
+                    
+                }
+                break;
+        }
+    }
+
     void CommandNode::timer() {
+
         // Reset velocities
         resetVelocities();
 
@@ -313,14 +531,18 @@ namespace space_control
 
         ButtonMode mode = data.button_modes_map[current_mode_name];
 
+        trajectory_requested_ = false;
+
         // Execute control behaviors for each axis in the current mode
         for (const auto& axis : mode.axes) {
             executeBehavior(axis);
         }
 
-        if(complex_mode_) {
+        if(complex_mode_ && !lock_) {
             complex_calculation();
         }
+
+        handle_controller_state();
 
         // Publish the computed velocities
         cartesian_vel_pub_->publish(cartesian_vel_);
@@ -337,6 +559,8 @@ namespace space_control
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
         gripper_pub_->publish(gripper_vel_);
+        retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
+        
     }
 
     void CommandNode::executeBehavior(const AxisInfo& axis) {
@@ -382,68 +606,77 @@ namespace space_control
 
     // Behavior implementations
     void CommandNode::cartesian_linear(const AxisInfo& axis_info) {
-        // Determine joystick axis value
-        float value = 0.0;
-        
-        value = readAxisValue(axis_info);
-        
-        // Assign to the appropriate Cartesian linear velocity component
-        if (axis_info.control_name == "cartesian_X") {
-            cartesian_vel_.twist.linear.x = value;
-        } else if (axis_info.control_name == "cartesian_Y") {
-            cartesian_vel_.twist.linear.y = value;
-        } else if (axis_info.control_name == "cartesian_Z") {
-            cartesian_vel_.twist.linear.z = value;
+        if(!lock_) {
+
+            // Determine joystick axis value
+            float value = 0.0;
+            
+            value = readAxisValue(axis_info);
+            
+            // Assign to the appropriate Cartesian linear velocity component
+            if (axis_info.control_name == "cartesian_X") {
+                cartesian_vel_.twist.linear.x = value;
+            } else if (axis_info.control_name == "cartesian_Y") {
+                cartesian_vel_.twist.linear.y = value;
+            } else if (axis_info.control_name == "cartesian_Z") {
+                cartesian_vel_.twist.linear.z = value;
+            }
         }
     }
 
     void CommandNode::cartesian_rotation(const AxisInfo& axis_info) {
-        // Determine joystick axis value
-        float value = 0.0;
-        
-        value = readAxisValue(axis_info);
-        
-        // Assign to the appropriate Cartesian angular velocity component
-        if (axis_info.control_name == "rotation_X") {
-            cartesian_vel_.twist.angular.x = value;
-        } else if (axis_info.control_name == "rotation_Y") {
-            cartesian_vel_.twist.angular.y = value;
-        } else if (axis_info.control_name == "rotation_Z") {
-            cartesian_vel_.twist.angular.z = value;
-        }
+        if(!lock_) {
 
-        frame_id_.orientation_control_frame = 0;
+            // Determine joystick axis value
+            float value = 0.0;
+            
+            value = readAxisValue(axis_info);
+            
+            // Assign to the appropriate Cartesian angular velocity component
+            if (axis_info.control_name == "rotation_X") {
+                cartesian_vel_.twist.angular.x = value;
+            } else if (axis_info.control_name == "rotation_Y") {
+                cartesian_vel_.twist.angular.y = value;
+            } else if (axis_info.control_name == "rotation_Z") {
+                cartesian_vel_.twist.angular.z = value;
+            }
+
+            frame_id_.orientation_control_frame = 0;
+        }
     }
 
     void CommandNode::joint_direct(const AxisInfo& axis_info) {
-        // Determine joystick axis value
-        float value = 0.0;
-        
-        value = readAxisValue(axis_info);
-
-        // Assign to the appropriate joint velocity component
-        if (axis_info.control_name == "joint_1") {
-            joint_vel_.data[0] = value;
-        }
-        else if (axis_info.control_name == "joint_2") {
-            joint_vel_.data[1] = value;
-        }
-        else if (axis_info.control_name == "joint_3") {
-            joint_vel_.data[2] = value;
-        }
-        else if (axis_info.control_name == "joint_4") {
-            joint_vel_.data[3] = value;
-        }
-        else if (axis_info.control_name == "joint_5") {
-            joint_vel_.data[4] = value;
-        }
-        else if (axis_info.control_name == "joint_6") {
-            cartesian_vel_.twist.angular.x = value;
-            // Set control frame to end-effector for joint 6 control
-            frame_id_.orientation_control_frame = 1;
+        if(!lock_) {
             
-        } 
+            // Determine joystick axis value
+            float value = 0.0;
+            
+            value = readAxisValue(axis_info);
 
+            // Assign to the appropriate joint velocity component
+            if (axis_info.control_name == "joint_1") {
+                joint_vel_.data[0] = value;
+            }
+            else if (axis_info.control_name == "joint_2") {
+                joint_vel_.data[1] = value;
+            }
+            else if (axis_info.control_name == "joint_3") {
+                joint_vel_.data[2] = value;
+            }
+            else if (axis_info.control_name == "joint_4") {
+                joint_vel_.data[3] = value;
+            }
+            else if (axis_info.control_name == "joint_5") {
+                joint_vel_.data[4] = value;
+            }
+            else if (axis_info.control_name == "joint_6") {
+                cartesian_vel_.twist.angular.x = value;
+                // Set control frame to end-effector for joint 6 control
+                frame_id_.orientation_control_frame = 1;
+                
+            } 
+        }
+        
     }
 
     void CommandNode::change_speed(const AxisInfo& axis_info) {
@@ -477,46 +710,81 @@ namespace space_control
     }
 
     void CommandNode::drink(const AxisInfo& axis_info) {
-        // Determine joystick axis value
-        float value = 0.0;
+        if(!lock_) {
+            
+            // Determine joystick axis value
+            float value = 0.0;
+            
+            value = readAxisValue(axis_info);
+
+            // Assign to the appropriate joint velocity component for drinking action
+            cartesian_vel_.twist.angular.x = value;
+
+            // Set control frame to end-effector for drinking action
+            frame_id_.orientation_control_frame = 3;
+        }
         
-        value = readAxisValue(axis_info);
-
-        // Assign to the appropriate joint velocity component for drinking action
-        cartesian_vel_.twist.angular.x = value;
-
-        // Set control frame to end-effector for drinking action
-        frame_id_.orientation_control_frame = 3;
     }
 
     void CommandNode::gripper(const AxisInfo& axis_info) {
-        // Determine joystick axis value
-        float value = 0.0;
-        
-        value = readAxisValue(axis_info);
+        if(!lock_) { 
+            
+            // Determine joystick axis value
+            float value = 0.0;
+            
+            value = readAxisValue(axis_info);
 
-        // Assign to gripper velocity
-        gripper_vel_.data = value;
+            // Assign to gripper velocity
+            gripper_vel_.data = value;
+        }
+       
     }
 
 
     void CommandNode::complex(const AxisInfo& axis_info) {
-        // Placeholder for complex behavior implementation
-        float value = 0.0;
+        if(!lock_) {
+            // Placeholder for complex behavior implementation
+            float value = 0.0;
 
-        complex_mode_ = true;
-   
-        value = readAxisValue(axis_info);
+            complex_mode_ = true;
+    
+            value = readAxisValue(axis_info);
 
-        // Assign to appropriate complex mode variables
-        if (axis_info.control_name == "complex_X") {
-            v_x = value;
-            cartesian_vel_.twist.linear.x = value;
+            // Assign to appropriate complex mode variables
+            if (axis_info.control_name == "complex_X") {
+                v_x = value;
+                cartesian_vel_.twist.linear.x = value;
+            }
+            if (axis_info.control_name == "complex_Y") {
+                v_y = value;
+                cartesian_vel_.twist.linear.y = value;
+            }
         }
-        if (axis_info.control_name == "complex_Y") {
-            v_y = value;
-            cartesian_vel_.twist.linear.y = value;
+
+    }
+
+    void CommandNode::trajectory_control(const AxisInfo& axis_info)
+    {
+        trajectory_requested_ = true;
+        
+        trajectory_msgs::msg::JointTrajectory traj_msg;
+        
+        if (control_state_ != ControlState::TRAJECTORY) {
+            return;  // pas encore actif → on attend le switch
         }
+
+        for (size_t i = 0; i < 7; ++i) {
+            q_current_[i] = current_pos_.position[joint_order[i]];
+        }
+        
+        float value = readAxisValue(axis_info);
+        trajectory_manager.update(q_current_, value);
+        
+        lock_ = trajectory_manager.getLock();
+
+        traj_msg = trajectory_manager.getTrajectory();
+
+        trajectory_pub_->publish(traj_msg);
     }
     
 }

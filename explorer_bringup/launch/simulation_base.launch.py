@@ -120,6 +120,12 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
     )
+
+    trajectory_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_trajectory_controller", "--controller-manager", "/controller_manager", "--inactive"],
+    )
     
     controllers_control_node = Node(package="controller_manager",
         executable="ros2_control_node",
@@ -137,6 +143,7 @@ def generate_launch_description():
                 on_exit=[
                     joint_state_broadcaster_spawner,
                     robot_controller_spawner,
+                    trajectory_controller_spawner,
                     controllers_control_node,
                 ],
             )

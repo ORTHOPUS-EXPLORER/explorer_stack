@@ -4,17 +4,23 @@
 #include <ctime>
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "yaml-cpp/yaml.h"
 #include <fstream>
 #include "explorer_user_interfaces_cpp/button_handler.h"
+#include "explorer_user_interfaces_cpp/trajectory_manager.h"
 #include "explorer_msgs/msg/control_frame_selection.hpp"
-
+#include "controller_manager_msgs/srv/switch_controller.hpp"
+#include "atomic"
+#include <controller_manager_msgs/srv/list_controllers.hpp>
+#include "explorer_user_interfaces_cpp/controller_switcher.h"
 
 using namespace std::chrono;
 
@@ -71,10 +77,13 @@ namespace space_control
         rclcpp::Node::SharedPtr n_;
         
         ButtonHandler button_handler;
+        TrajectoryManager trajectory_manager;
+        ControllerSwitcher controller_switcher;
 
         // Subscribers
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
+        rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
 
         // Publishers
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
@@ -83,6 +92,9 @@ namespace space_control
         rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
         rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub_;
+        rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
+        rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reset_qp_solving_pub_;
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr retract_status_pub_;
 
         rclcpp::TimerBase::SharedPtr timer_;
         
@@ -95,6 +107,7 @@ namespace space_control
         float axis_2 RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0;
 
         int button_threshold_ms;
+        double sampling_period_;
 
         ModeData data;
 
@@ -106,8 +119,25 @@ namespace space_control
         float speed_level_multiplier;
 
         bool complex_mode_;
-        double v_x;
-        double v_y;
+        double v_x = 0.0;
+        double v_y = 0.0;
+
+        bool lock_;
+
+        enum class ControlState
+        {
+            FORWARD,        // forward_position_controller
+            SWITCHING_TO_TRAJ,
+            TRAJECTORY,    // joint_trajectory_controller
+            SWITCHING_TO_FORWARD
+        };
+
+        ControlState control_state_ = ControlState::FORWARD;
+        
+        bool trajectory_requested_ = false;
+        bool switch_in_progress_ = false;
+
+        sensor_msgs::msg::JointState current_state_;
 
         // Velocity messages
         geometry_msgs::msg::TwistStamped cartesian_vel_;
@@ -117,6 +147,21 @@ namespace space_control
         explorer_msgs::msg::ControlFrameSelection frame_id_;
 
         geometry_msgs::msg::Pose x_current_;
+        std::array<double,7> q_current_;
+
+        sensor_msgs::msg::JointState current_pos_;
+
+        bool init;
+        bool wheelchair;
+        bool first_use;
+
+        enum class Mode { INVALID, EXPLORER, FULL };
+
+        std::vector<std::string> expected_names_explorer = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
+        std::vector<std::string> expected_names_wheelchair = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint"};
+
+        std::vector<size_t> joint_order;
+        Mode mode;
 
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);
@@ -124,6 +169,10 @@ namespace space_control
         void callback_joystick(const sensor_msgs::msg::Joy & msg);
 
         void callback_x_current(const geometry_msgs::msg::Pose & msg);
+
+        void callback_q_current_(const sensor_msgs::msg::JointState & msg);
+
+        void handle_controller_state();
 
         void timer();
         
@@ -145,6 +194,7 @@ namespace space_control
         void drink(const AxisInfo& axis_info);
         void gripper(const AxisInfo& axis_info);
         void complex(const AxisInfo& axis_info);
+        void trajectory_control(const AxisInfo& axis_info);
     
     };
 

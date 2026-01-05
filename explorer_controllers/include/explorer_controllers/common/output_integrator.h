@@ -38,6 +38,7 @@ namespace space_control
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_pressed_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_pressed_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
 
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
 
@@ -64,6 +65,7 @@ namespace space_control
         bool go_J4_zero;
         bool go_J5_zero;
         bool go_J6_zero;
+        bool reset;
 
         void callback_dq_output(const std_msgs::msg::Float64MultiArray & msg);
         void callback_gripper_vel(const std_msgs::msg::Float64 & msg);
@@ -78,6 +80,8 @@ namespace space_control
         void timer_callback();
         void home();
         void zero();
+        void callback_reset(const std_msgs::msg::Bool & msg);
+        void callback_reset_response(rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future);
     };
 }
 #endif 

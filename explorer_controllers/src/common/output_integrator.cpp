@@ -29,6 +29,7 @@ namespace space_control
         go_J5_zero = false;
         go_J6_zero = false;
 
+        reset = false;
 
         //init suscriber
         dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output, this, std::placeholders::_1));
@@ -41,6 +42,7 @@ namespace space_control
         J4_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J4_zero, this, std::placeholders::_1));
         J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero, this, std::placeholders::_1));
         J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero, this, std::placeholders::_1));
+        reset_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10, std::bind(&OutputIntegrator::callback_reset, this, std::placeholders::_1));
 
         q_init_client_ = n_->create_client<explorer_msgs::srv::Float64>("/explorer_controllers/qp_solving/q_init");
 
@@ -154,6 +156,10 @@ namespace space_control
 
     void OutputIntegrator::timer_callback()
     {
+        if(reset){
+            return;
+        }
+
         if(go_home == true){
             home(); 
         }
@@ -390,6 +396,48 @@ namespace space_control
         }
     }
 
+    void OutputIntegrator::callback_reset(const std_msgs::msg::Bool & msg)
+    {
+        if (!msg.data || reset) {
+            return;
+        }
+
+        reset = true;
+
+        RCLCPP_INFO(n_->get_logger(), "Resetting output integrator...");
+
+        auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
+        request->ready = true;
+
+        q_init_client_->async_send_request(
+            request,
+            std::bind(
+                &OutputIntegrator::callback_reset_response,
+                this,
+                std::placeholders::_1)
+        );
+    }
+
+    void OutputIntegrator::callback_reset_response(
+        rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future)
+    {
+        auto result = future.get();
+    
+        if (result->code_error == 0) {
+            q_init_ = result->data;
+    
+            for (int i = 0; i < 6; i++) {
+                q_command_.data[i] = q_init_[i];
+            }
+    
+            RCLCPP_INFO(n_->get_logger(), "Output integrator reset successful");
+        } else {
+            RCLCPP_ERROR(n_->get_logger(), "Reset failed: code_error = %ld",
+                         result->code_error);
+        }
+    
+        reset = false;
+    }
 
 }
 

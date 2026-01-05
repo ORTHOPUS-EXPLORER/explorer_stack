@@ -14,8 +14,11 @@ set(INTERFACES_DEPENDENCIES
   rclcpp
   std_msgs
   geometry_msgs
+  trajectory_msgs
   explorer_msgs
   joy
+  controller_manager
+  controller_manager_msgs
 )
 
 foreach(Dependency IN ITEMS ${INTERFACES_DEPENDENCIES})
@@ -26,6 +29,8 @@ endforeach()
 add_executable(command_node 
   src/command_node.cpp
   src/button_handler.cpp
+  src/trajectory_manager.cpp
+  src/controller_switcher.cpp
   )
 
 target_include_directories(command_node

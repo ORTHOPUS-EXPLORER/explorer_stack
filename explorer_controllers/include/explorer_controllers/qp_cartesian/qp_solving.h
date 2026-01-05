@@ -62,6 +62,7 @@ namespace space_control
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_released_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr x_des_updated_sub_;
         rclcpp::Subscription<explorer_msgs::msg::ControlFrameSelection>::SharedPtr control_frame_sub_;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
         
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_pub_;
         rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr x_current_pub_;
@@ -135,6 +136,7 @@ namespace space_control
         void timer_callback();
         void callback_x_init_(const std::shared_ptr<explorer_msgs::srv::Pose::Request> req, std::shared_ptr<explorer_msgs::srv::Pose::Response> res);
         void callback_q_init_(const std::shared_ptr<explorer_msgs::srv::Float64::Request> req, std::shared_ptr<explorer_msgs::srv::Float64::Response> res);
+        void callback_reset(const std_msgs::msg::Bool & msg);
         void send_output();
         void publishDebugTopic_();
 

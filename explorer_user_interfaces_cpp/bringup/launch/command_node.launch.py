@@ -12,7 +12,8 @@ def generate_launch_description():
 
     pkg_share = get_package_share_directory('explorer_user_interfaces_cpp')
 
-    yaml_file_path = os.path.join(pkg_share, 'config', 'config_mode_0.yaml')
+    config_yaml_file_path = os.path.join(pkg_share, 'config', 'config_mode_0.yaml')
+    trajectory_yaml_file_path = os.path.join(pkg_share, 'config', 'config_trajectory.yaml')
 
     joy_node = Node(
         package="joy",
@@ -25,7 +26,8 @@ def generate_launch_description():
     executable="command_node",
     output="screen",
     parameters=[{
-        "mode_file": yaml_file_path
+        "mode_file": config_yaml_file_path,
+        "trajectory_file": trajectory_yaml_file_path
         }],
 )
     nodes = [
