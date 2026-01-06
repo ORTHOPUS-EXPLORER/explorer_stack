@@ -54,7 +54,6 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', [
             'launch/web_gui.launch.py',
-            'launch/explorer_with_web_gui.launch.py'
         ]),
         ('share/' + package_name + '/static', [
             'explorer_user_interfaces_web/static/style.css',
