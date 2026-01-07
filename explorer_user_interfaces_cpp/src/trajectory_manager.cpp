@@ -11,38 +11,49 @@ namespace space_control
         traj_end_time_ = 0.0;
     }
 
-    void TrajectoryManager::loadTrajectory(const std::string& filename) {
-        
+    bool TrajectoryManager::loadTrajectory(const std::string& filename)
+    {
         YAML::Node root;
         try {
             root = YAML::LoadFile(filename);
         } catch (const YAML::BadFile& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"), "Cannot open trajectory_file: %s", filename.c_str());
-            return;
+            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"), "Cannot open trajectory file: %s", filename.c_str());
+            return false; 
         } catch (const YAML::ParserException& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"), "YAML parsing error in file %s: %s", filename.c_str(), e.what());
-            return;
+            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"), "YAML parsing error in %s: %s", filename.c_str(), e.what());
+            return false;
         }
 
-        for (auto p : root["initialisation_trajectory"])
-        {
-            if (!p.IsSequence() || p.size() != 6) {
-                RCLCPP_WARN(rclcpp::get_logger("trajectory_manager"), "Each trajectory point must have 6 values.");
-                continue;
-            }
+        init_points_.clear();
 
-            std::array<double, 6> point;
-            for (size_t i = 0; i < 6; ++i)
-            {
-                try {
-                    point[i] = p[i].as<double>();
-                } catch (const YAML::TypedBadConversion<double>& e) {
-                    RCLCPP_WARN(rclcpp::get_logger("trajectory_manager"), "Failed to convert YAML value to double: %s", e.what());
+        traj = root["initialisation_trajectory"];
+
+        if (traj && traj.IsSequence()) {
+            for (const auto& p : traj) {
+                std::array<double, 6> point{};
+                for (size_t i = 0; i < 6; ++i) {
+                    point[i] = p[i].as<double>(0.0); 
                 }
+                init_points_.push_back(point);
             }
-            init_points_.push_back(point);
+        }
+        return true;
+    }
+
+    bool TrajectoryManager::validateTrajectory() const
+    {
+        if (!traj || !traj.IsSequence()) {
+            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"),
+                "Invalid trajectory: initialisation_trajectory missing or not a sequence");
+            return false;
         }
 
+        if (traj.size() == 0) {
+            RCLCPP_ERROR(rclcpp::get_logger("trajectory_manager"), "Trajectory is empty");
+            return false;
+        }
+
+        return true;
     }
 
     void TrajectoryManager::update(std::array<double,7> q_current, float axe_value) {

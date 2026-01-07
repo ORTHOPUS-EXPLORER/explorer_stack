@@ -46,6 +46,7 @@ namespace space_control
 
         n_->declare_parameter<std::string>("mode_file", "");
         n_->declare_parameter<std::string>("trajectory_file", "");
+        n_->declare_parameter<bool>("active_trajectory", true);
 
         // Get the value of the mode_file parameter
         std::string mode_file;
@@ -61,11 +62,52 @@ namespace space_control
             return;
         }
 
-        // Get the value of the trajectory_file parameter
-        std::string trajectory_file;
-        n_->get_parameter("trajectory_file", trajectory_file);
+        n_->get_parameter("active_trajectory", active_trajectory_);
 
-        trajectory_manager.loadTrajectory(trajectory_file);
+        if(active_trajectory_) {
+            RCLCPP_INFO(n_->get_logger(), "Active trajectory control mode enabled.");
+            bool exists = false;
+
+            for (const auto& [mode_name, mode] : data.button_modes_map) {
+                for (const auto& axis : mode.axes) {
+                    if (axis.control_name == "trajectory_control") {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists)
+                    break;
+            }
+            
+            if (exists) {
+                // Get the value of the trajectory_file parameter
+                std::string trajectory_file;
+                n_->get_parameter("trajectory_file", trajectory_file);
+                
+                if (!trajectory_manager.loadTrajectory(trajectory_file)) {
+                    RCLCPP_FATAL(n_->get_logger(),
+                                "YAML trajectory configuration failed. Shutting down node.");
+                    rclcpp::shutdown();
+                    return;
+                }
+
+                if(!trajectory_manager.validateTrajectory()){
+                    RCLCPP_FATAL(n_->get_logger(),
+                                "YAML trajectory validation failed. Shutting down node.");
+                    rclcpp::shutdown();
+                    return;
+                }
+
+                lock_ = true;
+            }
+            else{
+                lock_ = false;
+            }
+        } 
+        else {
+            lock_ = false;
+        }
+
 
         // Initialize subscribers and publishers
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
@@ -99,7 +141,6 @@ namespace space_control
         frame_id_.position_control_frame = 0;
         frame_id_.orientation_control_frame = 0;
 
-        lock_ = true;
         retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
 
         // Timer callback
@@ -357,20 +398,20 @@ namespace space_control
             // CASES:
             if (valid_explorer && all_wheelchair) {
                 mode = Mode::FULL;
-                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
+                RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
             } else if (valid_explorer && !any_wheelchair) {
                 mode = Mode::EXPLORER;
-                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
+                RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
             } else {
                 mode = Mode::INVALID;
-                RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Invalid joint configuration detected! Initialization failed.");
+                RCLCPP_ERROR(n_->get_logger(), "[command_node] Invalid joint configuration detected! Initialization failed.");
                 // Optionally, handle the error (throw, return, etc)
                 // return;
             }
     
             if (valid_explorer && all_wheelchair) {
                 mode = Mode::FULL;
-                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
+                RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
                 
                 // Build order: wheelchair first, then explorer
                 joint_order.clear();
@@ -394,19 +435,19 @@ namespace space_control
                         auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
                         if (fallback_it != msg.name.end()) {
                             joint_order.push_back(std::distance(msg.name.begin(), fallback_it));
-                            RCLCPP_WARN(n_->get_logger(), "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
+                            RCLCPP_WARN(n_->get_logger(), "[command_node] Joint %s missing, using right_finger_joint as fallback", name.c_str());
                         } else {
-                            RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
+                            RCLCPP_ERROR(n_->get_logger(), "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
                         }
                     } else {
-                        RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Joint %s not found!", name.c_str());
+                        RCLCPP_ERROR(n_->get_logger(), "[command_node] Joint %s not found!", name.c_str());
                     }
                 }
                 init = true;
                 return;
             } else if (valid_explorer && !any_wheelchair) {
                 mode = Mode::EXPLORER;
-                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
+                RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
                 
                 // Build order: just the explorer
                 joint_order.clear();
@@ -425,13 +466,13 @@ namespace space_control
                         auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
                         if (fallback_it != msg.name.end()) {
                             joint_order.push_back(std::distance(msg.name.begin(), fallback_it));
-                            RCLCPP_WARN(n_->get_logger(), "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
+                            RCLCPP_WARN(n_->get_logger(), "[command_node] Joint %s missing, using right_finger_joint as fallback", name.c_str());
                         } else {
-                            RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
+                            RCLCPP_ERROR(n_->get_logger(), "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly", name.c_str());
                             return;
                         }
                     } else {
-                        RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Joint %s not found and no fallback defined", name.c_str());
+                        RCLCPP_ERROR(n_->get_logger(), "[command_node] Joint %s not found and no fallback defined", name.c_str());
                         return;
                     }
                 }
@@ -445,7 +486,7 @@ namespace space_control
                 int n_to_print = std::min<int>(safe_limit, (wheelchair ? 20 : 12));
     
                 for (int i = 0; i < n_to_print; i++) {
-                    RCLCPP_INFO(n_->get_logger(), "Joint order[%d]: %d, Name: %s", 
+                    RCLCPP_INFO(n_->get_logger(), "Joint order[%d]: %ld, Name: %s", 
                                 i, 
                                 joint_order[i], 
                                 current_pos_.name[joint_order[i]].c_str());
@@ -455,7 +496,7 @@ namespace space_control
                     RCLCPP_WARN(n_->get_logger(), "WARNING: joint_order or current_pos_.name was smaller than expected! Potential config problem.");
                 }
                 init = true;
-                RCLCPP_INFO(n_->get_logger(), "[qp_solving] Init done.");
+                RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
                 return;
             }
         }
@@ -464,63 +505,86 @@ namespace space_control
     }
 
     void CommandNode::handle_controller_state()
-    {
-        switch (control_state_) {
+{
+    switch (control_state_) {
 
-            case ControlState::FORWARD:
-                reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(false));
-                if (trajectory_requested_) {
-                    RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO TRAJECTORY MODE");
-                    control_state_ = ControlState::SWITCHING_TO_TRAJ;
-                }
-                break;
+        case ControlState::FORWARD:
+            reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(false));
+            if (trajectory_requested_) {
+                RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO TRAJECTORY MODE");
+                control_state_ = ControlState::SWITCHING_TO_TRAJ;
+            }
+            break;
 
-            case ControlState::SWITCHING_TO_TRAJ:
-                if (!switch_in_progress_) {
-                    switch_in_progress_ = true;
-                    if (controller_switcher.switch_controller({"forward_position_controller"}, {"joint_trajectory_controller"})) {
-                        RCLCPP_INFO(n_->get_logger(), "Switched to joint_trajectory_controller");
-                        control_state_ = ControlState::TRAJECTORY;
-                        switch_in_progress_ = false;
-                    } else {
-                        RCLCPP_ERROR(n_->get_logger(), "Failed to switch to joint_trajectory_controller");
+        case ControlState::SWITCHING_TO_TRAJ:
+            if (!switch_in_progress_) {
+                switch_in_progress_ = true;
+
+                auto future = controller_switcher.switch_controller_async(
+                    {"forward_position_controller"},
+                    {"joint_trajectory_controller"}
+                );
+
+                // Callback when the switch completes
+                std::thread([this, future = std::move(future)]() mutable {
+                    try {
+                        bool success = future.get(); // Bloque ici, mais dans un thread séparé
+                        if (success) {
+                            RCLCPP_INFO(n_->get_logger(), "Switched to joint_trajectory_controller");
+                            control_state_ = ControlState::TRAJECTORY;
+                        } else {
+                            RCLCPP_ERROR(n_->get_logger(), "Failed to switch to joint_trajectory_controller");
+                            control_state_ = ControlState::FORWARD;
+                        }
+                    } catch (const std::exception &e) {
+                        RCLCPP_ERROR(n_->get_logger(), "Exception during controller switch: %s", e.what());
                         control_state_ = ControlState::FORWARD;
-                        switch_in_progress_ = false;
                     }
-                }
-                break;
+                    switch_in_progress_ = false;
+                }).detach(); // détache le thread pour ne pas bloquer le main executor
+            }
+            break;
 
-            case ControlState::TRAJECTORY:
-                if (!trajectory_requested_) {
-                    RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO FORWARD MODE");
-                    control_state_ = ControlState::SWITCHING_TO_FORWARD;
-                }
-                break;
+        case ControlState::TRAJECTORY:
+            if (!trajectory_requested_) {
+                RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO FORWARD MODE");
+                control_state_ = ControlState::SWITCHING_TO_FORWARD;
+            }
+            break;
 
-            case ControlState::SWITCHING_TO_FORWARD:
-                if (!switch_in_progress_) {
-                    switch_in_progress_ = true;
+        case ControlState::SWITCHING_TO_FORWARD:
+            if (!switch_in_progress_) {
+                switch_in_progress_ = true;
 
-                    trajectory_manager.reset();
-                    
-                    reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(true));
+                trajectory_manager.reset();
+                reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(true));
 
-                    if (controller_switcher.switch_controller({"joint_trajectory_controller"}, {"forward_position_controller"})) {
-                        RCLCPP_INFO(n_->get_logger(), "Switched to forward_position_controller");
-                        control_state_ = ControlState::FORWARD;
-                        RCLCPP_INFO(n_->get_logger(), "→ FORWARD MODE");
-                        switch_in_progress_ = false;
-                    } else {
-                        RCLCPP_INFO(n_->get_logger(), "Failed to switch to forward_position_controller");
+                auto future = controller_switcher.switch_controller_async(
+                    {"joint_trajectory_controller"},
+                    {"forward_position_controller"}
+                );
+
+                std::thread([this, future = std::move(future)]() mutable {
+                    try {
+                        bool success = future.get();
+                        if (success) {
+                            RCLCPP_INFO(n_->get_logger(), "Switched to forward_position_controller");
+                            control_state_ = ControlState::FORWARD;
+                            RCLCPP_INFO(n_->get_logger(), "→ FORWARD MODE");
+                        } else {
+                            RCLCPP_WARN(n_->get_logger(), "Failed to switch to forward_position_controller");
+                            control_state_ = ControlState::TRAJECTORY;
+                        }
+                    } catch (const std::exception &e) {
+                        RCLCPP_ERROR(n_->get_logger(), "Exception during controller switch: %s", e.what());
                         control_state_ = ControlState::TRAJECTORY;
-                        switch_in_progress_ = false;
                     }
-
-                    
-                }
-                break;
-        }
+                    switch_in_progress_ = false;
+                }).detach();
+            }
+            break;
     }
+}
 
     void CommandNode::timer() {
 
@@ -765,6 +829,10 @@ namespace space_control
 
     void CommandNode::trajectory_control(const AxisInfo& axis_info)
     {
+        if(!active_trajectory_) {
+            return;
+        }
+
         trajectory_requested_ = true;
         
         trajectory_msgs::msg::JointTrajectory traj_msg;

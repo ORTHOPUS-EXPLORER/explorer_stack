@@ -35,6 +35,7 @@ def generate_launch_description():
     host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
     robot_description_param = LaunchConfiguration("robot_description_param")
+    trajectory = LaunchConfiguration("activate_trajectory")
 
     # Declare arguments
     declared_arguments = []
@@ -105,6 +106,13 @@ def generate_launch_description():
                 " use_POC2:=", poc2
             ]),
             description="Robot description (URDF) evaluated from xacro"
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "activate_trajectory",
+            default_value="true",
+            description="active trajectory control mode",
         )
     )
     
@@ -213,7 +221,8 @@ def generate_launch_description():
         output="screen",
         parameters=[{
             "mode_file": yaml_file_path,
-            "trajectory_file": trajectory_yaml_file_path
+            "trajectory_file": trajectory_yaml_file_path,
+            "active_trajectory": trajectory,
         }],
         remappings=[
             ('/command_node/cartesian_velocity_command', '/explorer_user_interfaces/rqt_armcontrol/input_device_velocity'),

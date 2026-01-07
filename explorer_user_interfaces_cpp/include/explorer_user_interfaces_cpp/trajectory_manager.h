@@ -10,11 +10,20 @@ using namespace std::chrono;
 
 namespace space_control
 {
+
+    struct JointLimit {
+        bool enabled;
+        double min;
+        double max;
+    };
+    
     class TrajectoryManager {
         public:
             TrajectoryManager();
 
-            void loadTrajectory(const std::string& filename);
+            bool loadTrajectory(const std::string& filename);
+
+            bool validateTrajectory() const;
 
             void update(std::array<double,7> q_current, float axe_value);
 
@@ -28,7 +37,9 @@ namespace space_control
 
         private:
 
-        std::string trajectory_file;
+        std::vector<JointLimit> joint_limits_;
+
+        YAML::Node traj;
 
         std::vector<std::array<double, 6>> init_points_;
         int current_point_index_;

@@ -12,9 +12,7 @@ namespace space_control
     public:
       explicit ControllerSwitcher(const rclcpp::Node::SharedPtr& node);
     
-      bool switch_controller(
-        const std::vector<std::string>& stop,
-        const std::vector<std::string>& start);
+      std::future<bool> switch_controller_async(const std::vector<std::string>& stop, const std::vector<std::string>& start);
     
     private:
       rclcpp::Node::SharedPtr node_;

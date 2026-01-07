@@ -122,7 +122,9 @@ namespace space_control
         double v_x = 0.0;
         double v_y = 0.0;
 
-        bool lock_;
+        bool active_trajectory_;
+
+        std::atomic<bool> lock_{false};
 
         enum class ControlState
         {
