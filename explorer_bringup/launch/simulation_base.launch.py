@@ -41,7 +41,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "gui",
             default_value="true",
-            description="Start RViz2 automatically with this launch file.",
+            description="Start RVIZ2 and the Gazebo client automatically with this launch file.",
         )
     )
     declared_arguments.append(
@@ -194,11 +194,12 @@ def generate_launch_description():
             }.items()
         ),
         # Ignition Client
-        IncludeLaunchDescription(
+       IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
             ),
-            launch_arguments={'gz_args': '-g -v4 '}.items()
+            launch_arguments={'gz_args': '-g -v4 '}.items(),
+            condition=IfCondition(gui)
         ),
         node_robot_state_publisher,
         gz_spawn_entity,

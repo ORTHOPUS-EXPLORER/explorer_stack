@@ -36,6 +36,9 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     robot_description_param = LaunchConfiguration("robot_description_param")
     trajectory = LaunchConfiguration("activate_trajectory")
+    port_arg = LaunchConfiguration('port')
+    host_arg = LaunchConfiguration('host')
+    mode_config_path_arg = LaunchConfiguration('mode_config_path')
 
     # Declare arguments
     declared_arguments = []
@@ -115,6 +118,34 @@ def generate_launch_description():
             description="active trajectory control mode",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "port",
+            default_value="8080",
+            description="Port for the web GUI server"
+        )
+    )
+    
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "host",
+            default_value="0.0.0.0",
+            description="Host address for the web GUI server"
+        )
+    )
+    
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mode_config_path",
+            default_value=PathJoinSubstitution([
+                FindPackageShare("explorer_user_interfaces_cpp"),
+                "config",
+                "config_mode_0.yaml"
+            ]),
+            description="Path to the mode configuration YAML file"
+        )
+    )
+    
     
 
     # Include robot simulation (when simulation=true)
@@ -230,6 +261,19 @@ def generate_launch_description():
         ],
     )
 
+    web_gui_node = Node(
+        package='explorer_user_interfaces_web',
+        executable='web_gui_node',
+        name='web_gui_node',
+        parameters=[{
+            'port': LaunchConfiguration('port'),
+            'host': LaunchConfiguration('host'),
+            'mode_config_path': LaunchConfiguration('mode_config_path'),
+        }],
+        output='screen',
+        emulate_tty=True,
+    )
+
     nodes = [
         robot_simulation,
         robot_hardware,
@@ -239,6 +283,7 @@ def generate_launch_description():
         qp_solving_POC2_node,
         joy_node,
         command_node,
+        web_gui_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
