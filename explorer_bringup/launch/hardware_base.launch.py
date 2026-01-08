@@ -139,6 +139,13 @@ def generate_launch_description():
         output="log",
     )
 
+    trajectory_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_trajectory_controller", "--controller-manager", "/controller_manager", "--inactive"],
+        output="log",
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -154,7 +161,8 @@ def generate_launch_description():
         OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
             on_exit = [
-                robot_controller_spawner
+                robot_controller_spawner,
+                trajectory_controller_spawner
             ]
         )
     )
