@@ -8,8 +8,8 @@ namespace space_control
   {
     client_ = node_->create_client<controller_manager_msgs::srv::SwitchController>("/controller_manager/switch_controller");
 
-    while (!client_->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(node_->get_logger(), "wait for switch_controller...");
+    while (rclcpp::ok() && !client_->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 5000, "Waiting for /controller_manager/switch_controller...");
     }
   }
 
