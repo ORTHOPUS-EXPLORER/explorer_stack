@@ -7,12 +7,12 @@ mode_info:
 button_mappings:
   B1:
     axes:
-      - control_name: "complex_Y"
+      - control_name: "cartesian_Y"
         joystick_axis: "ax1"
         direction: 1
         scale: 3.0
         image: "cartesian_Y.png"  
-      - control_name: "complex_X"
+      - control_name: "cartesian_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
@@ -26,7 +26,7 @@ button_mappings:
     axes:
       - control_name: "joint_6"
         joystick_axis: "ax1"
-        direction: 1
+        direction: -1
         scale: 0.75
         image: "joint_6.png" 
       - control_name: "cartesian_Z"

@@ -59,7 +59,7 @@ namespace space_control
         bool trajectory_completed_ = false;
         std::string status;
         
-        static bool pointAlmostEqual(const std::array<double, 6>& p1, const std::array<double, 6>& p2, double epsilon = 1e-3);
+        static bool pointAlmostEqual(const std::array<double, 6>& p1, const std::array<double, 6>& p2, double epsilon = 3.5e-2); //2° tolerance
 
         void updateStatusString();
     };

@@ -35,7 +35,7 @@ def generate_launch_description():
     host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
     robot_description_param = LaunchConfiguration("robot_description_param")
-    trajectory = LaunchConfiguration("activate_trajectory")
+    trajectory = LaunchConfiguration("force_deploy")
     port_arg = LaunchConfiguration('port')
     host_arg = LaunchConfiguration('host')
     mode_config_path_arg = LaunchConfiguration('mode_config_path')
@@ -113,9 +113,9 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "activate_trajectory",
+            "force_deploy",
             default_value="true",
-            description="active trajectory control mode",
+            description="Force robot deployment to rest position before enabling any other control",
         )
     )
     declared_arguments.append(
