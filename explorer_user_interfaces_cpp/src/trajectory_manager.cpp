@@ -9,6 +9,7 @@ namespace space_control
         axe_value_prev_ = 0.0;
         newDirection_ = false;
         traj_end_time_ = 0.0;
+        q_hold_.fill(0.0);
     }
 
     bool TrajectoryManager::loadTrajectory(const std::string& filename)
@@ -64,6 +65,12 @@ namespace space_control
         }
         gripper = q_current[6];
 
+        // Initialize q_hold_ with actual position on first update
+        if (!q_hold_initialized_) {
+            q_hold_ = q_current_;
+            q_hold_initialized_ = true;
+        }
+
         axe_value_ = axe_value;
     }
 
@@ -80,6 +87,12 @@ namespace space_control
         double dq = 0.0;
 
         newDirection_ = (axe_value_ > 0 && axe_value_prev_ <= 0) || (axe_value_ < 0 && axe_value_prev_ >= 0);
+
+        // Capture hold position when joystick is released (transition from moving to zero)
+        bool joystick_just_released = (axe_value_ == 0.0 && axe_value_prev_ != 0.0);
+        if (joystick_just_released) {
+            q_hold_ = q_current_;
+        }
         
         if(axe_value_> 0.0 && !trajectory_completed_){
             if(current_point_index_ < init_points_.size() - 1){
@@ -156,9 +169,13 @@ namespace space_control
 
         traj_point_start.time_from_start = rclcpp::Duration::from_seconds(0.0);
         traj_point_target.time_from_start = rclcpp::Duration::from_seconds(traj_end_time_);
+
+        // Use hold position when joystick is released to prevent drift
+        const std::array<double, 6>& start_pos = (axe_value_ == 0.0) ? q_hold_ : q_current_;
+
         for (int i = 0; i < 6; i++)
         {
-            traj_point_start.positions.push_back(q_current_[i]);
+            traj_point_start.positions.push_back(start_pos[i]);
             traj_point_target.positions.push_back(init_points_[current_point_index_][i]);
         }
         traj_point_start.positions.push_back(gripper);
@@ -191,6 +208,7 @@ namespace space_control
     {
         axe_value_prev_ = 0.0;
         newDirection_ = false;
+        q_hold_ = q_current_;
     }
 
     std::string TrajectoryManager::getStatusString()

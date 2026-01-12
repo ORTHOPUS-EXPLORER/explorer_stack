@@ -45,6 +45,8 @@ namespace space_control
         std::size_t current_point_index_;
 
         std::array<double,6> q_current_;
+        std::array<double,6> q_hold_;  // Position to hold when joystick is released
+        bool q_hold_initialized_ = false;  // Track if q_hold_ has been initialized with actual position
         double gripper;
         float axe_value_;
         float axe_value_prev_;
