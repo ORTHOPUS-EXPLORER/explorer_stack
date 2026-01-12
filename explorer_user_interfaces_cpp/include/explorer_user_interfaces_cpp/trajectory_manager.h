@@ -42,7 +42,7 @@ namespace space_control
         YAML::Node traj;
 
         std::vector<std::array<double, 6>> init_points_;
-        int current_point_index_;
+        std::size_t current_point_index_;
 
         std::array<double,6> q_current_;
         double gripper;

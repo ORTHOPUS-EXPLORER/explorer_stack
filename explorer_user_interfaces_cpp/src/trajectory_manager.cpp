@@ -85,7 +85,7 @@ namespace space_control
             if(current_point_index_ < init_points_.size() - 1){
                 if(newDirection_ || pointAlmostEqual(q_current_, init_points_[current_point_index_])){
                     current_point_index_++;
-                    RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "Current Point Index: %d", current_point_index_);
+                    RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "Current Point Index: %ld", current_point_index_);
                     RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "axe_value_: %f", axe_value_);
                 }
 
