@@ -4,6 +4,12 @@ mode_info:
   description: "Mode similar to Jaco's control mode"
   default_image: "Mode_0.png"
 
+# Smoothing alpha is now defined per-axis in button_mappings
+# smoothing_alpha: Exponential moving average factor (0.0 to 1.0)
+#   - 1.0 = no smoothing (instant response) [default if not specified]
+#   - 0.5 = moderate smoothing
+#   - 0.1 = heavy smoothing (slow response)
+
 button_mappings:
   B1:
     axes:
@@ -11,11 +17,13 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 3.0
+        smoothing_alpha: 0.05
         image: "cartesian_Y.png"  
       - control_name: "cartesian_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
+        smoothing_alpha: 0.05
         image: "cartesian_X.png"
     button:
       - long_click: "A1"
@@ -33,6 +41,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
+        smoothing_alpha: 0.05
         image: "cartesian_Z.png"
     button:
       - long_click: "DRINK"
@@ -44,11 +53,13 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 0.75
+        smoothing_alpha: 0.3
         image: "joint_6.png" 
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
+        smoothing_alpha: 0.05
         image: "cartesian_Z.png" 
     button:
       - long_click: ""

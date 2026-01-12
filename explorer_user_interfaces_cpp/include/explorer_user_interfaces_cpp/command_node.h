@@ -39,6 +39,7 @@ namespace space_control
         std::string joystick_axis;
         int direction;
         double scale;
+        double smoothing_alpha = 1.0;  // Smoothing factor (1.0 = no smoothing, 0.1 = heavy smoothing)
         std::map<std::string, double> params; 
     };
     
@@ -103,8 +104,13 @@ namespace space_control
 
         // Joystick state variables
         mutable std::mutex mutex_axis_;
-        float axis_1 RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0;
-        float axis_2 RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0;
+        
+        // Raw joystick values (before smoothing)
+        float axis_1_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
+        float axis_2_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
+        
+        // Smoothed joystick values per axis (exponential moving average)
+        std::map<std::string, float> axis_smoothed_;  // key: "ax1" or "ax2"
 
         int button_threshold_ms;
         double sampling_period_;

@@ -124,10 +124,6 @@ namespace space_control
         reset_qp_solving_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
         retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
 
-        // Initialize joystick axes and button states
-        axis_1 = 0.0;
-        axis_2 = 0.0;
-
         // Initialize speed control variables
         speed_factor = 1.0;
         speed_level = 2;
@@ -200,6 +196,11 @@ namespace space_control
                         axis.joystick_axis = axis_node["joystick_axis"].as<std::string>("");
                         axis.direction = axis_node["direction"].as<int>(1);
                         axis.scale = axis_node["scale"].as<double>(1.0);
+                        
+                        // Parse smoothing_alpha (default 1.0 = no smoothing)
+                        axis.smoothing_alpha = axis_node["smoothing_alpha"].as<double>(1.0);
+                        // Clamp alpha to valid range [0.0, 1.0]
+                        axis.smoothing_alpha = std::max(0.0, std::min(1.0, axis.smoothing_alpha));
 
                         if (axis_node["params"]) {
                             for (auto p : axis_node["params"]) {
@@ -340,8 +341,9 @@ namespace space_control
         bool button_actual;
         std::lock_guard<std::mutex> lock_axis(mutex_axis_); 
         if (msg.axes.size() >= 2) {
-            axis_1 = msg.axes[0];
-            axis_2 = msg.axes[1];
+            // Store raw joystick values (smoothing is applied per-axis in readAxisValue)
+            axis_1_raw_ = msg.axes[0];
+            axis_2_raw_ = msg.axes[1];
         } else {
             RCLCPP_WARN_THROTTLE(n_->get_logger(), *n_->get_clock(), 1000, 
                                  "Joystick has insufficient axes");
@@ -615,10 +617,14 @@ namespace space_control
 
         // Handle mode switching based on button clicks
         if(button_handler.isShortClick() && mode.buttons.short_click != "") {
-            current_mode_name = mode.buttons.short_click; 
+            current_mode_name = mode.buttons.short_click;
+            // Reset smoothed values when switching modes to avoid artifacts
+            axis_smoothed_.clear();
         }
         else if(button_handler.isLongClick() && mode.buttons.long_click != "") {
             current_mode_name = mode.buttons.long_click;
+            // Reset smoothed values when switching modes to avoid artifacts
+            axis_smoothed_.clear();
         }
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
@@ -633,18 +639,30 @@ namespace space_control
         }
     }
 
-    // Read joystick axis value
+    // Read joystick axis value with per-axis smoothing
     float CommandNode::readAxisValue(const AxisInfo& axis_info) {
-        float value = 0.0;
+        float raw_value = 0.0f;
         std::lock_guard<std::mutex> lock_axis(mutex_axis_);
-        if(axis_info.joystick_axis == "ax1" ) {
-            value = axis_1;
+        
+        // Get raw value from the appropriate axis
+        if(axis_info.joystick_axis == "ax1") {
+            raw_value = axis_1_raw_;
         }  
-        else if(axis_info.joystick_axis == "ax2" ) {
-            value = axis_2;
+        else if(axis_info.joystick_axis == "ax2") {
+            raw_value = axis_2_raw_;
         }
-
-        value *= axis_info.direction * axis_info.scale * speed_factor;
+        
+        // Apply exponential moving average smoothing with per-axis alpha
+        // smoothed = alpha * raw + (1 - alpha) * smoothed
+        // Initialize smoothed value if not present
+        if (axis_smoothed_.find(axis_info.joystick_axis) == axis_smoothed_.end()) {
+            axis_smoothed_[axis_info.joystick_axis] = raw_value;
+        }
+        
+        float& smoothed = axis_smoothed_[axis_info.joystick_axis];
+        smoothed = axis_info.smoothing_alpha * raw_value + (1.0 - axis_info.smoothing_alpha) * smoothed;
+        
+        float value = smoothed * axis_info.direction * axis_info.scale * speed_factor;
 
         return value;
     }
@@ -744,13 +762,14 @@ namespace space_control
     }
 
     void CommandNode::change_speed(const AxisInfo& axis_info) {
-        // Determine joystick axis value
+        // Determine joystick axis value (use raw values for instant threshold detection)
         float value = 0.0;
+        std::lock_guard<std::mutex> lock_axis(mutex_axis_);
         if(axis_info.joystick_axis == "ax1" ) {
-            value = axis_1;
+            value = axis_1_raw_;
         }  
         else if(axis_info.joystick_axis == "ax2" ) {
-            value = axis_2;
+            value = axis_2_raw_;
         }
 
         value *= axis_info.direction * axis_info.scale;
