@@ -852,10 +852,7 @@ namespace space_control
 
         traj_msg = trajectory_manager.getTrajectory();
 
-        if (!traj_msg.points.empty()) {
-            trajectory_pub_->publish(traj_msg);
-        }
-        
+        trajectory_pub_->publish(traj_msg);
     }
     
 }
