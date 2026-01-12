@@ -94,6 +94,16 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     }
   }
 
+  // Read default_mode parameter (optional, defaults to "off" for backward compatibility)
+  {
+    auto it = info.hardware_parameters.find("default_mode");
+    if(it != info.hardware_parameters.end())
+    {
+      _default_mode = it->second;
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface")," => Default mode set to '%s'", _default_mode.c_str());
+    }
+  }
+
   auto board_id = vescpp::VESC::InvalidBoardId;
   {
     auto it = info.hardware_parameters.find("can_id");
@@ -398,6 +408,40 @@ CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycl
   //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
   // FIXME: Do this somewhere else ffs
   _vesc_host->startStreaming();
+
+  // Apply default mode if specified (skip if "off" for backward compatibility)
+  if(_default_mode != "off")
+  {
+    for(auto& j: _vesc_dev->joints)
+    {
+      if(!j.in_use)
+        continue;
+      
+      auto new_ctrl = j.ctrl & ~orthopus::ORTHOPUS_CTRL_MODE_MSK; // Clear current mode
+      
+      if(_default_mode == "position")
+        new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_POS;
+      else if(_default_mode == "velocity")
+        new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
+      else if(_default_mode == "effort")
+        new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
+      else if(_default_mode == "impedence")
+        new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_IMP;
+      else if(_default_mode == "custom")
+        new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_CST;
+      
+      if(new_ctrl != j.ctrl)
+      {
+        j.ctrl = new_ctrl;
+        if(!j.stream)
+        {
+          j.stream = true;
+        }
+        RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[on_activate][%s] Set default mode '%s' (ctrl: 0x%04X)", j.name.c_str(), _default_mode.c_str(), j.ctrl);
+      }
+    }
+  }
+
   return CallbackReturn::SUCCESS;
 }
 

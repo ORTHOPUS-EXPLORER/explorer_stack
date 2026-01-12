@@ -11,6 +11,7 @@
       <param name="can_port">${can_port}</param>
       <param name="rt_stream_rate">${rt_stream_rate}</param>
       <param name="aux_stream_rate">${aux_stream_rate}</param>
+      <param name="default_mode">position</param>
     </xacro:macro>
 
   <!-- ROS2 Control -->

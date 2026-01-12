@@ -86,6 +86,7 @@ public:
 
   std::shared_ptr<orthopus::VESCHost>   _vesc_host{nullptr};
   std::shared_ptr<orthopus::VESCTarget> _vesc_dev{nullptr};
+  std::string _default_mode{"off"};  // Default mode to apply on activation (backward compatible: "off" if not specified)
 
   void printHardwareInfo(const hardware_interface::HardwareInfo& info);
   void printComponentInfo(const hardware_interface::ComponentInfo& info, size_t i);
