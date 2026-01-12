@@ -723,7 +723,7 @@ namespace space_control
                 cartesian_vel_.twist.angular.z = value;
             }
 
-            frame_id_.orientation_control_frame = 0;
+            frame_id_.orientation_control_frame = 1;
         }
     }
 

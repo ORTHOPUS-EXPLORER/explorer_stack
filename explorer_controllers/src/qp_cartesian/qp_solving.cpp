@@ -70,7 +70,7 @@ namespace space_control
         J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&QPSolving::callback_J6_zero_pressed_, this, std::placeholders::_1));
         J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_released", 10, std::bind(&QPSolving::callback_J6_zero_released_, this, std::placeholders::_1));
         x_des_updated_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/explorer_controllers/input_integrator/x_des_updated", 10, std::bind(&QPSolving::callback_x_des_updated_, this, std::placeholders::_1));
-        control_frame_sub_ = n_->create_subscription<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/qp_solving/control_frame_selection", 10, std::bind(&QPSolving::callback_control_frame_selection_, this, std::placeholders::_1));
+        control_frame_sub_ = n_->create_subscription<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/command_node/control_frame_selection", 10, std::bind(&QPSolving::callback_control_frame_selection_, this, std::placeholders::_1));
         reset_sub_ = n_->create_subscription<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10, std::bind(&QPSolving::callback_reset, this, std::placeholders::_1));
 
         //init publishers
