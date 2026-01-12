@@ -26,7 +26,7 @@ button_mappings:
         smoothing_alpha: 0.05
         image: "cartesian_X.png"
     button:
-      - long_click: "A1"
+      - long_click: "SPEED"
       - short_click: "B2"
     
       
@@ -71,11 +71,13 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 0.75
+        smoothing_alpha: 0.05
         image: "rotation_Z.png"  
       - control_name: "rotation_Y"
         joystick_axis: "ax2"
         direction: 1
         scale: 0.75
+        smoothing_alpha: 0.05
         image: "rotation_Y.png" 
     button:
       - long_click: ""
@@ -97,7 +99,7 @@ button_mappings:
       - long_click: "DEPLOY"
       - short_click: "B1"
 
-  A1:
+  SPEED:
     axes:
       - control_name: ""
         joystick_axis: ""
@@ -109,6 +111,9 @@ button_mappings:
         direction: 1
         scale: 1.0
         image: "change_speed.png"
+        params:
+          min_speed_level: 1
+          max_speed_level: 9
     button:
       - long_click: ""
       - short_click: "B1"
@@ -124,6 +129,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 2.0
+        smoothing_alpha: 0.1
         image: "trajectory_control.png"
     button:
       - long_click: ""

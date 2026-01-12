@@ -762,6 +762,16 @@ namespace space_control
     }
 
     void CommandNode::change_speed(const AxisInfo& axis_info) {
+        // Get min/max speed levels from params (default: 1 to 4)
+        int min_level = 1;
+        int max_level = 4;
+        if (axis_info.params.count("min_speed_level")) {
+            min_level = static_cast<int>(axis_info.params.at("min_speed_level"));
+        }
+        if (axis_info.params.count("max_speed_level")) {
+            max_level = static_cast<int>(axis_info.params.at("max_speed_level"));
+        }
+
         // Determine joystick axis value (use raw values for instant threshold detection)
         float value = 0.0;
         std::lock_guard<std::mutex> lock_axis(mutex_axis_);
@@ -777,14 +787,14 @@ namespace space_control
         // Change speed level based on joystick movement
         if(value > speed_change_threshold && joy_prec <= speed_change_threshold) {
             speed_level += 1;
-            if(speed_level > 4){
-                speed_level = 4;
+            if(speed_level > max_level){
+                speed_level = max_level;
             }
         }
         else if(value < -speed_change_threshold && joy_prec >= -speed_change_threshold) {
             speed_level -= 1;
-            if(speed_level < 1){
-                speed_level = 1;
+            if(speed_level < min_level){
+                speed_level = min_level;
             }
         }
 
