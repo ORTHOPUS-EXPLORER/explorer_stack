@@ -83,7 +83,7 @@ button_mappings:
         scale: 0.0
         image: ""
     button:
-      - long_click: "A2"
+      - long_click: "DEPLOY"
       - short_click: "B1"
 
   A1:
@@ -97,12 +97,12 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 1.0
-        image: ""
+        image: "change_speed.png"
     button:
       - long_click: ""
       - short_click: "B1"
 
-  A2:
+  DEPLOY:
     axes:
       - control_name: ""
         joystick_axis: ""
@@ -113,7 +113,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 2.0
-        image: ""
+        image: "trajectory_control.png"
     button:
       - long_click: ""
       - short_click: "B4"
