@@ -240,10 +240,16 @@ def generate_launch_description():
     yaml_file_path = os.path.join(pkg_share, 'config', 'config_mode_0.yaml')
     trajectory_yaml_file_path = os.path.join(pkg_share, 'config', 'config_trajectory.yaml')
 
+    pkg_share_joystick = get_package_share_directory('explorer_input_devices')
+    joystick_yaml_file_path = os.path.join(pkg_share_joystick, 'config', 'movis_joystick_settings.yaml')
+
     joy_node = Node(
         package="joy",
         executable="joy_node",
         output="screen",
+        parameters=[{
+            joystick_yaml_file_path
+        }],
     )
 
     command_node = Node(
