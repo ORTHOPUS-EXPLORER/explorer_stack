@@ -10,6 +10,7 @@ namespace space_control
         newDirection_ = false;
         traj_end_time_ = 0.0;
         q_hold_.fill(0.0);
+        status = "not ready";  // Initial status before trajectory is loaded
     }
 
     bool TrajectoryManager::loadTrajectory(const std::string& filename)
@@ -219,19 +220,15 @@ namespace space_control
 
     void TrajectoryManager::updateStatusString()
     {
-        if(!trajectory_completed_){
-            if (pointAlmostEqual(q_current_, init_points_[0])) {
-                status = "retracted";
-            }
-            else if (pointAlmostEqual(q_current_, init_points_.back())) {
-                status = "ready";
-            }
-            else {
-                status = "in progress";
-            }
+        // State machine based on trajectory completion and active movement
+        if (trajectory_completed_) {
+            status = "ready";  // GREEN: deployment completed, robot is ready
         }
-        else{
-            status = "ready";
+        else if (axe_value_ != 0.0) {
+            status = "in progress";  // ORANGE: actively deploying/retracting
+        }
+        else {
+            status = "not ready";  // RED: not deployed yet (retracted or unknown position)
         }
     }
 

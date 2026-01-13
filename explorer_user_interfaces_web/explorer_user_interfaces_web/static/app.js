@@ -53,20 +53,20 @@ class ExplorerWebGUI {
         switch (data.type) {
             case 'initial':
                 this.updateMode(data.mode);
-                this.updateLED(data.led_color || 0);
                 this.updateSpeedLevel(data.speed_level);
+                this.updateRetractStatus(data.retract_status);
                 break;
-                
+
             case 'mode_update':
                 this.updateMode(data.mode);
                 break;
-                
-            case 'led_update':
-                this.updateLED(data.led_color);
-                break;
-                
+
             case 'speed_level_update':
                 this.updateSpeedLevel(data.speed_level);
+                break;
+
+            case 'retract_status_update':
+                this.updateRetractStatus(data.retract_status);
                 break;
         }
     }
@@ -144,18 +144,7 @@ class ExplorerWebGUI {
         });
         if (!overlayFound && noImageText) noImageText.style.display = 'block';
     }
-    
-    updateLED(active) {
-        const statusLed = document.getElementById('status-led');
-        if (statusLed) {
-            if (active) {
-                statusLed.classList.add('active');
-            } else {
-                statusLed.classList.remove('active');
-            }
-        }
-    }
-    
+
     updateSpeedLevel(level) {
         const speedLevelElement = document.getElementById('speed-level');
         if (speedLevelElement) {
@@ -170,6 +159,27 @@ class ExplorerWebGUI {
                 drinkLed.classList.add('active');
             } else {
                 drinkLed.classList.remove('active');
+            }
+        }
+    }
+
+    updateRetractStatus(status) {
+        const statusLed = document.getElementById('status-led');
+        if (statusLed) {
+            // Remove all status classes
+            statusLed.classList.remove('status-ready', 'status-moving', 'status-not-ready');
+
+            // Map status string to CSS class
+            // "ready" -> green (deployed, ready to use)
+            // "in progress" -> orange (moving)
+            // "retracted" or "not ready" -> red (retracted or at unknown position)
+            if (status === 'ready') {
+                statusLed.classList.add('status-ready');
+            } else if (status === 'in progress') {
+                statusLed.classList.add('status-moving');
+            } else {
+                // "retracted" or "not ready" or any other status
+                statusLed.classList.add('status-not-ready');
             }
         }
     }

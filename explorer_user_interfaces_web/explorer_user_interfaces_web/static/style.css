@@ -9,10 +9,24 @@
     transition: background 0.3s;
 }
 
-.status-led.active {
-    background-color: #10b981 !important; /* Active: green */
+/* Retract status LED colors */
+.status-led.status-ready {
+    background-color: #10b981 !important; /* Green: deployed and ready to use */
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
+.status-led.status-moving {
+    background-color: #f97316 !important; /* Orange: moving/in progress */
+    box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
+}
+
+.status-led.status-not-ready {
+    background-color: #ef4444 !important; /* Red: retracted or not ready */
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+/* Drink LED */
 #drink-led.active {
     background-color: #3b82f6 !important; /* Active: blue */
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
 }

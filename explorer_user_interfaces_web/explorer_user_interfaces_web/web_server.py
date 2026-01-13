@@ -26,8 +26,8 @@ class RosBridge:
     def __init__(self, ros_node: Node):
         self.node = ros_node
         self.current_mode = "Unknown"
-        self.led_color = 0  # Integer value for LED color
         self.speed_level = None
+        self.retract_status = "not ready"  # Retract status: ready, in progress, retracted, not ready
         self.connected_clients: set = set()
         
         # Use a thread-safe queue for updates
@@ -44,15 +44,7 @@ class RosBridge:
             self.mode_callback,
             10
         )
-        
-        # LED color subscriber - integer topic
-        self.led_subscriber = self.node.create_subscription(
-            Int32,
-            '/explorer_gui/led_color',
-            self.led_callback,
-            10
-        )
-        
+
         # Speed level subscriber - integer topic
         self.speed_level_subscriber = self.node.create_subscription(
             Int32,
@@ -60,7 +52,15 @@ class RosBridge:
             self.speed_level_callback,
             10
         )
-        
+
+        # Retract status subscriber - string topic
+        self.retract_status_subscriber = self.node.create_subscription(
+            String,
+            '/command_node/retract_status',
+            self.retract_status_callback,
+            10
+        )
+
         self.node.get_logger().info('ROS Bridge initialized')
     
     def mode_callback(self, msg: String):
@@ -94,20 +94,7 @@ class RosBridge:
                 "mode": self.current_mode,
                 "timestamp": time.time()
             })
-    
-    def led_callback(self, msg: Int32):
-        """Callback for LED color changes"""
-        new_color = msg.data
-        if new_color != self.led_color:
-            self.led_color = new_color
-            self.node.get_logger().info(f'LED color changed to: {self.led_color}')
-            # Put update in queue
-            self.update_queue.put({
-                "type": "led_update",
-                "led_color": self.led_color,
-                "timestamp": time.time()
-            })
-    
+
     def speed_level_callback(self, msg: Int32):
         """Callback for speed level changes"""
         new_level = msg.data
@@ -117,6 +104,18 @@ class RosBridge:
             self.update_queue.put({
                 "type": "speed_level_update",
                 "speed_level": self.speed_level,
+                "timestamp": time.time()
+            })
+
+    def retract_status_callback(self, msg: String):
+        """Callback for retract status changes"""
+        new_status = msg.data
+        if new_status != self.retract_status:
+            self.retract_status = new_status
+            self.node.get_logger().info(f'Retract status changed to: {self.retract_status}')
+            self.update_queue.put({
+                "type": "retract_status_update",
+                "retract_status": self.retract_status,
                 "timestamp": time.time()
             })
     
@@ -249,8 +248,7 @@ def create_app(ros_node: Node) -> FastAPI:
         context = {
             "request": request,
             "current_mode": ros_bridge.current_mode,
-            "mode_config": mode_config,
-            "led_color": ros_bridge.led_color
+            "mode_config": mode_config
         }
         return templates.TemplateResponse("index.html", context)
     
@@ -259,7 +257,8 @@ def create_app(ros_node: Node) -> FastAPI:
         """Get current status"""
         return {
             "mode": ros_bridge.current_mode,
-            "led_color": ros_bridge.led_color,
+            "retract_status": ros_bridge.retract_status,
+            "speed_level": ros_bridge.speed_level,
             "timestamp": time.time()
         }
     
@@ -274,8 +273,8 @@ def create_app(ros_node: Node) -> FastAPI:
             initial_message = {
                 "type": "initial",
                 "mode": ros_bridge.current_mode,
-                "led_color": ros_bridge.led_color,
-                "speed_level": ros_bridge.speed_level
+                "speed_level": ros_bridge.speed_level,
+                "retract_status": ros_bridge.retract_status
             }
             await websocket.send_text(json.dumps(initial_message))
             
