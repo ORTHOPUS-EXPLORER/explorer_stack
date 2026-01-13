@@ -22,6 +22,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <cmath>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
@@ -101,6 +102,8 @@ namespace space_control
         bool go_J4_zero;
         bool go_J5_zero;
         bool go_J6_zero;
+
+        double movement_detection_threshold_;  /*!< Velocity magnitude threshold to detect intentional user input */
 
         enum class Mode { INVALID, EXPLORER, FULL };
 
