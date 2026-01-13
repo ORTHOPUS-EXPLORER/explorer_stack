@@ -209,6 +209,7 @@ namespace space_control
         axe_value_prev_ = 0.0;
         newDirection_ = false;
         q_hold_ = q_current_;
+        q_hold_initialized_ = false;  // Force reinitialization when re-entering trajectory mode
     }
 
     std::string TrajectoryManager::getStatusString()
