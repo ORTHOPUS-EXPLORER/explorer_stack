@@ -86,7 +86,7 @@ button_mappings:
   B4:
     axes:
       - control_name: "gripper"
-        joystick_axis: "ax1"
+        joystick_axis: "ax2"
         direction: 1
         scale: 1.0
         image: "gripper.png"  
