@@ -32,12 +32,12 @@ namespace space_control
         go_J5_zero = false;
         go_J6_zero = false;
         
-        // Load movement detection threshold parameter
-        if (!n_->get_parameter("movement_detection_threshold", movement_detection_threshold_)) {
-            movement_detection_threshold_ = 1e-6;  // Default: very small threshold
-            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Using default movement_detection_threshold: %.2e", movement_detection_threshold_);
+        // Load movement detection threshold parameter for global drift prevention
+        if (!n_->get_parameter("movement_detection_threshold_global", movement_detection_threshold_global_)) {
+            movement_detection_threshold_global_ = 1e-6;  // Default: very small threshold
+            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Using default movement_detection_threshold_global: %.2e", movement_detection_threshold_global_);
         } else {
-            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Loaded movement_detection_threshold: %.2e", movement_detection_threshold_);
+            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Loaded movement_detection_threshold_global: %.2e", movement_detection_threshold_global_);
         }
         
         //init inverse and forward kinematic 
@@ -503,7 +503,7 @@ namespace space_control
             dx_input_.orientation.z() * dx_input_.orientation.z()
         );
         
-        bool user_input_detected = input_velocity_magnitude > movement_detection_threshold_;
+        bool user_input_detected = input_velocity_magnitude > movement_detection_threshold_global_;
 
         if (!go_home && !go_zero && !go_J1_zero && !go_J2_zero && !go_J3_zero && !go_J4_zero && !go_J5_zero && !go_J6_zero) {
             if (user_input_detected) {

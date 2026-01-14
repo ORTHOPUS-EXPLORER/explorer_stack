@@ -79,10 +79,10 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     RCLCPP_INFO(n_->get_logger(), "Using default j5_alignment_threshold: %.3f rad", j5_alignment_threshold_);
   }
   
-  // Movement detection threshold parameter
-  if (!n_->get_parameter("movement_detection_threshold", movement_detection_threshold_)) {
-    movement_detection_threshold_ = 1e-6;  // Default: very small threshold for any intentional movement
-    RCLCPP_INFO(n_->get_logger(), "Using default movement_detection_threshold: %.2e", movement_detection_threshold_);
+  // Movement detection threshold parameter for J4-J6 centering
+  if (!n_->get_parameter("movement_detection_threshold_centering", movement_detection_threshold_centering_)) {
+    movement_detection_threshold_centering_ = 1e-6;  // Default: very small threshold for any intentional movement
+    RCLCPP_INFO(n_->get_logger(), "Using default movement_detection_threshold_centering: %.2e", movement_detection_threshold_centering_);
   }
 
   n_->get_parameter("alpha_weight", alpha_weight_vec);
@@ -753,7 +753,7 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
   
   // Check if robot is being actively controlled by looking at desired velocity magnitude
   double velocity_magnitude = dx_des.getRawVector().norm();
-  bool robot_is_moving = velocity_magnitude > movement_detection_threshold_;
+  bool robot_is_moving = velocity_magnitude > movement_detection_threshold_centering_;
   
   double j5_angle = std::abs(q_current_[4]);  // Joint 5 (index 4, 0-based)
   double centering_scale = 0.0;
