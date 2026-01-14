@@ -25,7 +25,7 @@ namespace space_control
 
             bool validateTrajectory() const;
 
-            void update(std::array<double,7> q_current, float axe_value);
+            void update(std::array<double,7> q_current, double q_gripper, float axe_value);
 
             bool getLock();
 
@@ -47,7 +47,7 @@ namespace space_control
         std::array<double,6> q_current_;
         std::array<double,6> q_hold_;  // Position to hold when joystick is released
         bool q_hold_initialized_ = false;  // Track if q_hold_ has been initialized with actual position
-        double gripper;
+        double gripper_;
         float axe_value_;
         float axe_value_prev_;
         bool newDirection_;

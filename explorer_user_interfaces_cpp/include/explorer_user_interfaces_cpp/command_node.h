@@ -85,6 +85,7 @@ namespace space_control
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
+        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr q_forward_controller_sub;
 
         // Publishers
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
@@ -157,6 +158,7 @@ namespace space_control
 
         geometry_msgs::msg::Pose x_current_;
         std::array<double,7> q_current_;
+        double q_gripper_;
 
         sensor_msgs::msg::JointState current_pos_;
 
@@ -180,6 +182,8 @@ namespace space_control
         void callback_x_current(const geometry_msgs::msg::Pose & msg);
 
         void callback_q_current_(const sensor_msgs::msg::JointState & msg);
+
+        void callback_q_forward_controller(const std_msgs::msg::Float64MultiArray & msg);
 
         void handle_controller_state();
 

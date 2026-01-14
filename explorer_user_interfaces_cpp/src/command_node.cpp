@@ -113,6 +113,7 @@ namespace space_control
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
         x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/command_node/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
         q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
+        q_forward_controller_sub = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&CommandNode::callback_q_forward_controller, this, std::placeholders::_1));
 
         joint_vel_pub_ = n->create_publisher<std_msgs::msg::Float64MultiArray>("command_node/joint_velocity_command", 10);
         cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("command_node/cartesian_velocity_command", 10);
@@ -506,6 +507,10 @@ namespace space_control
         current_pos_ = msg;
     }
 
+    void CommandNode::callback_q_forward_controller(const std_msgs::msg::Float64MultiArray & msg) {
+        q_gripper_ = msg.data[6];
+    }
+
     void CommandNode::handle_controller_state()
 {
     switch (control_state_) {
@@ -894,7 +899,7 @@ namespace space_control
         }
         
         float value = readAxisValue(axis_info);
-        trajectory_manager.update(q_current_, value);
+        trajectory_manager.update(q_current_, q_gripper_, value);
         
         lock_ = trajectory_manager.getLock();
 
