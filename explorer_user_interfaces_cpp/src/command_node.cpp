@@ -590,16 +590,40 @@ namespace space_control
 
     void CommandNode::timer() {
 
-        // Reset velocities
+        // Step 1: Get the current mode to know which smoothing alphas to use
+        ButtonMode mode = data.button_modes_map[current_mode_name];
+
+        // Step 2: Read raw values and apply smoothing for each axis ONCE
+        // Find the smoothing alpha for each joystick axis from the current mode config
+        float alpha_ax1 = 1.0f;  // default: no smoothing
+        float alpha_ax2 = 1.0f;
+        for (const auto& axis : mode.axes) {
+            if (axis.joystick_axis == "ax1") {
+                alpha_ax1 = axis.smoothing_alpha;
+            } else if (axis.joystick_axis == "ax2") {
+                alpha_ax2 = axis.smoothing_alpha;
+            }
+        }
+
+        // Step 3: Atomically read raw values and apply smoothing
+        {
+            std::lock_guard<std::mutex> lock_axis(mutex_axis_);
+            axis_1_smoothed_ = alpha_ax1 * axis_1_raw_ + (1.0f - alpha_ax1) * axis_1_smoothed_;
+            axis_2_smoothed_ = alpha_ax2 * axis_2_raw_ + (1.0f - alpha_ax2) * axis_2_smoothed_;
+        }
+
+        // Debug: log both smoothed values periodically
+        RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+            "Smoothed axes: ax1=%.3f, ax2=%.3f (alphas: %.2f, %.2f)",
+            axis_1_smoothed_, axis_2_smoothed_, alpha_ax1, alpha_ax2);
+
+        // Step 4: Reset velocities
         resetVelocities();
 
         complex_mode_ = false;
-
-        ButtonMode mode = data.button_modes_map[current_mode_name];
-
         trajectory_requested_ = false;
 
-        // Execute control behaviors for each axis in the current mode
+        // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
         for (const auto& axis : mode.axes) {
             executeBehavior(axis);
         }
@@ -610,7 +634,10 @@ namespace space_control
 
         handle_controller_state();
 
-        // Publish the computed velocities
+        // Step 6: Publish the computed velocities
+        RCLCPP_DEBUG_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+            "Publishing velocities: linear(%.3f, %.3f, %.3f)",
+            cartesian_vel_.twist.linear.x, cartesian_vel_.twist.linear.y, cartesian_vel_.twist.linear.z);
         cartesian_vel_pub_->publish(cartesian_vel_);
         joint_vel_pub_->publish(joint_vel_);
         frame_id_pub_->publish(frame_id_);
@@ -619,12 +646,14 @@ namespace space_control
         if(button_handler.isShortClick() && mode.buttons.short_click != "") {
             current_mode_name = mode.buttons.short_click;
             // Reset smoothed values when switching modes to avoid artifacts
-            axis_smoothed_.clear();
+            axis_1_smoothed_ = 0.0f;
+            axis_2_smoothed_ = 0.0f;
         }
         else if(button_handler.isLongClick() && mode.buttons.long_click != "") {
             current_mode_name = mode.buttons.long_click;
             // Reset smoothed values when switching modes to avoid artifacts
-            axis_smoothed_.clear();
+            axis_1_smoothed_ = 0.0f;
+            axis_2_smoothed_ = 0.0f;
         }
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
@@ -639,30 +668,20 @@ namespace space_control
         }
     }
 
-    // Read joystick axis value with per-axis smoothing
+    // Read joystick axis value (smoothing already applied at start of timer)
     float CommandNode::readAxisValue(const AxisInfo& axis_info) {
-        float raw_value = 0.0f;
-        std::lock_guard<std::mutex> lock_axis(mutex_axis_);
+        float smoothed_value = 0.0f;
         
-        // Get raw value from the appropriate axis
+        // Simply return the pre-smoothed value for the requested axis
         if(axis_info.joystick_axis == "ax1") {
-            raw_value = axis_1_raw_;
+            smoothed_value = axis_1_smoothed_;
         }  
         else if(axis_info.joystick_axis == "ax2") {
-            raw_value = axis_2_raw_;
+            smoothed_value = axis_2_smoothed_;
         }
         
-        // Apply exponential moving average smoothing with per-axis alpha
-        // smoothed = alpha * raw + (1 - alpha) * smoothed
-        // Initialize smoothed value if not present
-        if (axis_smoothed_.find(axis_info.joystick_axis) == axis_smoothed_.end()) {
-            axis_smoothed_[axis_info.joystick_axis] = raw_value;
-        }
-        
-        float& smoothed = axis_smoothed_[axis_info.joystick_axis];
-        smoothed = axis_info.smoothing_alpha * raw_value + (1.0 - axis_info.smoothing_alpha) * smoothed;
-        
-        float value = smoothed * axis_info.direction * axis_info.scale * speed_factor;
+        // Apply direction, scale and speed factor
+        float value = smoothed_value * axis_info.direction * axis_info.scale * speed_factor;
 
         return value;
     }
