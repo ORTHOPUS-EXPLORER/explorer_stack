@@ -17,13 +17,13 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 3.0
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "cartesian_Y.png"  
       - control_name: "cartesian_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "cartesian_X.png"
     button:
       - long_click: "SPEED"
@@ -41,7 +41,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "cartesian_Z.png"
     button:
       - long_click: "DRINK"
@@ -59,7 +59,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "cartesian_Z.png" 
     button:
       - long_click: ""
@@ -71,13 +71,13 @@ button_mappings:
         joystick_axis: "ax1"
         direction: 1
         scale: 0.75
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "rotation_Z.png"  
       - control_name: "rotation_Y"
         joystick_axis: "ax2"
         direction: 1
         scale: 0.75
-        smoothing_alpha: 0.05
+        smoothing_alpha: 0.1
         image: "rotation_Y.png" 
     button:
       - long_click: ""
