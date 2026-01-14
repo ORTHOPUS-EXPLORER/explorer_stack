@@ -302,10 +302,10 @@ CallbackReturn VESCInterface::on_configure([[maybe_unused]] const rclcpp_lifecyc
       new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_CST;
       RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to CuSTom mode", j_name.c_str());
     }
-    else if(req_mode =="impedence")
+    else if(req_mode =="impedance")
     {
       new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_IMP;
-      RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to IMPedence mode", j_name.c_str());
+      RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Switch to IMPedance mode", j_name.c_str());
     }
     else if(req_mode =="effort")
     {
@@ -425,7 +425,7 @@ CallbackReturn VESCInterface::on_activate([[maybe_unused]] const rclcpp_lifecycl
         new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_VEL;
       else if(_default_mode == "effort")
         new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_TRQ;
-      else if(_default_mode == "impedence")
+      else if(_default_mode == "impedance")
         new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_IMP;
       else if(_default_mode == "custom")
         new_ctrl |= orthopus::ORTHOPUS_CTRL_MODE_CST;
