@@ -18,8 +18,15 @@ qp_solving:
     joint_centering_multiplier : 0
     j5_alignment_threshold : 0.2  # radians (~11 degrees) - when J5 is below this, J4&J6 centering is active
     movement_detection_threshold_centering : 1e-3  # velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering)
-    enable_movement_detection_global : false  # Enable drift prevention when no user input (set false to disable and restore legacy behavior)
+    enable_movement_detection_global : false  # Disable to test adaptive snap independently
     movement_detection_threshold_global : 1e-3  # velocity magnitude threshold to prevent drift when no user input (only used if enabled)
+
+    # Adaptive snap for workspace limit drift prevention
+    enable_adaptive_snap : true  # Enable automatic snap update when QP cannot achieve commanded velocity
+    adaptive_snap_threshold_pos : 0.01  # m/s - position velocity error threshold for adaptive snap detection
+    adaptive_snap_threshold_or : 0.01   # quaternion velocity units - orientation velocity error threshold
+    adaptive_snap_cycles : 50  # Number of consecutive cycles before snap update (50 cycles @ 100Hz = 500ms)
+    gamma_suppression_cycles : 100  # Number of cycles to suppress gamma term after adaptive snap (100 cycles @ 100Hz = 1000ms)
     
     # SMART JOINT CENTERING EXPLANATION:
     # - When J5 ≈ 0, joints J4 and J6 are aligned and act as a single rotation around the same axis
