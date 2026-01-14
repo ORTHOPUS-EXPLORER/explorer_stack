@@ -130,6 +130,15 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
                 gamma_suppression_cycles_);
   }
 
+  if (!n_->get_parameter("snap_input_threshold", snap_input_threshold_)) {
+    snap_input_threshold_ = 1e-3;  // Default: 0.001 m/s or rad/s
+    RCLCPP_INFO(n_->get_logger(), "Using default snap_input_threshold: %.2e",
+                snap_input_threshold_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded snap_input_threshold: %.2e",
+                snap_input_threshold_);
+  }
+
   // Initialize counters and flags
   adaptive_snap_counter_pos_ = 0;
   adaptive_snap_counter_or_ = 0;
@@ -566,19 +575,29 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
    r_snap_ = x_current_.getOrientation();
   }
 
+  // Threshold for detecting user input (accounts for smoothing decay)
+  // Uses configurable snap_input_threshold_ parameter
+  //
+  // KEY FIX FOR SMOOTHING: We CONTINUOUSLY update the snap position while input is above threshold.
+  // This ensures that when input finally drops below threshold (due to smoothing decay),
+  // the snap is already at the robot's current position - eliminating the jump-back.
+
   for (int i = 0; i < 3; i++)
   {
-   if (dx_desired[i] != 0)
+   if (std::abs(dx_desired[i]) > snap_input_threshold_)
    {
      flag_pos_save[i] = true;
+     // CONTINUOUSLY update snap while user is commanding - this is the key fix!
+     // As the smoothed input decays, we keep the snap at the latest position.
+     pos_snap_ = x_current_.getPosition();
    }
    else
    {
      if (flag_pos_save[i] == true)
      {
        flag_pos_save[i] = false;
-       // CRITICAL: When joystick is released after adaptive snap, update snap to CURRENT position
-       // This ensures the robot stays where it ended up, not where it was mid-force
+       // Final snap update when input drops below threshold
+       // (Should be very close to current position due to continuous updates above)
        pos_snap_ = x_current_.getPosition();
        
        // Reset adaptive snap counter when user stops commanding
@@ -602,17 +621,20 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
   }
   for (int i = 0; i < 3; i++)
   {
-    if (dx_desired[4 + i] != 0.0)
+    if (std::abs(dx_desired[4 + i]) > snap_input_threshold_)
     {
       flag_orient_save[i] = true;
+      // CONTINUOUSLY update snap while user is commanding - this is the key fix!
+      // As the smoothed input decays, we keep the snap at the latest orientation.
+      r_snap_ = x_current_.getOrientation();
     }
     else
     {
       if (flag_orient_save[i] == true)
       {
         flag_orient_save[i] = false;
-        // CRITICAL: When joystick is released after adaptive snap, update snap to CURRENT orientation
-        // This ensures the robot stays where it ended up, not where it was mid-force
+        // Final snap update when input drops below threshold
+        // (Should be very close to current orientation due to continuous updates above)
         r_snap_ = x_current_.getOrientation();
         
         // Reset adaptive snap counter when user stops commanding
@@ -902,7 +924,7 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
   or_controlled_mat(0, 0) = 0.0;
   for(int i=0; i<space_dimension_; i++)
   {
-    if( dx_des[i] != 0 && !path_tracking )
+    if( std::abs(dx_des[i]) > snap_input_threshold_ && !path_tracking )
     {
       if( i<3 )
       {

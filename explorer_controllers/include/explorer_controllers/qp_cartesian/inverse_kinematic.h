@@ -130,6 +130,7 @@ private:
   int gamma_suppression_counter_or_;           /*!< Countdown for gamma suppression after orientation snap */
   bool adaptive_snap_triggered_pos_;           /*!< Flag: adaptive snap occurred during current forcing period (position) */
   bool adaptive_snap_triggered_or_;            /*!< Flag: adaptive snap occurred during current forcing period (orientation) */
+  double snap_input_threshold_;                /*!< Velocity threshold to detect joystick input for snap mechanism (accounts for smoothing) */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 

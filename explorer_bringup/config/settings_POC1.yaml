@@ -25,6 +25,7 @@ qp_solving:
     adaptive_snap_threshold_or : 0.01   # quaternion velocity units - orientation velocity error threshold
     adaptive_snap_cycles : 50  # Number of consecutive cycles before snap update (50 cycles @ 100Hz = 500ms)
     gamma_suppression_cycles : 100  # Number of cycles to suppress gamma term after adaptive snap (100 cycles @ 100Hz = 1000ms)
+    snap_input_threshold : 1e-3  # velocity threshold to detect joystick input for snap mechanism (accounts for smoothing decay)
 
     ### --- JOINT LIMITS --- ###
     j1:
