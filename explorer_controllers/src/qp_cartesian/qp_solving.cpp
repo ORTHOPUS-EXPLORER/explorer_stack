@@ -32,9 +32,16 @@ namespace space_control
         go_J5_zero = false;
         go_J6_zero = false;
         
-        // Load movement detection threshold parameter for global drift prevention
+        // Load movement detection parameters for global drift prevention
+        if (!n_->get_parameter("enable_movement_detection_global", enable_movement_detection_global_)) {
+            enable_movement_detection_global_ = true;  // Default: enabled
+            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Using default enable_movement_detection_global: %s", enable_movement_detection_global_ ? "true" : "false");
+        } else {
+            RCLCPP_INFO(n_->get_logger(), "[qp_solving] Loaded enable_movement_detection_global: %s", enable_movement_detection_global_ ? "true" : "false");
+        }
+
         if (!n_->get_parameter("movement_detection_threshold_global", movement_detection_threshold_global_)) {
-            movement_detection_threshold_global_ = 1e-6;  // Default: very small threshold
+            movement_detection_threshold_global_ = 1e-3;  // Default: small threshold
             RCLCPP_INFO(n_->get_logger(), "[qp_solving] Using default movement_detection_threshold_global: %.2e", movement_detection_threshold_global_);
         } else {
             RCLCPP_INFO(n_->get_logger(), "[qp_solving] Loaded movement_detection_threshold_global: %.2e", movement_detection_threshold_global_);
@@ -492,32 +499,41 @@ namespace space_control
         fk_.resolveForwardKinematic();
         fk_.getXCurrent(x_current_);
 
-        // Check if there is actual user input (velocity command from joystick)
-        // Calculate input velocity magnitude to detect intentional movement
-        double input_velocity_magnitude = std::sqrt(
-            dx_input_.position.x() * dx_input_.position.x() +
-            dx_input_.position.y() * dx_input_.position.y() +
-            dx_input_.position.z() * dx_input_.position.z() +
-            dx_input_.orientation.x() * dx_input_.orientation.x() +
-            dx_input_.orientation.y() * dx_input_.orientation.y() +
-            dx_input_.orientation.z() * dx_input_.orientation.z()
-        );
-        
-        bool user_input_detected = input_velocity_magnitude > movement_detection_threshold_global_;
-
         if (!go_home && !go_zero && !go_J1_zero && !go_J2_zero && !go_J3_zero && !go_J4_zero && !go_J5_zero && !go_J6_zero) {
-            if (user_input_detected) {
-                // User is actively commanding movement - run IK solver
+            // Check if movement detection is enabled
+            if (enable_movement_detection_global_) {
+                // Check if there is actual user input (velocity command from joystick)
+                // Calculate input velocity magnitude to detect intentional movement
+                double input_velocity_magnitude = std::sqrt(
+                    dx_input_.position.x() * dx_input_.position.x() +
+                    dx_input_.position.y() * dx_input_.position.y() +
+                    dx_input_.position.z() * dx_input_.position.z() +
+                    dx_input_.orientation.x() * dx_input_.orientation.x() +
+                    dx_input_.orientation.y() * dx_input_.orientation.y() +
+                    dx_input_.orientation.z() * dx_input_.orientation.z()
+                );
+
+                bool user_input_detected = input_velocity_magnitude > movement_detection_threshold_global_;
+
+                if (user_input_detected) {
+                    // User is actively commanding movement - run IK solver
+                    ik_.setQCurrent(q_current_);
+                    ik_.setXCurrent(x_current_);
+                    ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, mode == Mode::FULL);
+                    send_output();
+                } else {
+                    // No user input - send zero velocities to prevent drift
+                    for (int i = 0; i < 6; i++) {
+                        dq_output_.data[i] = 0.0;
+                    }
+                    dq_output_pub_->publish(dq_output_);
+                }
+            } else {
+                // Movement detection disabled - always run IK solver (legacy behavior)
                 ik_.setQCurrent(q_current_);
                 ik_.setXCurrent(x_current_);
                 ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, mode == Mode::FULL);
                 send_output();
-            } else {
-                // No user input - send zero velocities to prevent drift
-                for (int i = 0; i < 6; i++) {
-                    dq_output_.data[i] = 0.0;
-                }
-                dq_output_pub_->publish(dq_output_);
             }
         }
         publishDebugTopic_();

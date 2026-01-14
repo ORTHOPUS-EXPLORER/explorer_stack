@@ -103,6 +103,7 @@ namespace space_control
         bool go_J5_zero;
         bool go_J6_zero;
 
+        bool enable_movement_detection_global_;  /*!< Enable/disable global movement detection to prevent drift when no user input */
         double movement_detection_threshold_global_;  /*!< Velocity magnitude threshold to detect intentional user input (global drift prevention) */
 
         enum class Mode { INVALID, EXPLORER, FULL };
