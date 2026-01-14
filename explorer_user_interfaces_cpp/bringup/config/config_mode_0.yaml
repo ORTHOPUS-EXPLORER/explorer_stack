@@ -51,7 +51,7 @@ button_mappings:
     axes:
       - control_name: "drink"
         joystick_axis: "ax1"
-        direction: 1
+        direction: -1
         scale: 0.75
         smoothing_alpha: 0.3
         image: "joint_6.png" 
