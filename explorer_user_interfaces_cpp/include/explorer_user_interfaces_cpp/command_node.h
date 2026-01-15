@@ -110,8 +110,9 @@ namespace space_control
         float axis_1_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
         float axis_2_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
         
-        // Smoothed joystick values per axis (exponential moving average)
-        std::map<std::string, float> axis_smoothed_;  // key: "ax1" or "ax2"
+        // Smoothed joystick values (computed once per timer cycle)
+        float axis_1_smoothed_ = 0.0f;
+        float axis_2_smoothed_ = 0.0f;
 
         int button_threshold_ms;
         double sampling_period_;

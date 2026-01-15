@@ -85,6 +85,68 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     RCLCPP_INFO(n_->get_logger(), "Using default movement_detection_threshold_centering: %.2e", movement_detection_threshold_centering_);
   }
 
+  // Adaptive snap parameters for drift prevention
+  if (!n_->get_parameter("enable_adaptive_snap", enable_adaptive_snap_)) {
+    enable_adaptive_snap_ = true;
+    RCLCPP_INFO(n_->get_logger(), "Using default enable_adaptive_snap: true");
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded enable_adaptive_snap: %s",
+                enable_adaptive_snap_ ? "true" : "false");
+  }
+
+  if (!n_->get_parameter("adaptive_snap_threshold_pos", adaptive_snap_threshold_pos_)) {
+    adaptive_snap_threshold_pos_ = 0.01;
+    RCLCPP_INFO(n_->get_logger(), "Using default adaptive_snap_threshold_pos: %.3f m/s",
+                adaptive_snap_threshold_pos_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded adaptive_snap_threshold_pos: %.3f m/s",
+                adaptive_snap_threshold_pos_);
+  }
+
+  if (!n_->get_parameter("adaptive_snap_threshold_or", adaptive_snap_threshold_or_)) {
+    adaptive_snap_threshold_or_ = 0.01;
+    RCLCPP_INFO(n_->get_logger(), "Using default adaptive_snap_threshold_or: %.3f",
+                adaptive_snap_threshold_or_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded adaptive_snap_threshold_or: %.3f",
+                adaptive_snap_threshold_or_);
+  }
+
+  if (!n_->get_parameter("adaptive_snap_cycles", adaptive_snap_cycles_required_)) {
+    adaptive_snap_cycles_required_ = 50;  // Default 500ms @ 100Hz
+    RCLCPP_INFO(n_->get_logger(), "Using default adaptive_snap_cycles: %d cycles",
+                adaptive_snap_cycles_required_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded adaptive_snap_cycles: %d cycles",
+                adaptive_snap_cycles_required_);
+  }
+
+  if (!n_->get_parameter("gamma_suppression_cycles", gamma_suppression_cycles_)) {
+    gamma_suppression_cycles_ = 100;  // Default 1000ms @ 100Hz - give robot time to settle
+    RCLCPP_INFO(n_->get_logger(), "Using default gamma_suppression_cycles: %d cycles",
+                gamma_suppression_cycles_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded gamma_suppression_cycles: %d cycles",
+                gamma_suppression_cycles_);
+  }
+
+  if (!n_->get_parameter("snap_input_threshold", snap_input_threshold_)) {
+    snap_input_threshold_ = 1e-3;  // Default: 0.001 m/s or rad/s
+    RCLCPP_INFO(n_->get_logger(), "Using default snap_input_threshold: %.2e",
+                snap_input_threshold_);
+  } else {
+    RCLCPP_INFO(n_->get_logger(), "Loaded snap_input_threshold: %.2e",
+                snap_input_threshold_);
+  }
+
+  // Initialize counters and flags
+  adaptive_snap_counter_pos_ = 0;
+  adaptive_snap_counter_or_ = 0;
+  gamma_suppression_counter_pos_ = 0;
+  gamma_suppression_counter_or_ = 0;
+  adaptive_snap_triggered_pos_ = false;
+  adaptive_snap_triggered_or_ = false;
+
   n_->get_parameter("alpha_weight", alpha_weight_vec);
   n_->get_parameter("beta_weight", beta_weight_vec);
   n_->get_parameter("gamma_weight", gamma_weight_vec);
@@ -342,6 +404,14 @@ void InverseKinematic::reset()
   /* Initialize a flag used to init QP if required */
   qp_init_required_ = true;
   jacobian_init_flag_ = true;
+  
+  /* Reset adaptive snap state */
+  adaptive_snap_counter_pos_ = 0;
+  adaptive_snap_counter_or_ = 0;
+  gamma_suppression_counter_pos_ = 0;
+  gamma_suppression_counter_or_ = 0;
+  adaptive_snap_triggered_pos_ = false;
+  adaptive_snap_triggered_or_ = false;
 }
 
 void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
@@ -505,33 +575,84 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
    r_snap_ = x_current_.getOrientation();
   }
 
+  // Threshold for detecting user input (accounts for smoothing decay)
+  // Uses configurable snap_input_threshold_ parameter
+  //
+  // KEY FIX FOR SMOOTHING: We CONTINUOUSLY update the snap position while input is above threshold.
+  // This ensures that when input finally drops below threshold (due to smoothing decay),
+  // the snap is already at the robot's current position - eliminating the jump-back.
+
   for (int i = 0; i < 3; i++)
   {
-   if (dx_desired[i] != 0)
+   if (std::abs(dx_desired[i]) > snap_input_threshold_)
    {
      flag_pos_save[i] = true;
+     // CONTINUOUSLY update snap while user is commanding - this is the key fix!
+     // As the smoothed input decays, we keep the snap at the latest position.
+     pos_snap_ = x_current_.getPosition();
    }
    else
    {
      if (flag_pos_save[i] == true)
      {
        flag_pos_save[i] = false;
+       // Final snap update when input drops below threshold
+       // (Should be very close to current position due to continuous updates above)
        pos_snap_ = x_current_.getPosition();
+       
+       // Reset adaptive snap counter when user stops commanding
+       adaptive_snap_counter_pos_ = 0;
+       
+       // If adaptive snap was triggered during this forcing period, activate gamma suppression NOW
+       // This prevents the robot from drifting back when joystick is released
+       if (adaptive_snap_triggered_pos_) {
+         gamma_suppression_counter_pos_ = gamma_suppression_cycles_;
+         // Also suppress orientation since they're in conflict
+         gamma_suppression_counter_or_ = gamma_suppression_cycles_;
+         r_snap_ = x_current_.getOrientation();  // Update orientation snap too
+         adaptive_snap_triggered_pos_ = false;  // Reset flag
+         adaptive_snap_triggered_or_ = false;   // Reset flag
+         RCLCPP_WARN(n_->get_logger(),
+                     "Joystick released after adaptive snap - updating pos AND orientation snap, activating BOTH gamma suppressions for %d cycles",
+                     gamma_suppression_cycles_);
+       }
      }
    }
   }
   for (int i = 0; i < 3; i++)
   {
-    if (dx_desired[4 + i] != 0.0)
+    if (std::abs(dx_desired[4 + i]) > snap_input_threshold_)
     {
       flag_orient_save[i] = true;
+      // CONTINUOUSLY update snap while user is commanding - this is the key fix!
+      // As the smoothed input decays, we keep the snap at the latest orientation.
+      r_snap_ = x_current_.getOrientation();
     }
     else
     {
       if (flag_orient_save[i] == true)
       {
         flag_orient_save[i] = false;
+        // Final snap update when input drops below threshold
+        // (Should be very close to current orientation due to continuous updates above)
         r_snap_ = x_current_.getOrientation();
+        
+        // Reset adaptive snap counter when user stops commanding
+        adaptive_snap_counter_or_ = 0;
+        
+        // If adaptive snap was triggered during this forcing period, activate gamma suppression NOW
+        // This prevents the robot from drifting back when joystick is released
+        if (adaptive_snap_triggered_or_) {
+          gamma_suppression_counter_or_ = gamma_suppression_cycles_;
+          // Also suppress position since they're in conflict
+          gamma_suppression_counter_pos_ = gamma_suppression_cycles_;
+          pos_snap_ = x_current_.getPosition();  // Update position snap too
+          adaptive_snap_triggered_or_ = false;   // Reset flag
+          adaptive_snap_triggered_pos_ = false;  // Reset flag
+          RCLCPP_WARN(n_->get_logger(),
+                      "Joystick released after adaptive snap - updating pos AND orientation snap, activating BOTH gamma suppressions for %d cycles",
+                      gamma_suppression_cycles_);
+        }
       }
     }
   }
@@ -630,7 +751,7 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
   }
 
   /* Only reset on serious errors, not on max iterations reached */
-  if (qp_return != qpOASES::SUCCESSFUL_RETURN && 
+  if (qp_return != qpOASES::SUCCESSFUL_RETURN &&
       qp_return != qpOASES::RET_MAX_NWSR_REACHED &&
       qp_return != qpOASES::RET_HOTSTART_STOPPED_INFEASIBILITY)
   {
@@ -638,6 +759,105 @@ void InverseKinematic::resolveInverseKinematic(JointVelocity& dq_computed,
     reset();
     // Don't exit, just reset and continue - this allows recovery
     // exit(0);  // TODO improve error handling. Crash of the application is neither safe nor beautiful
+  }
+
+  /* Adaptive snap: Detect when QP cannot achieve commanded velocity and update snap positions */
+  if (enable_adaptive_snap_) {
+    // Compute achieved Cartesian velocity from joint velocities
+    VectorXd dq_computed_vector(joint_number_);
+    for (int i = 0; i < joint_number_; i++) {
+      dq_computed_vector(i) = dq_computed[i];
+    }
+    VectorXd dx_achieved = jacobian * dq_computed_vector;
+
+    // Split into position and orientation components
+    Vector3d dx_pos_achieved = dx_achieved.head<3>();
+    Vector3d dx_pos_desired = dx_desired_in_frame.getPosition();
+    double pos_error = (dx_pos_achieved - dx_pos_desired).norm();
+
+    Vector4d dx_or_achieved = dx_achieved.tail<4>();
+    // Convert orientation part of dx_des (angular velocity in quaternion form)
+    VectorXd dx_des_raw = dx_desired_in_frame.getRawVector();
+    Vector4d dx_or_desired = dx_des_raw.tail<4>();
+    double or_error = (dx_or_achieved - dx_or_desired).norm();
+
+    // Detect sacrifice conditions (sustained over multiple cycles)
+    // CRITICAL: Only trigger when user is ACTIVELY commanding (dx > threshold)
+    // If dx_desired ≈ 0, any movement is from gamma term drift, not user input
+    bool user_commanding_pos = (dx_pos_desired.norm() > 1e-3);  // 1mm/s threshold for "user is commanding"
+    bool user_commanding_or = (dx_or_desired.norm() > 1e-3);
+
+    bool pos_sacrifice = (pos_error > adaptive_snap_threshold_pos_ && user_commanding_pos);
+    bool or_sacrifice = (or_error > adaptive_snap_threshold_or_ && user_commanding_or);
+
+    // DIAGNOSTIC: ALWAYS log to understand what's happening
+    RCLCPP_WARN_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+                         "ADAPTIVE SNAP DEBUG: dx_pos_cmd_norm=%.6f, dx_or_cmd_norm=%.6f, "
+                         "pos_error=%.4f, or_error=%.4f, user_cmd_pos=%d, user_cmd_or=%d, "
+                         "pos_sacrifice=%d, or_sacrifice=%d",
+                         dx_pos_desired.norm(), dx_or_desired.norm(),
+                         pos_error, or_error,
+                         user_commanding_pos, user_commanding_or,
+                         pos_sacrifice, or_sacrifice);
+
+    // Increment counters for sustained detection
+    if (pos_sacrifice) {
+      adaptive_snap_counter_pos_++;
+      RCLCPP_INFO_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+                           "Position sacrifice detected: counter=%d/%d, error=%.4f > threshold=%.4f",
+                           adaptive_snap_counter_pos_, adaptive_snap_cycles_required_,
+                           pos_error, adaptive_snap_threshold_pos_);
+    } else {
+      adaptive_snap_counter_pos_ = 0;
+    }
+
+    if (or_sacrifice) {
+      adaptive_snap_counter_or_++;
+      RCLCPP_INFO_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+                           "Orientation sacrifice detected: counter=%d/%d, error=%.4f > threshold=%.4f",
+                           adaptive_snap_counter_or_, adaptive_snap_cycles_required_,
+                           or_error, adaptive_snap_threshold_or_);
+    } else {
+      adaptive_snap_counter_or_ = 0;
+    }
+
+    // Update snap positions only after sustained adaptive snap
+    if (adaptive_snap_counter_pos_ >= adaptive_snap_cycles_required_) {
+      // Position is being sacrificed - mark that adaptive snap occurred
+      // We do NOT immediately update pos_snap_ here because:
+      // 1. The user is still forcing, so position will keep changing
+      // 2. We want to capture the FINAL position when joystick is released
+      // Instead, set flag so snap is updated to current position on release
+      adaptive_snap_triggered_pos_ = true;
+      
+      // ALSO trigger orientation snap since pos/or are in conflict
+      // This prevents orientation from pulling the robot back after release
+      adaptive_snap_triggered_or_ = true;
+      
+      // Reset counter to prevent continuous re-triggering
+      adaptive_snap_counter_pos_ = 0;
+
+      RCLCPP_WARN(n_->get_logger(),
+                  "ADAPTIVE SNAP TRIGGERED: Position sacrifice sustained for %d cycles - will update pos AND orientation snap on joystick release",
+                  adaptive_snap_cycles_required_);
+    }
+
+    if (adaptive_snap_counter_or_ >= adaptive_snap_cycles_required_) {
+      // Orientation is being sacrificed - mark that adaptive snap occurred
+      // Same logic as position: wait for joystick release to capture final orientation
+      adaptive_snap_triggered_or_ = true;
+      
+      // ALSO trigger position snap since pos/or are in conflict
+      // This prevents position from pulling the robot back after release
+      adaptive_snap_triggered_pos_ = true;
+      
+      // Reset counter to prevent continuous re-triggering
+      adaptive_snap_counter_or_ = 0;
+
+      RCLCPP_WARN(n_->get_logger(),
+                  "ADAPTIVE SNAP TRIGGERED: Orientation sacrifice sustained for %d cycles - will update pos AND orientation snap on joystick release",
+                  adaptive_snap_cycles_required_);
+    }
   }
 }
 
@@ -704,7 +924,7 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
   or_controlled_mat(0, 0) = 0.0;
   for(int i=0; i<space_dimension_; i++)
   {
-    if( dx_des[i] != 0 && !path_tracking )
+    if( std::abs(dx_des[i]) > snap_input_threshold_ && !path_tracking )
     {
       if( i<3 )
       {
@@ -713,6 +933,53 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
       else
       {
         or_controlled_mat(i-3,i-3) = 0.0;
+      }
+    }
+  }
+
+  // Gamma suppression after adaptive snap: disable gamma term to prevent drift
+  // This allows robot to settle at the new snap position without being pulled by residual errors
+  // CRITICAL: Only decrement counter when user is NOT commanding (dx_des ≈ 0)
+  // This ensures suppression happens AFTER joystick release, not during forcing
+  if (enable_adaptive_snap_) {
+    double dx_norm = dx_des.getRawVector().norm();
+    bool user_commanding = dx_norm > 1e-6;
+
+    if (gamma_suppression_counter_pos_ > 0) {
+      if (!user_commanding) {
+        // Suppress position gamma term (only when not commanding)
+        pos_controlled_mat.setZero();
+        gamma_suppression_counter_pos_--;
+
+        RCLCPP_INFO_THROTTLE(n_->get_logger(), *n_->get_clock(), 200,
+                             "GAMMA SUPPRESSION ACTIVE: Position gamma suppressed, countdown=%d, dx_norm=%.6f",
+                             gamma_suppression_counter_pos_, dx_norm);
+
+        if (gamma_suppression_counter_pos_ == 0) {
+          // CRITICAL: Update snap to current position AFTER suppression ends
+          // This ensures the robot stays at its settled position
+          pos_snap_ = x_current_.getPosition();
+          RCLCPP_WARN(n_->get_logger(), "Position gamma suppression ended - snap updated to current position, resuming normal control");
+        }
+      } else {
+        RCLCPP_WARN_THROTTLE(n_->get_logger(), *n_->get_clock(), 500,
+                             "Gamma suppression pending (user still commanding): counter=%d, dx_norm=%.6f",
+                             gamma_suppression_counter_pos_, dx_norm);
+      }
+    }
+
+    if (gamma_suppression_counter_or_ > 0) {
+      if (!user_commanding) {
+        // Suppress orientation gamma term (only when not commanding)
+        or_controlled_mat.setZero();
+        gamma_suppression_counter_or_--;
+
+        if (gamma_suppression_counter_or_ == 0) {
+          // CRITICAL: Update snap to current orientation AFTER suppression ends
+          // This ensures the robot stays at its settled orientation
+          r_snap_ = x_current_.getOrientation();
+          RCLCPP_INFO(n_->get_logger(), "Orientation gamma suppression ended - snap updated to current orientation, resuming normal control");
+        }
       }
     }
   }

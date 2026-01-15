@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -39,6 +39,7 @@ def generate_launch_description():
     port_arg = LaunchConfiguration('port')
     host_arg = LaunchConfiguration('host')
     mode_config_path_arg = LaunchConfiguration('mode_config_path')
+    input_device = LaunchConfiguration('input_device')
 
     # Declare arguments
     declared_arguments = []
@@ -146,6 +147,14 @@ def generate_launch_description():
         )
     )
     
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "input_device",
+            default_value="movis",
+            description="Input device type: 'movis' or 'xbox'"
+        )
+    )
+    
     
 
     # Include robot simulation (when simulation=true)
@@ -240,16 +249,20 @@ def generate_launch_description():
     yaml_file_path = os.path.join(pkg_share, 'config', 'config_mode_0.yaml')
     trajectory_yaml_file_path = os.path.join(pkg_share, 'config', 'config_trajectory.yaml')
 
-    pkg_share_joystick = get_package_share_directory('explorer_input_devices')
-    joystick_yaml_file_path = os.path.join(pkg_share_joystick, 'config', 'movis_joystick_settings.yaml')
+    # Select joystick config based on input_device parameter
+    joystick_yaml_file_path = PathJoinSubstitution([
+        FindPackageShare("explorer_input_devices"),
+        "config",
+        PythonExpression([
+            "'movis_joystick_settings.yaml' if '", input_device, "' == 'movis' else 'xbox_gamepad_settings.yaml'"
+        ])
+    ])
 
     joy_node = Node(
         package="joy",
         executable="joy_node",
         output="screen",
-        parameters=[{
-            joystick_yaml_file_path
-        }],
+        parameters=[joystick_yaml_file_path],
     )
 
     command_node = Node(

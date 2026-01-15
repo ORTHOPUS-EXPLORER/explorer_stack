@@ -118,6 +118,20 @@ private:
   double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
   double movement_detection_threshold_centering_;  /*!< Velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering) */
 
+  // Adaptive snap for drift prevention
+  bool enable_adaptive_snap_;                  /*!< Enable automatic snap update when QP cannot achieve commanded velocity */
+  double adaptive_snap_threshold_pos_;         /*!< Position velocity error threshold for adaptive snap (m/s) */
+  double adaptive_snap_threshold_or_;          /*!< Orientation velocity error threshold for adaptive snap */
+  int adaptive_snap_cycles_required_;          /*!< Number of consecutive cycles before snap update */
+  int adaptive_snap_counter_pos_;              /*!< Counter for sustained position sacrifice */
+  int adaptive_snap_counter_or_;               /*!< Counter for sustained orientation sacrifice */
+  int gamma_suppression_cycles_;               /*!< Number of cycles to suppress gamma term after adaptive snap */
+  int gamma_suppression_counter_pos_;          /*!< Countdown for gamma suppression after position snap */
+  int gamma_suppression_counter_or_;           /*!< Countdown for gamma suppression after orientation snap */
+  bool adaptive_snap_triggered_pos_;           /*!< Flag: adaptive snap occurred during current forcing period (position) */
+  bool adaptive_snap_triggered_or_;            /*!< Flag: adaptive snap occurred during current forcing period (orientation) */
+  double snap_input_threshold_;                /*!< Velocity threshold to detect joystick input for snap mechanism (accounts for smoothing) */
+
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 
   moveit::core::RobotModelPtr kinematic_model_;      /*!< MoveIt RobotModel pointer */
