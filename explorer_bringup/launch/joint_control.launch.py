@@ -147,15 +147,25 @@ def generate_launch_description():
         ]
     )
 
+    joystick_yaml_file_path = PathJoinSubstitution([
+        FindPackageShare("explorer_input_devices"),
+        "config",
+        "xbox_gamepad_settings.yaml",
+    ])
+
     joy_node = Node(
         package="joy",
         executable="joy_node",
         output="screen",
+        parameters=[joystick_yaml_file_path],
     )
 
     xbox_gamepad_joint_node = Node(
         package="explorer_input_devices",
         executable="xbox_gamepad_joint",
+        remappings=[
+            ( '/explorer_input_devices/xbox_gamepad_joint/dq_output', '/explorer_controllers/qp_solving/dq_output'),
+        ]
     )
 
     nodes = [
