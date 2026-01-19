@@ -6,14 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>616</width>
-    <height>349</height>
+    <width>600</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QLabel" name="label_12">
+
+  <widget class="QLabel" name="label_title">
    <property name="geometry">
     <rect>
      <x>130</x>
@@ -36,17 +37,15 @@
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
+
   <widget class="QFrame" name="frame">
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>120</y>
-     <width>541</width>
-     <height>191</height>
+     <y>100</y>
+     <width>800</width>
+     <height>300</height>
     </rect>
-   </property>
-   <property name="autoFillBackground">
-    <bool>false</bool>
    </property>
    <property name="frameShape">
     <enum>QFrame::StyledPanel</enum>
@@ -54,18 +53,229 @@
    <property name="frameShadow">
     <enum>QFrame::Raised</enum>
    </property>
-   <widget class="QWidget" name="horizontalLayoutWidget">
+
+   <!-- MODE group -->
+   <widget class="QGroupBox" name="mode_group">
     <property name="geometry">
      <rect>
-      <x>50</x>
-      <y>60</y>
-      <width>361</width>
-      <height>31</height>
+      <x>20</x>
+      <y>10</y>
+      <width>500</width>
+      <height>70</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="label_2">
+    <property name="title">
+     <string>Mode</string>
+    </property>
+    <widget class="QWidget" name="horizontalLayoutWidget_mode">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>25</y>
+       <width>600</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_mode">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>6</number>
+      </property>
+      <property name="rightMargin">
+       <number>6</number>
+      </property>
+      <item>
+       <widget class="QRadioButton" name="mode_off">
+        <property name="text">
+         <string>OFF</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="mode_position">
+        <property name="text">
+         <string>Position</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="mode_velocity">
+        <property name="text">
+         <string>Velocity</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="mode_effort">
+        <property name="text">
+         <string>Effort</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="mode_impedance">
+        <property name="text">
+         <string>Impedance</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="mode_spacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>10</width>
+          <height>10</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </widget>   
+
+   <!-- Sliders grid (more space for 2-line values) -->
+   <widget class="QWidget" name="gridLayoutWidget_controls">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>95</y>
+      <width>700</width>
+      <height>185</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout_controls">
+     <property name="horizontalSpacing">
+      <number>10</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>16</number>
+     </property>
+     <property name="leftMargin">
+      <number>6</number>
+     </property>
+     <property name="rightMargin">
+      <number>6</number>
+     </property>
+     <property name="topMargin">
+      <number>6</number>
+     </property>
+     <property name="bottomMargin">
+      <number>6</number>
+     </property>
+
+     <!-- Row 0: Position -->
+     <item row="0" column="0">
+      <widget class="QLabel" name="label_pos">
+       <property name="text">
+        <string>position</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+
+     <item row="0" column="1">
+      <widget class="QSlider" name="position">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimum">
+        <number>-360</number>
+       </property>
+       <property name="maximum">
+        <number>360</number>
+       </property>
+       <property name="sliderPosition">
+        <number>0</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+
+     <!-- Position values (2 lines) -->
+     <item row="0" column="2">
+      <widget class="QWidget" name="pos_value_box">
+       <layout class="QVBoxLayout" name="pos_value_vbox">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="pos_deg_value">
+          <property name="minimumSize">
+           <size>
+            <width>80</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>0 deg</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="pos_rad_value">
+          <property name="text">
+           <string>0.0000 rad</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+
+     <item row="0" column="3">
+      <widget class="QPushButton" name="pos_zero_btn">
+       <property name="text">
+        <string>Zéro</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="4">
+      <widget class="QCheckBox" name="pos_from_vel_cb">
+       <property name="text">
+        <string>Pos = ∫ vel</string>
+       </property>
+       <property name="toolTip">
+        <string>Génère la consigne position en intégrant la vitesse. Désactive le slider position.</string>
+       </property>
+      </widget>
+     </item>
+
+     <!-- Row 1: Velocity -->
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_vel">
        <property name="text">
         <string>velocity</string>
        </property>
@@ -74,7 +284,8 @@
        </property>
       </widget>
      </item>
-     <item>
+
+     <item row="1" column="1">
       <widget class="QSlider" name="velocity">
        <property name="minimum">
         <number>-1000</number>
@@ -83,27 +294,74 @@
         <number>1000</number>
        </property>
        <property name="sliderPosition">
-        <number>1</number>
+        <number>0</number>
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="horizontalLayoutWidget_2">
-    <property name="geometry">
-     <rect>
-      <x>50</x>
-      <y>130</y>
-      <width>361</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
-     <item>
-      <widget class="QLabel" name="label_3">
+
+     <!-- Velocity values (2 lines) -->
+     <item row="1" column="2">
+      <widget class="QWidget" name="vel_value_box">
+       <layout class="QVBoxLayout" name="vel_value_vbox">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="vel_deg_s_value">
+          <property name="minimumSize">
+           <size>
+            <width>80</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>0 deg/s</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="vel_rad_s_value">
+          <property name="text">
+           <string>0.0000 rad/s</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+
+     <item row="1" column="3">
+      <widget class="QPushButton" name="vel_zero_btn">
+       <property name="text">
+        <string>Zéro</string>
+       </property>
+      </widget>
+     </item>
+
+     <!-- Row 2: Torque -->
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_trq">
        <property name="text">
         <string>torque</string>
        </property>
@@ -112,7 +370,8 @@
        </property>
       </widget>
      </item>
-     <item>
+
+     <item row="2" column="1">
       <widget class="QSlider" name="torque">
        <property name="minimum">
         <number>-1000</number>
@@ -128,25 +387,42 @@
        </property>
       </widget>
      </item>
+
+     <!-- Torque value (1 line) -->
+     <item row="2" column="2">
+      <widget class="QLabel" name="trq_nm_value">
+       <property name="minimumSize">
+        <size>
+         <width>80</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>0 N.m</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+
+     <item row="2" column="3">
+      <widget class="QPushButton" name="trq_zero_btn">
+       <property name="text">
+        <string>Zéro</string>
+       </property>
+      </widget>
+     </item>
+
     </layout>
    </widget>
-   <widget class="QPushButton" name="zero_btn">
-    <property name="geometry">
-     <rect>
-      <x>430</x>
-      <y>10</y>
-      <width>89</width>
-      <height>25</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>ZERO</string>
-    </property>
-   </widget>
+
   </widget>
+
   <zorder>frame</zorder>
-  <zorder>label_12</zorder>
+  <zorder>label_title</zorder>
  </widget>
+
  <resources/>
  <connections/>
 </ui>

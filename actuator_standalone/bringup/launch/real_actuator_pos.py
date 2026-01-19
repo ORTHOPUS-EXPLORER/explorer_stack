@@ -119,22 +119,10 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    actuator_pos_controller_spawner = Node(
+    actuator_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
-    )
-
-    actuator_vel_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["forward_velocity_controller", "--controller-manager", "/controller_manager"],
-    )
-
-    actuator_trq_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["forward_effort_controller", "--controller-manager", "/controller_manager"],
     )
 
     joint_controller_node = Node(
@@ -170,31 +158,15 @@ def generate_launch_description():
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
-                    target_action=actuator_vel_controller_spawner,
-                    on_exit=[actuator_pos_controller_spawner],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=actuator_trq_controller_spawner,
-                    on_exit=[actuator_vel_controller_spawner],
-                )
-        )
-    )
-    register_event_handler.append(
-        RegisterEventHandler(
-                event_handler=OnProcessExit(
                     target_action=joint_state_broadcaster_spawner,
-                    on_exit=[actuator_trq_controller_spawner],
+                    on_exit=[actuator_controller_spawner],
                 )
         )
     )
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
-                    target_action=actuator_trq_controller_spawner,
+                    target_action=actuator_controller_spawner,
                     on_exit=[joint_controller_node],
                 )
         )
@@ -202,7 +174,7 @@ def generate_launch_description():
     register_event_handler.append(
         RegisterEventHandler(
                 event_handler=OnProcessExit(
-                    target_action=actuator_trq_controller_spawner,
+                    target_action=actuator_controller_spawner,
                     on_exit=[delayed_rviz],
                 )
         )
