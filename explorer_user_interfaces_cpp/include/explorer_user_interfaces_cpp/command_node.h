@@ -129,6 +129,7 @@ namespace space_control
         bool complex_mode_;
         double v_x = 0.0;
         double v_y = 0.0;
+        double rotation_speed_scale;
 
         bool active_trajectory_;
 
@@ -197,7 +198,7 @@ namespace space_control
 
         void resetVelocities();
 
-        void complex_calculation();
+        void complex_calculation(const double rotation_speed_scale);
 
         // Behavior functions
         void cartesian_linear(const AxisInfo& axis_info);

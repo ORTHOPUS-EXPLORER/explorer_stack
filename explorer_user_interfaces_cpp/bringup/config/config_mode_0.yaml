@@ -13,13 +13,15 @@ mode_info:
 button_mappings:
   B1:
     axes:
-      - control_name: "cartesian_Y"
+      - control_name: "complex_Y"
         joystick_axis: "ax1"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png"  
-      - control_name: "cartesian_X"
+        image: "cartesian_Y.png" 
+        params:
+          rotation_speed_scale: 0.1
+      - control_name: "complex_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
@@ -80,7 +82,7 @@ button_mappings:
         smoothing_alpha: 0.1
         image: "rotation_Y.png" 
     button:
-      - long_click: ""
+      - long_click: "CART"
       - short_click: "B4"
 
   B4:
@@ -133,3 +135,21 @@ button_mappings:
     button:
       - long_click: ""
       - short_click: "B4"
+    
+  CART:
+    axes:
+      - control_name: "cartesian_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Y.png" 
+      - control_name: "cartesian_X"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_X.png"
+    button:
+      - long_click: ""
+      - short_click: "B3"

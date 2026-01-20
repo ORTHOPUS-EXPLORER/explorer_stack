@@ -111,7 +111,7 @@ namespace space_control
 
         // Initialize subscribers and publishers
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
-        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/command_node/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
+        x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
         q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
         q_forward_controller_sub = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&CommandNode::callback_q_forward_controller, this, std::placeholders::_1));
 
@@ -131,6 +131,7 @@ namespace space_control
         joy_prec = 0.0;
 
         complex_mode_ = false;
+        rotation_speed_scale = 1.0;
 
         // Initialize Cartesian and joint velocities to zero
         resetVelocities();
@@ -626,6 +627,7 @@ namespace space_control
         resetVelocities();
 
         complex_mode_ = false;
+        
         trajectory_requested_ = false;
 
         // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
@@ -634,7 +636,7 @@ namespace space_control
         }
 
         if(complex_mode_ && !lock_) {
-            complex_calculation();
+            complex_calculation(rotation_speed_scale);
         }
 
         handle_controller_state();
@@ -699,7 +701,7 @@ namespace space_control
         gripper_vel_.data = 0.0;
     }
 
-    void CommandNode::complex_calculation() {
+    void CommandNode::complex_calculation(const double rotation_speed_scale) {
         double omega_z = 0.0;
         double x_E = x_current_.position.x;
         double y_E = x_current_.position.y;
@@ -707,7 +709,7 @@ namespace space_control
         if(denom > 1e-6) {
             omega_z = (x_E * v_y - y_E * v_x) / denom;
         }
-        cartesian_vel_.twist.angular.z = omega_z;
+        cartesian_vel_.twist.angular.z = omega_z * rotation_speed_scale;
     }
 
     // Behavior implementations
@@ -876,6 +878,12 @@ namespace space_control
                 v_y = value;
                 cartesian_vel_.twist.linear.y = value;
             }
+
+            if (axis_info.params.count("rotation_speed_scale")) {
+                rotation_speed_scale = static_cast<double>(axis_info.params.at("rotation_speed_scale"));
+            }
+
+            frame_id_.orientation_control_frame = 0;
         }
 
     }
