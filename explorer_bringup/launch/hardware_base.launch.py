@@ -32,6 +32,10 @@ def generate_launch_description():
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
 
+    explorer_controller_config = PathJoinSubstitution(
+        [FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]
+    )
+
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -70,6 +74,14 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "extra_controllers_config",
+            default_value=explorer_controller_config,
+            description="Path to an additional controller config file to merge/overlay",
+        )
+    )
+
     # Get URDF via xacro
     robot_description = {
         "robot_description": ParameterValue(Command(
@@ -98,7 +110,8 @@ def generate_launch_description():
             Node(package="controller_manager",
                     executable="ros2_control_node",
                     parameters=[
-                        PathJoinSubstitution([FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]), 
+                        explorer_controller_config,
+                        LaunchConfiguration("extra_controllers_config"), 
                         robot_description
                     ],
                     output="both",
