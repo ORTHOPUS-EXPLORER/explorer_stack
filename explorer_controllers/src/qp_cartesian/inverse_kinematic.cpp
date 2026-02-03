@@ -37,6 +37,7 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   n_->get_parameter("beta_multiplier", beta_multiplier);
   n_->get_parameter("gamma_multiplier", gamma_multiplier);
   n_->get_parameter("joint_centering_multiplier", joint_centering_multiplier);
+  n_->get_parameter("joint_2_limit_multiplier", joint_2_limit_multiplier);
   
   // Control frame parameters
   std::string position_frame_str, orientation_frame_str;
@@ -139,6 +140,8 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
                 snap_input_threshold_);
   }
 
+  n_->get_parameter("joint_2_soft_upper_limit", joint_2_soft_upper_limit_);
+
   // Initialize counters and flags
   adaptive_snap_counter_pos_ = 0;
   adaptive_snap_counter_or_ = 0;
@@ -151,6 +154,7 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   n_->get_parameter("beta_weight", beta_weight_vec);
   n_->get_parameter("gamma_weight", gamma_weight_vec);
   n_->get_parameter("joint_centering_weight", joint_centering_weight_vec);
+  n_->get_parameter("joint_2_limit_weight", joint_2_limit_weight_vec);
   //n_->get_parameter("lambda_weight", lambda_weight_);
   //n_->get_parameter("q_natural", q_natural_);
 
@@ -158,6 +162,7 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   setBetaWeight_(beta_weight_vec, beta_multiplier);
   setGammaWeight_(gamma_weight_vec, gamma_multiplier);
   setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
+  setJoint2LimitWeight_(joint_2_limit_weight_vec, joint_2_limit_multiplier);
   //setLambdaWeight_(lambda_weight_vec);
 
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Setting up bounds on joint position (q) of the QP");
@@ -245,6 +250,21 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     setJointCenteringWeight_(joint_centering_weight_vec, joint_centering_multiplier);
   };
 
+  auto callback_joint_2_limit_weight = [this](const rclcpp::Parameter & p) {
+    joint_2_limit_weight_vec = p.as_double_array();
+    setJointCenteringWeight_(joint_2_limit_weight_vec, joint_2_limit_multiplier);
+  };
+
+  auto callback_joint_2_limit_multiplier = [this](const rclcpp::Parameter & p) {
+    joint_2_limit_multiplier = p.as_int();
+    setJointCenteringWeight_(joint_2_limit_weight_vec, joint_2_limit_multiplier);
+  };
+
+  auto callback_j2_limits = [this](const rclcpp::Parameter & p) {
+    q_upper_limit_[1] = p.as_double();
+    RCLCPP_INFO(n_->get_logger(), "J2 upper limit changed to: %.3f", q_upper_limit_[1]);
+  };
+
   auto callback_position_control_frame = [this](const rclcpp::Parameter & p) {
     std::string frame_str = p.as_string();
     if (frame_str == "Tool") {
@@ -281,8 +301,11 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   cb_handle_gamma_multiplier = param_subscriber_->add_parameter_callback("gamma_multiplier", callback_gamma_multiplier);
   cb_handle_joint_centering_weight = param_subscriber_->add_parameter_callback("joint_centering_weight", callback_joint_centering_weight);
   cb_handle_joint_centering_multiplier = param_subscriber_->add_parameter_callback("joint_centering_multiplier", callback_joint_centering_multiplier);
+  cb_handle_joint_2_limit_weight = param_subscriber_->add_parameter_callback("joint_2_limit_weight", callback_joint_2_limit_weight );
+  cb_handle_joint_2_limit_multiplier = param_subscriber_->add_parameter_callback("joint_2_limit_multiplier", callback_joint_2_limit_multiplier);
   cb_handle_position_control_frame = param_subscriber_->add_parameter_callback("position_control_frame", callback_position_control_frame);
   cb_handle_orientation_control_frame = param_subscriber_->add_parameter_callback("orientation_control_frame", callback_orientation_control_frame);
+  cb_handle_j2_limits = param_subscriber_->add_parameter_callback("j2.max", callback_j2_limits);
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
@@ -351,6 +374,17 @@ void InverseKinematic::setLambdaWeight_(const std::vector<double>& lambda_weight
     lambda_weight_(i, i) = lambda_weight[i];
   }
   RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set lambda weight to : \n" << lambda_weight_ << "\n");
+}
+
+void InverseKinematic::setJoint2LimitWeight_(const std::vector<double>& joint_2_limit_weight, const int joint_2_limit_multiplier)
+{
+  // Joint 2 limit avoidance weight
+  joint_2_limit_weight_ = MatrixXd::Identity(joint_number_, joint_number_);
+  for (int i = 0; i < joint_number_; i++)
+  {
+    joint_2_limit_weight_(i, i) = joint_2_limit_multiplier * joint_2_limit_weight[i];
+  }
+  RCLCPP_DEBUG_STREAM(n_->get_logger(),"Set joint 2 limit weight to : \n" << joint_2_limit_weight_ << "\n");
 }
 
 void InverseKinematic::setQCurrent(const JointPosition& q_current)
@@ -1050,12 +1084,24 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
                           "Smart centering ACTIVE: J5=%.3f, scale=%.3f, vel_mag=%.6f, J4=%.3f, J6=%.3f, sum=%.3f, diff=%.3f", 
                           q_current_[4], centering_scale, velocity_magnitude, q_current_[3], q_current_[5], j4_plus_j6, j4_minus_j6);*/
   }
+
+  double j2_current_angle = q_current_[1];
+  double limit_scale = 0.0;
+
+  if (j2_current_angle > joint_2_soft_upper_limit_) {
+    limit_scale = (j2_current_angle - joint_2_soft_upper_limit_) / joint_2_soft_upper_limit_; 
+  }
+  MatrixXd smart_joint_2_limit_weight = MatrixXd::Zero(joint_number_, joint_number_);
+  if(limit_scale > 0.0) {
+    smart_joint_2_limit_weight = joint_2_limit_weight_ * limit_scale;
+  }
   
   hessian = jacobian.transpose() * alpha_weight_ * dx_controlled_mat * jacobian
           + jacob_pos.transpose() * gamma_pos_weight_ * pos_controlled_mat * jacob_pos * sampling_period_ * sampling_period_
           + jacob_or.transpose() * Rdes_conj.transpose() * gamma_or_weight_ * or_controlled_mat * Rdes_conj * jacob_or * sampling_period_ * sampling_period_
           + beta_weight_
-          + smart_centering_weight * sampling_period_ * sampling_period_;  // Smart joint centering
+          + smart_centering_weight * sampling_period_ * sampling_period_  // Smart joint centering
+          + smart_joint_2_limit_weight * sampling_period_ * sampling_period_;  // Joint 2 soft limit
   //hessian = (jacobian.transpose() * (alpha_weight_ + gamma_weight_ * ctrl_axes_mat) * jacobian)
   //          + beta_weight_
   //          + lambda_weight_ * ;
@@ -1088,10 +1134,17 @@ void InverseKinematic::computeObjectives_(MatrixXd& hessian, VectorXd& g,
     smart_centering_gradient(5) = -centering_strength * j4_minus_j6;     // Push J6 toward J4
   }
 
+  VectorXd smart_limit_gradient = VectorXd::Zero(joint_number_);
+  if(limit_scale > 0.0) {
+    // Joint 2 soft limit gradient
+    smart_limit_gradient(1) = joint_2_limit_weight_(1,1) * q_current_eigen(1) * limit_scale;
+  }
+
   g = -jacobian.transpose() * alpha_weight_ * dx_controlled_mat * dx_des.getRawVector()
       + jacob_pos.transpose() * gamma_pos_weight_ * pos_controlled_mat * (x_current_.getPosition() - x_des.getPosition()) * sampling_period_
       + jacob_or.transpose() * Rdes_conj.transpose() * gamma_or_weight_ * or_controlled_mat * Rdes_conj * x_current_.getOrientation().toVector() * sampling_period_
-      + smart_centering_gradient * sampling_period_;  // Smart centering gradient
+      + smart_centering_gradient * sampling_period_  // Smart centering gradient
+      + smart_limit_gradient * sampling_period_;  // Joint 2 soft limit gradient
   //    + jacobian.transpose() * gamma_weight_ * ctrl_axes_mat * sampling_period_ * delta_X_current_snap.getRawVector()
   //    + lambda_weight_ * sampling_period_ * q_natural_.getRawVector();
 }

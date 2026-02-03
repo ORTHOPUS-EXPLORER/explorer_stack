@@ -102,11 +102,13 @@ private:
   std::vector<double> beta_weight_vec;
   std::vector<double> gamma_weight_vec;
   std::vector<double> joint_centering_weight_vec;
+  std::vector<double> joint_2_limit_weight_vec;
 
   int alpha_multiplier;
   int beta_multiplier;
   int gamma_multiplier;
   int joint_centering_multiplier;
+  int joint_2_limit_multiplier;
 
   MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
   MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
@@ -114,9 +116,12 @@ private:
   MatrixXd gamma_or_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
   MatrixXd joint_centering_weight_;   /*!< Diagonal matrix which contains weight for joint centering (keeping redundant joints near zero) */
   MatrixXd lambda_weight_;   /*!< TODO */
+  MatrixXd joint_2_limit_weight_;   /*!< Diagonal matrix which contains weight for joint 2 limit avoidance */
 
   double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
   double movement_detection_threshold_centering_;  /*!< Velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering) */
+
+  double joint_2_soft_upper_limit_;  /*!< Soft limit angle for joint 2 (rad) */
 
   // Adaptive snap for drift prevention
   bool enable_adaptive_snap_;                  /*!< Enable automatic snap update when QP cannot achieve commanded velocity */
@@ -165,11 +170,15 @@ private:
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_centering_multiplier;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_position_control_frame;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_orientation_control_frame;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_2_limit_weight;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_joint_2_limit_multiplier;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_j2_limits;
 
   void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
   void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
   void setGammaWeight_(const std::vector<double>& gamma_weight, const int gamma_multiplier);
   void setJointCenteringWeight_(const std::vector<double>& joint_centering_weight, const int joint_centering_multiplier);
+  void setJoint2LimitWeight_(const std::vector<double>& joint_2_limit_weight, const int joint_2_limit_multiplier);
   void setLambdaWeight_(const std::vector<double>& lambda_weight);
   void setDqBounds_(const JointVelocity& dq_bound);
 
