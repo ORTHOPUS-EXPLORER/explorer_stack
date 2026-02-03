@@ -39,12 +39,16 @@ button_mappings:
         direction: -1
         scale: 0.75
         image: "joint_6.png" 
+        params:
+          deadzone: 0.2
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
         image: "cartesian_Z.png"
+        params:
+          deadzone: 0.2
     button:
       - long_click: "DRINK"
       - short_click: "B3"
@@ -56,13 +60,17 @@ button_mappings:
         direction: -1
         scale: 0.75
         smoothing_alpha: 0.3
-        image: "joint_6.png" 
+        image: "joint_6.png"
+        params:
+          deadzone: 0.2
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png" 
+        image: "cartesian_Z.png"
+        params:
+          deadzone: 0.2
     button:
       - long_click: ""
       - short_click: "B2"

@@ -686,7 +686,24 @@ namespace space_control
         else if(axis_info.joystick_axis == "ax2") {
             smoothed_value = axis_2_smoothed_;
         }
-        
+
+        double deadzone = 0.0;
+        if (axis_info.params.count("deadzone")) {
+            deadzone = axis_info.params.at("deadzone");
+        }
+
+        if (std::abs(smoothed_value) < deadzone) {
+            smoothed_value = 0.0f;  // Zero out values within the deadzone
+        }
+        else {
+            // Rescale values outside the deadzone to the range [0, 1]
+            if (smoothed_value > 0) {
+                smoothed_value = (smoothed_value - deadzone) / (1.0 - deadzone);
+            } else {
+                smoothed_value = (smoothed_value + deadzone) / (1.0 - deadzone);
+            }
+        }
+
         // Apply direction, scale and speed factor
         float value = smoothed_value * axis_info.direction * axis_info.scale * speed_factor;
 
