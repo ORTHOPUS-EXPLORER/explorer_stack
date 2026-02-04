@@ -18,14 +18,9 @@ qp_solving:
     joint_centering_multiplier : 1
     j5_alignment_threshold : 0.2  # radians (~11 degrees) - when J5 is below this, J4&J6 centering is active
     movement_detection_threshold_centering : 1e-3  # velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering)
-    #  Keep joint 2 under upper limit
-    joint_2_limit_weight : [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]  # Weight for joint 2 limit avoidance
-    joint_2_limit_multiplier : 1
-    joint_2_soft_upper_limit : 0.52  # Target angle for joint 2 limit avoidance (radians)
-    enable_joint_2_soft_limit : true  # Enable joint 2 soft limit avoidance
-
     enable_movement_detection_global : true  # Disable to test adaptive snap independently
     movement_detection_threshold_global : 1e-3  # velocity magnitude threshold to prevent drift when no user input (only used if enabled)
+
     # Adaptive snap for workspace limit drift prevention
     enable_adaptive_snap : true  # Enable automatic snap update when QP cannot achieve commanded velocity
     adaptive_snap_threshold_pos : 0.01  # m/s - position velocity error threshold for adaptive snap detection
