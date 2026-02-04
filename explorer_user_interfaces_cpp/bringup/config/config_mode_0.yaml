@@ -20,7 +20,7 @@ button_mappings:
         smoothing_alpha: 0.1
         image: "cartesian_Y.png" 
         params:
-          rotation_speed_scale: 0.1
+          rotation_speed_scale: 0.04
       - control_name: "complex_X"
         joystick_axis: "ax2"
         direction: 1
