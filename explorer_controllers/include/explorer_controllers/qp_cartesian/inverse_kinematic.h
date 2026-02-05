@@ -101,9 +101,7 @@ private:
   std::vector<double> alpha_weight_vec;
   std::vector<double> beta_weight_vec;
   std::vector<double> gamma_weight_vec;
-  std::vector<double> joint_centering_weight_vec;
-  std::vector<double> joint_2_limit_weight_vec;
-
+  
   int alpha_multiplier;
   int beta_multiplier;
   int gamma_multiplier;
@@ -116,12 +114,9 @@ private:
   MatrixXd gamma_or_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
   MatrixXd joint_centering_weight_;   /*!< Diagonal matrix which contains weight for joint centering (keeping redundant joints near zero) */
   MatrixXd lambda_weight_;   /*!< TODO */
-  MatrixXd joint_2_limit_weight_;   /*!< Diagonal matrix which contains weight for joint 2 limit avoidance */
 
   double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
   double movement_detection_threshold_centering_;  /*!< Velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering) */
-
-  double joint_2_soft_upper_limit_;  /*!< Soft limit angle for joint 2 (rad) */
   
   // Adaptive snap for drift prevention
   bool enable_adaptive_snap_;                  /*!< Enable automatic snap update when QP cannot achieve commanded velocity */
