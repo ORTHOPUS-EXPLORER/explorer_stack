@@ -101,7 +101,8 @@ private:
   std::vector<double> alpha_weight_vec;
   std::vector<double> beta_weight_vec;
   std::vector<double> gamma_weight_vec;
-  
+  std::vector<double> joint_centering_weight_vec;
+
   int alpha_multiplier;
   int beta_multiplier;
   int gamma_multiplier;
