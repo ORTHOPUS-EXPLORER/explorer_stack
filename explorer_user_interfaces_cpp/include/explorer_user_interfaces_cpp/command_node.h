@@ -177,7 +177,7 @@ namespace space_control
         std::vector<size_t> joint_order;
         Mode mode;
 
-        std::string status_prec;
+        double actual_j2_limit_;
 
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);

@@ -143,7 +143,7 @@ namespace space_control
 
         retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
 
-        status_prec = "retracted";
+        actual_j2_limit_ = 2.112;  // Initial value, will be updated if parameter callback is triggered
 
         // Timer callback
         timer_ = n_->create_wall_timer(std::chrono::duration<double>(sampling_period_), std::bind(&CommandNode::timer, this));
@@ -696,14 +696,14 @@ namespace space_control
         gripper_pub_->publish(gripper_vel_);
         retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
 
-        if(trajectory_manager.getStatusString() != "ready" && status_prec == "ready") {
+        if(trajectory_manager.getStatusString() != "ready" && actual_j2_limit_ != 2.112) {
             modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(2.112));
+            actual_j2_limit_ = 2.112;
         }
-        else if(trajectory_manager.getStatusString() == "ready" && status_prec == "in progress") {
+        else if(trajectory_manager.getStatusString() == "ready" && current_pos_.position[joint_order[1]] < 0.524 && actual_j2_limit_ != 0.524) {
             modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(0.524));
+            actual_j2_limit_ = 0.524;
         }
-
-        status_prec = trajectory_manager.getStatusString();
         
     }
 
