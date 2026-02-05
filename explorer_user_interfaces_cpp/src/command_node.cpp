@@ -125,6 +125,8 @@ namespace space_control
         reset_qp_solving_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
         retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
 
+        param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(n_, "qp_solving");
+
         // Initialize speed control variables
         speed_factor = 1.0;
         speed_level = 2;
@@ -140,6 +142,8 @@ namespace space_control
         frame_id_.orientation_control_frame = 0;
 
         retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
+
+        status_prec = "retracted";
 
         // Timer callback
         timer_ = n_->create_wall_timer(std::chrono::duration<double>(sampling_period_), std::bind(&CommandNode::timer, this));
@@ -594,6 +598,30 @@ namespace space_control
     }
 }
 
+    void CommandNode::modifyTargetNodeParameter(const std::string & param_name, const rclcpp::ParameterValue & value) {
+        if (!param_client_->wait_for_service(std::chrono::seconds(1)))
+        {
+            RCLCPP_ERROR(n_->get_logger(), "Parameter service of qp_solving not available");
+            return;
+        }
+
+        rclcpp::Parameter param(param_name, value);
+
+        param_client_->set_parameters({param}, [this, param_name](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future)
+        {
+            const auto results = future.get();
+        
+            if (!results.empty() && results[0].successful)
+            {
+                RCLCPP_INFO(n_->get_logger(), "Parameter %s modified successfully", param_name.c_str());
+            }
+            else
+            {
+                RCLCPP_ERROR(n_->get_logger(), "Failed to modify parameter %s", param_name.c_str());
+            }
+        });
+    }
+    
     void CommandNode::timer() {
 
         // Step 1: Get the current mode to know which smoothing alphas to use
@@ -662,10 +690,20 @@ namespace space_control
             axis_1_smoothed_ = 0.0f;
             axis_2_smoothed_ = 0.0f;
         }
+
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
         gripper_pub_->publish(gripper_vel_);
         retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
+
+        if(trajectory_manager.getStatusString() != "ready" && status_prec == "ready") {
+            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(2.112));
+        }
+        else if(trajectory_manager.getStatusString() == "ready" && status_prec == "in progress") {
+            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(0.524));
+        }
+
+        status_prec = trajectory_manager.getStatusString();
         
     }
 

@@ -98,6 +98,8 @@ namespace space_control
         rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reset_qp_solving_pub_;
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr retract_status_pub_;
 
+        rclcpp::AsyncParametersClient::SharedPtr param_client_;
+
         rclcpp::TimerBase::SharedPtr timer_;
         
         std::string current_mode_name;
@@ -175,6 +177,8 @@ namespace space_control
         std::vector<size_t> joint_order;
         Mode mode;
 
+        std::string status_prec;
+
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);
 
@@ -187,6 +191,8 @@ namespace space_control
         void callback_q_forward_controller(const std_msgs::msg::Float64MultiArray & msg);
 
         void handle_controller_state();
+
+        void modifyTargetNodeParameter(const std::string& param_name, const rclcpp::ParameterValue& value);
 
         void timer();
         

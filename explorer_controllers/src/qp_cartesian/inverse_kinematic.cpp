@@ -273,6 +273,11 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
     RCLCPP_INFO(n_->get_logger(), "Orientation control frame changed to: %s", frame_str.c_str());
   };
 
+  auto callback_j2_limits = [this](const rclcpp::Parameter & p) {
+    q_upper_limit_[1] = p.as_double();
+    RCLCPP_INFO(n_->get_logger(), "J2 upper limit changed to: %.3f", q_upper_limit_[1]);
+  };
+
   cb_handle_alpha_weight = param_subscriber_->add_parameter_callback("alpha_weight", callback_alpha_weight);
   cb_handle_alpha_multiplier = param_subscriber_->add_parameter_callback("alpha_multiplier", callback_alpha_multiplier);
   cb_handle_beta_weight = param_subscriber_->add_parameter_callback("beta_weight", callback_beta_weight);
@@ -283,6 +288,7 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   cb_handle_joint_centering_multiplier = param_subscriber_->add_parameter_callback("joint_centering_multiplier", callback_joint_centering_multiplier);
   cb_handle_position_control_frame = param_subscriber_->add_parameter_callback("position_control_frame", callback_position_control_frame);
   cb_handle_orientation_control_frame = param_subscriber_->add_parameter_callback("orientation_control_frame", callback_orientation_control_frame);
+  cb_handle_j2_limits = param_subscriber_->add_parameter_callback("j2.max", callback_j2_limits);
 }
 
 void InverseKinematic::init(const std::string end_effector_link, const double sampling_period)
