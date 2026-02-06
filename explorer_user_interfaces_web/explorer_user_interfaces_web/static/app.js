@@ -167,19 +167,19 @@ class ExplorerWebGUI {
         const statusLed = document.getElementById('status-led');
         if (statusLed) {
             // Remove all status classes
-            statusLed.classList.remove('status-ready', 'status-moving', 'status-not-ready');
+            statusLed.classList.remove('status-ready', 'status-moving', 'status-retracted');
 
             // Map status string to CSS class
             // "ready" -> green (deployed, ready to use)
-            // "in progress" -> orange (moving)
-            // "retracted" or "not ready" -> red (retracted or at unknown position)
+            // "in progress" -> orange (moving and not yet at ready position)
+            // "retracted"  -> red (retracted)
             if (status === 'ready') {
                 statusLed.classList.add('status-ready');
             } else if (status === 'in progress') {
                 statusLed.classList.add('status-moving');
             } else {
-                // "retracted" or "not ready" or any other status
-                statusLed.classList.add('status-not-ready');
+                // "retracted"
+                statusLed.classList.add('status-retracted');
             }
         }
     }

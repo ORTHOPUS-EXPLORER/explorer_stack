@@ -27,7 +27,7 @@ class RosBridge:
         self.node = ros_node
         self.current_mode = "Unknown"
         self.speed_level = None
-        self.retract_status = "not ready"  # Retract status: ready, in progress, retracted, not ready
+        self.retract_status = "retracted"  # Retract status: ready, in progress, retracted
         self.connected_clients: set = set()
         
         # Use a thread-safe queue for updates

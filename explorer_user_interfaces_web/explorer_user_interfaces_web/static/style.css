@@ -20,8 +20,8 @@
     box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
 }
 
-.status-led.status-not-ready {
-    background-color: #ef4444 !important; /* Red: retracted or not ready */
+.status-led.status-retracted {
+    background-color: #ef4444 !important; /* Red: retracted*/
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 }
 
