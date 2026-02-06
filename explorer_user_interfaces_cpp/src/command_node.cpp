@@ -143,8 +143,6 @@ namespace space_control
 
         retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
 
-        actual_j2_limit_ = 2.112;  // Initial value, will be updated if parameter callback is triggered
-
         // Timer callback
         timer_ = n_->create_wall_timer(std::chrono::duration<double>(sampling_period_), std::bind(&CommandNode::timer, this));
     }
@@ -621,8 +619,45 @@ namespace space_control
             }
         });
     }
+
+    void CommandNode::getDoubleParameter(const std::string & param_name, std::optional<double> & value)
+    {
+        RCLCPP_INFO(n_->get_logger(), "Initializing %s from qp_solving (async)", param_name.c_str());
+    
+        param_client_->get_parameters({param_name}, [this, param_name, &value](std::shared_future<std::vector<rclcpp::Parameter>> future)
+        {
+            const auto params = future.get();
+    
+            if (params.empty()) {
+                RCLCPP_WARN(n_->get_logger(), "%s not available yet ", param_name.c_str());
+                return;
+            }
+    
+            if (params[0].get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE) {
+                RCLCPP_WARN(n_->get_logger(), "%s is not a double", param_name.c_str());
+                return;
+            }
+    
+            value = params[0].as_double();
+    
+            RCLCPP_INFO(n_->get_logger(), "%s initialized to %.3f", param_name.c_str(), *value);
+        });
+    }
     
     void CommandNode::timer() {
+
+        if (!j2_max_cached_ || !j2_operational_max_cached_) {
+            getDoubleParameter("j2.max", j2_max_cached_);
+            getDoubleParameter("j2.operational_max", j2_operational_max_cached_);
+            return;  
+        }
+        else if (limits_initialized_ == false) {
+            j2_max_ = *j2_max_cached_;
+            j2_operational_max_ = *j2_operational_max_cached_;
+
+            actual_j2_limit_ = j2_max_;
+            limits_initialized_ = true;
+        }
 
         // Step 1: Get the current mode to know which smoothing alphas to use
         ButtonMode mode = data.button_modes_map[current_mode_name];
@@ -696,13 +731,13 @@ namespace space_control
         gripper_pub_->publish(gripper_vel_);
         retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
 
-        if(trajectory_manager.getStatusString() != "ready" && actual_j2_limit_ != 2.112) {
-            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(2.112));
-            actual_j2_limit_ = 2.112;
+        if(trajectory_manager.getStatusString() != "ready" && actual_j2_limit_ != j2_max_) {
+            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_max_));
+            actual_j2_limit_ = j2_max_;
         }
-        else if(trajectory_manager.getStatusString() == "ready" && current_pos_.position[joint_order[1]] < 0.524 && actual_j2_limit_ != 0.524) {
-            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(0.524));
-            actual_j2_limit_ = 0.524;
+        else if(trajectory_manager.getStatusString() == "ready" && current_pos_.position[joint_order[1]] < j2_operational_max_ && actual_j2_limit_ != j2_operational_max_) {
+            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_operational_max_));
+            actual_j2_limit_ = j2_operational_max_;
         }
         
     }

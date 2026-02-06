@@ -177,7 +177,15 @@ namespace space_control
         std::vector<size_t> joint_order;
         Mode mode;
 
+        std::optional<double> j2_max_cached_;
+        std::optional<double> j2_operational_max_cached_;
+
+        double j2_max_;
+        double j2_operational_max_;
+
         double actual_j2_limit_;
+
+        bool limits_initialized_ = false;
 
         ModeData loadModeData(const std::string& filename);
         bool validateModeData(const ModeData& data);
@@ -193,6 +201,8 @@ namespace space_control
         void handle_controller_state();
 
         void modifyTargetNodeParameter(const std::string& param_name, const rclcpp::ParameterValue& value);
+
+        void getDoubleParameter(const std::string & param_name, std::optional<double> & value);
 
         void timer();
         
