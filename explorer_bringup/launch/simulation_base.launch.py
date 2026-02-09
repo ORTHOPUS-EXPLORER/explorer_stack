@@ -34,6 +34,7 @@ def generate_launch_description():
     rviz_delay = LaunchConfiguration("rviz_delay")
     world_file = LaunchConfiguration("world_file")
     extra_config_file = LaunchConfiguration("extra_controllers_config")
+    use_custom_controllers = LaunchConfiguration("use_custom_controllers")
 
     explorer_controller_config = PathJoinSubstitution(
         [FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]
@@ -81,6 +82,13 @@ def generate_launch_description():
             "extra_controllers_config",
             default_value=explorer_controller_config,
             description="Path to an additional controller config file to merge/overlay",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_custom_controllers",
+            default_value="false",
+            description="Use custom controllers config file",
         )
     )
 
@@ -131,13 +139,16 @@ def generate_launch_description():
     robot_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["forward_position_controller", "--controller-manager", "/controller_manager",  "--inactive"],
+        arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        condition=UnlessCondition(use_custom_controllers)
     )
+
 
     trajectory_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["joint_trajectory_controller", "--controller-manager", "/controller_manager", "--inactive"],
+        condition=UnlessCondition(use_custom_controllers)
     )
     
     register_event_handler = []
@@ -148,11 +159,12 @@ def generate_launch_description():
                 on_exit=[
                     joint_state_broadcaster_spawner,
                     robot_controller_spawner,
-                    trajectory_controller_spawner,
+                    trajectory_controller_spawner
                 ],
             )
         )
     )
+
     register_event_handler.append(
         RegisterEventHandler(
             event_handler=OnProcessExit(
