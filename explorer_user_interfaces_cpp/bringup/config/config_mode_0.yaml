@@ -28,7 +28,7 @@ button_mappings:
         smoothing_alpha: 0.1
         image: "cartesian_X.png"
     button:
-      - long_click: "SPEED"
+      - long_click: "VITESSE"
       - short_click: "B2"
     
       
@@ -50,10 +50,10 @@ button_mappings:
         params:
           deadzone: 0.2
     button:
-      - long_click: "DRINK"
+      - long_click: "BOIRE"
       - short_click: "B3"
   
-  DRINK:
+  BOIRE:
     axes:
       - control_name: "drink"
         joystick_axis: "ax1"
@@ -106,10 +106,10 @@ button_mappings:
         scale: 0.0
         image: ""
     button:
-      - long_click: "DEPLOY"
+      - long_click: "DEPLIER"
       - short_click: "B1"
 
-  SPEED:
+  VITESSE:
     axes:
       - control_name: ""
         joystick_axis: ""
@@ -128,7 +128,7 @@ button_mappings:
       - long_click: ""
       - short_click: "B1"
 
-  DEPLOY:
+  DEPLIER:
     axes:
       - control_name: ""
         joystick_axis: ""

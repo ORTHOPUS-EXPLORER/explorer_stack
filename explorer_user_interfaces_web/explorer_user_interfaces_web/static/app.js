@@ -79,6 +79,10 @@ class ExplorerWebGUI {
         }
         if (currentModeElement) {
             currentModeElement.textContent = mode;
+
+            currentModeElement.style.display = "inline-block";
+            currentModeElement.style.position = "relative";
+            currentModeElement.style.transform = "translate(-5px, 0px)";
             
             // Add highlight animation
             currentModeElement.classList.add('status-update');
