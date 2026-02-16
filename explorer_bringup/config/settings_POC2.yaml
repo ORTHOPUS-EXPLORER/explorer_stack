@@ -54,6 +54,7 @@ qp_solving:
       limits  : 1
       min     : -2.941
       max     : 2.941
+      operational_max:  2.7
     j4:
       limits  : 1
       min     : -2.941

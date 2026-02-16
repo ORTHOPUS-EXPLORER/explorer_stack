@@ -651,11 +651,20 @@ namespace space_control
             getDoubleParameter("j2.operational_max", j2_operational_max_cached_);
             return;  
         }
+        else if (!j3_max_cached_ || !j3_operational_max_cached_) {
+            getDoubleParameter("j3.max", j3_max_cached_);
+            getDoubleParameter("j3.operational_max", j3_operational_max_cached_);
+            return;
+        }
         else if (limits_initialized_ == false) {
             j2_max_ = *j2_max_cached_;
             j2_operational_max_ = *j2_operational_max_cached_;
 
+            j3_max_ = *j3_max_cached_;
+            j3_operational_max_ = *j3_operational_max_cached_;
+
             actual_j2_limit_ = j2_max_;
+            actual_j3_limit_ = j3_max_;
             limits_initialized_ = true;
         }
 
@@ -731,13 +740,27 @@ namespace space_control
         gripper_pub_->publish(gripper_vel_);
         retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
 
-        if(trajectory_manager.getStatusString() != "ready" && actual_j2_limit_ != j2_max_) {
-            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_max_));
-            actual_j2_limit_ = j2_max_;
+        if(trajectory_manager.getStatusString() != "ready") {
+            if(actual_j2_limit_ != j2_max_) {
+                modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_max_));
+                actual_j2_limit_ = j2_max_;
+            }
+
+            if(actual_j3_limit_ != j3_max_) {
+                modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_max_));
+                actual_j3_limit_ = j3_max_;
+            }
         }
-        else if(trajectory_manager.getStatusString() == "ready" && current_pos_.position[joint_order[1]] < j2_operational_max_ && actual_j2_limit_ != j2_operational_max_) {
-            modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_operational_max_));
-            actual_j2_limit_ = j2_operational_max_;
+        else if(trajectory_manager.getStatusString() == "ready" ) {
+            if(current_pos_.position[joint_order[1]] < j2_operational_max_ && actual_j2_limit_ != j2_operational_max_){
+                modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_operational_max_));
+                actual_j2_limit_ = j2_operational_max_;
+            }
+
+            if(current_pos_.position[joint_order[2]] < j3_operational_max_ && actual_j3_limit_ != j3_operational_max_){
+                modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_operational_max_));
+                actual_j3_limit_ = j3_operational_max_;
+            }
         }
         
     }

@@ -179,11 +179,16 @@ namespace space_control
 
         std::optional<double> j2_max_cached_;
         std::optional<double> j2_operational_max_cached_;
+        std::optional<double> j3_max_cached_;
+        std::optional<double> j3_operational_max_cached_;
 
         double j2_max_;
         double j2_operational_max_;
+        double j3_max_;
+        double j3_operational_max_;
 
         double actual_j2_limit_;
+        double actual_j3_limit_;
 
         bool limits_initialized_ = false;
 

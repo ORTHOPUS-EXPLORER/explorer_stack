@@ -167,6 +167,7 @@ private:
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_position_control_frame;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_orientation_control_frame;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_j2_limits;
+  std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_j3_limits;
 
   void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
   void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
