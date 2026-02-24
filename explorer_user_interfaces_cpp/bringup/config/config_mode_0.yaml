@@ -90,7 +90,7 @@ button_mappings:
         smoothing_alpha: 0.1
         image: "rotation_Y.png" 
     button:
-      - long_click: "CART"
+      - long_click: ""
       - short_click: "B4"
 
   B4:
@@ -123,7 +123,7 @@ button_mappings:
         image: "change_speed.png"
         params:
           min_speed_level: 1
-          max_speed_level: 9
+          max_speed_level: 4
     button:
       - long_click: ""
       - short_click: "B1"
@@ -143,21 +143,4 @@ button_mappings:
     button:
       - long_click: ""
       - short_click: "B4"
-    
-  CART:
-    axes:
-      - control_name: "cartesian_Y"
-        joystick_axis: "ax1"
-        direction: 1
-        scale: 3.0
-        smoothing_alpha: 0.1
-        image: "cartesian_Y.png" 
-      - control_name: "cartesian_X"
-        joystick_axis: "ax2"
-        direction: 1
-        scale: 3.0
-        smoothing_alpha: 0.1
-        image: "cartesian_X.png"
-    button:
-      - long_click: ""
-      - short_click: "B3"
+
