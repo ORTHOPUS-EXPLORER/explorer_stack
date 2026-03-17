@@ -1,18 +1,26 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:macro name="explorer_gazebo" params="use_ignition:=^|true">
+  <xacro:macro name="explorer_gazebo" params="use_ignition:=^|true extra_config:=''">
 
     
     <gazebo>
       <xacro:if value="${use_ignition}">
         <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
           <parameters>$(find explorer_bringup)/config/explorer_controller.yaml</parameters>
+          <xacro:property name="extra_config" value="$(arg extra_config)" />
+          <xacro:if value="${extra_config != ''}">
+            <parameters>${extra_config}</parameters>
+      </xacro:if>
         </plugin>
       </xacro:if>
       <xacro:unless value="${use_ignition}">
         <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
-    <parameters>$(find explorer_bringup)/config/explorer_controller.yaml</parameters>
+        <parameters>$(find explorer_bringup)/config/explorer_controller.yaml</parameters>
+        <xacro:property name="extra_config" value="$(arg extra_config)" />
+        <xacro:if value="${extra_config != ''}">
+                <parameters>${extra_config}</parameters>
+        </xacro:if>
   </plugin>
       </xacro:unless>
 

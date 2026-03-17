@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -28,9 +28,13 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     gui = LaunchConfiguration("gui")
     rviz_delay = LaunchConfiguration("rviz_delay")
-
+    use_custom_controllers = LaunchConfiguration("use_custom_controllers")
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
+
+    explorer_controller_config = PathJoinSubstitution(
+        [FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]
+    )
 
     # Declare arguments
     declared_arguments = []
@@ -70,6 +74,21 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "extra_controllers_config",
+            default_value=explorer_controller_config,
+            description="Path to an additional controller config file to merge/overlay",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_custom_controllers",
+            default_value="false",
+            description="Whether to use custom controllers defined in this package or default ros2_controllers ones",
+        )
+    )
+
     # Get URDF via xacro
     robot_description = {
         "robot_description": ParameterValue(Command(
@@ -98,7 +117,8 @@ def generate_launch_description():
             Node(package="controller_manager",
                     executable="ros2_control_node",
                     parameters=[
-                        PathJoinSubstitution([FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]), 
+                        explorer_controller_config,
+                        LaunchConfiguration("extra_controllers_config"), 
                         robot_description
                     ],
                     output="both",
@@ -137,6 +157,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
         output="log",
+        condition=UnlessCondition(use_custom_controllers)
     )
 
     trajectory_controller_spawner = Node(
@@ -144,6 +165,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["joint_trajectory_controller", "--controller-manager", "/controller_manager", "--inactive"],
         output="log",
+        condition=UnlessCondition(use_custom_controllers)
     )
 
     rviz_node = Node(

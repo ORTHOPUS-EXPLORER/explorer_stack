@@ -26,7 +26,6 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
-
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
@@ -34,7 +33,13 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     rviz_delay = LaunchConfiguration("rviz_delay")
     world_file = LaunchConfiguration("world_file")
-    
+    extra_config_file = LaunchConfiguration("extra_controllers_config")
+    use_custom_controllers = LaunchConfiguration("use_custom_controllers")
+
+    explorer_controller_config = PathJoinSubstitution(
+        [FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]
+    )
+
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -72,6 +77,21 @@ def generate_launch_description():
         )
     )
 
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "extra_controllers_config",
+            default_value=explorer_controller_config,
+            description="Path to an additional controller config file to merge/overlay",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_custom_controllers",
+            default_value="false",
+            description="Use custom controllers config file",
+        )
+    )
+
     node_robot_state_publisher = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -88,6 +108,7 @@ def generate_launch_description():
                     " ", "simulation:=true",
                     " ", "use_ignition:=true",
                     " ", "use_POC2:=", poc2,
+                    " ", "extra_config:=", extra_config_file
                 ]),
                 value_type=str
             )}, 
@@ -119,20 +140,15 @@ def generate_launch_description():
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        condition=UnlessCondition(use_custom_controllers)
     )
+
 
     trajectory_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["joint_trajectory_controller", "--controller-manager", "/controller_manager", "--inactive"],
-    )
-    
-    controllers_control_node = Node(package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[
-            PathJoinSubstitution([FindPackageShare("explorer_bringup"), "config", "explorer_controller.yaml"]),
-        ],
-        output="both",
+        condition=UnlessCondition(use_custom_controllers)
     )
     
     register_event_handler = []
@@ -143,12 +159,12 @@ def generate_launch_description():
                 on_exit=[
                     joint_state_broadcaster_spawner,
                     robot_controller_spawner,
-                    trajectory_controller_spawner,
-                    controllers_control_node,
+                    trajectory_controller_spawner
                 ],
             )
         )
     )
+
     register_event_handler.append(
         RegisterEventHandler(
             event_handler=OnProcessExit(

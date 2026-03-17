@@ -144,7 +144,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
         _print_buf.emplace_back(printMsg_t{now, s});
       }
       else
-        _print_buf_duration *= 0.0;
+        _print_buf_duration  = _print_buf_duration * 0.0;;
       return;
     }
     RCLCPP_INFO(rclcpp::get_logger("VESCInterface"),  "[%s] <= %s", _name.c_str(), s.c_str());
