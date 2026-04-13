@@ -41,12 +41,14 @@ namespace space_control
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
 
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
         rclcpp::Client<explorer_msgs::srv::Float64>::SharedPtr q_init_client_;
     
         rclcpp::TimerBase::SharedPtr timer_;
 
         std_msgs::msg::Float64MultiArray q_command_;
+        std_msgs::msg::Float64MultiArray gripper_command_;
         std_msgs::msg::Float64MultiArray dq_output_;
         std_msgs::msg::Float64 gripper_vel_;
 

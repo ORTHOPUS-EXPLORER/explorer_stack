@@ -47,6 +47,7 @@ namespace space_control
         n_->declare_parameter<std::string>("mode_file", "");
         n_->declare_parameter<std::string>("trajectory_file", "");
         n_->declare_parameter<bool>("active_trajectory", true);
+        n_->declare_parameter<bool>("qp_inria", false);
 
         // Get the value of the mode_file parameter
         std::string mode_file;
@@ -108,12 +109,20 @@ namespace space_control
             lock_ = false;
         }
 
+        n_->get_parameter("qp_inria", qp_inria_);
+        if (qp_inria_) {
+            active_controller_ = "qontrol_explorer";
+            RCLCPP_INFO(n_->get_logger(), "QP Inria mode enabled, using qontrol_explorer controller.");
+        } else {
+            active_controller_ = "forward_position_controller";
+            RCLCPP_INFO(n_->get_logger(), "QP Inria mode disabled, using forward_position_controller.");
+        }
+
 
         // Initialize subscribers and publishers
         joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&CommandNode::callback_joystick, this, std::placeholders::_1));
         x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>("/explorer_controllers/qp_solving/x_current", 10, std::bind(&CommandNode::callback_x_current, this, std::placeholders::_1));
         q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
-        q_forward_controller_sub = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10, std::bind(&CommandNode::callback_q_forward_controller, this, std::placeholders::_1));
 
         joint_vel_pub_ = n->create_publisher<std_msgs::msg::Float64MultiArray>("command_node/joint_velocity_command", 10);
         cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>("command_node/cartesian_velocity_command", 10);
@@ -121,6 +130,7 @@ namespace space_control
         speed_level_pub_ = n->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
         frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>("/explorer_controllers/command_node/control_frame_selection", 10);
         gripper_pub_ = n->create_publisher<std_msgs::msg::Float64>("command_node/gripper_velocity_command", 10);
+        gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
         trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>("joint_trajectory_controller/joint_trajectory", 10);
         reset_qp_solving_pub_ = n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
         retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
@@ -134,6 +144,8 @@ namespace space_control
 
         complex_mode_ = false;
         rotation_speed_scale = 1.0;
+
+        gripper_command_.data={0.5};
 
         // Initialize Cartesian and joint velocities to zero
         resetVelocities();
@@ -510,10 +522,6 @@ namespace space_control
         current_pos_ = msg;
     }
 
-    void CommandNode::callback_q_forward_controller(const std_msgs::msg::Float64MultiArray & msg) {
-        q_gripper_ = msg.data[6];
-    }
-
     void CommandNode::handle_controller_state()
 {
     switch (control_state_) {
@@ -531,7 +539,7 @@ namespace space_control
                 switch_in_progress_ = true;
 
                 auto future = controller_switcher.switch_controller_async(
-                    {"forward_position_controller"},
+                    {active_controller_},
                     {"joint_trajectory_controller"}
                 );
 
@@ -571,18 +579,18 @@ namespace space_control
 
                 auto future = controller_switcher.switch_controller_async(
                     {"joint_trajectory_controller"},
-                    {"forward_position_controller"}
+                    {active_controller_}
                 );
 
                 std::thread([this, future = std::move(future)]() mutable {
                     try {
                         bool success = future.get();
                         if (success) {
-                            RCLCPP_INFO(n_->get_logger(), "Switched to forward_position_controller");
+                            RCLCPP_INFO(n_->get_logger(), "Switched to %s", active_controller_.c_str());
                             control_state_ = ControlState::FORWARD;
                             RCLCPP_INFO(n_->get_logger(), "→ FORWARD MODE");
                         } else {
-                            RCLCPP_WARN(n_->get_logger(), "Failed to switch to forward_position_controller");
+                            RCLCPP_WARN(n_->get_logger(), "Failed to switch to %s", active_controller_.c_str());
                             control_state_ = ControlState::TRAJECTORY;
                         }
                     } catch (const std::exception &e) {
@@ -646,26 +654,28 @@ namespace space_control
     
     void CommandNode::timer() {
 
-        if (!j2_max_cached_ || !j2_operational_max_cached_) {
-            getDoubleParameter("j2.max", j2_max_cached_);
-            getDoubleParameter("j2.operational_max", j2_operational_max_cached_);
-            return;  
-        }
-        else if (!j3_max_cached_ || !j3_operational_max_cached_) {
-            getDoubleParameter("j3.max", j3_max_cached_);
-            getDoubleParameter("j3.operational_max", j3_operational_max_cached_);
-            return;
-        }
-        else if (limits_initialized_ == false) {
-            j2_max_ = *j2_max_cached_;
-            j2_operational_max_ = *j2_operational_max_cached_;
+        if(!qp_inria_){
+            if (!j2_max_cached_ || !j2_operational_max_cached_) {
+                getDoubleParameter("j2.max", j2_max_cached_);
+                getDoubleParameter("j2.operational_max", j2_operational_max_cached_);
+                return;  
+            }
+            else if (!j3_max_cached_ || !j3_operational_max_cached_) {
+                getDoubleParameter("j3.max", j3_max_cached_);
+                getDoubleParameter("j3.operational_max", j3_operational_max_cached_);
+                return;
+            }
+            else if (limits_initialized_ == false) {
+                j2_max_ = *j2_max_cached_;
+                j2_operational_max_ = *j2_operational_max_cached_;
 
-            j3_max_ = *j3_max_cached_;
-            j3_operational_max_ = *j3_operational_max_cached_;
+                j3_max_ = *j3_max_cached_;
+                j3_operational_max_ = *j3_operational_max_cached_;
 
-            actual_j2_limit_ = j2_max_;
-            actual_j3_limit_ = j3_max_;
-            limits_initialized_ = true;
+                actual_j2_limit_ = j2_max_;
+                actual_j3_limit_ = j3_max_;
+                limits_initialized_ = true;
+            }
         }
 
         // Step 1: Get the current mode to know which smoothing alphas to use
@@ -738,28 +748,31 @@ namespace space_control
         mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name));
         speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level));
         gripper_pub_->publish(gripper_vel_);
+        gripper_command_pub_->publish(gripper_command_);
         retract_status_pub_->publish(std_msgs::msg::String().set__data(trajectory_manager.getStatusString()));
 
-        if(trajectory_manager.getStatusString() != "ready") {
-            if(actual_j2_limit_ != j2_max_) {
-                modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_max_));
-                actual_j2_limit_ = j2_max_;
-            }
+        if(!qp_inria_){
+            if(trajectory_manager.getStatusString() != "ready") {
+                if(actual_j2_limit_ != j2_max_) {
+                    modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_max_));
+                    actual_j2_limit_ = j2_max_;
+                }
 
-            if(actual_j3_limit_ != j3_max_) {
-                modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_max_));
-                actual_j3_limit_ = j3_max_;
+                if(actual_j3_limit_ != j3_max_) {
+                    modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_max_));
+                    actual_j3_limit_ = j3_max_;
+                }
             }
-        }
-        else if(trajectory_manager.getStatusString() == "ready" ) {
-            if(current_pos_.position[joint_order[1]] < j2_operational_max_ && actual_j2_limit_ != j2_operational_max_){
-                modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_operational_max_));
-                actual_j2_limit_ = j2_operational_max_;
-            }
+            else if(trajectory_manager.getStatusString() == "ready" ) {
+                if(current_pos_.position[joint_order[1]] < j2_operational_max_ && actual_j2_limit_ != j2_operational_max_){
+                    modifyTargetNodeParameter("j2.max", rclcpp::ParameterValue(j2_operational_max_));
+                    actual_j2_limit_ = j2_operational_max_;
+                }
 
-            if(current_pos_.position[joint_order[2]] < j3_operational_max_ && actual_j3_limit_ != j3_operational_max_){
-                modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_operational_max_));
-                actual_j3_limit_ = j3_operational_max_;
+                if(current_pos_.position[joint_order[2]] < j3_operational_max_ && actual_j3_limit_ != j3_operational_max_){
+                    modifyTargetNodeParameter("j3.max", rclcpp::ParameterValue(j3_operational_max_));
+                    actual_j3_limit_ = j3_operational_max_;
+                }
             }
         }
         
@@ -968,6 +981,14 @@ namespace space_control
 
             // Assign to gripper velocity
             gripper_vel_.data = value;
+
+            gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
+            if(gripper_command_.data[0]<= 0.0){
+                gripper_command_.data[0] = 0.0;
+            }
+            else if(gripper_command_.data[0]>= 1.0){
+                gripper_command_.data[0] = 1.0;
+            }
         }
        
     }
@@ -1020,7 +1041,7 @@ namespace space_control
         }
         
         float value = readAxisValue(axis_info);
-        trajectory_manager.update(q_current_, q_gripper_, value);
+        trajectory_manager.update(q_current_, value);
         
         lock_ = trajectory_manager.getLock();
 

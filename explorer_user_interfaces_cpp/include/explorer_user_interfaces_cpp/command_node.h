@@ -85,7 +85,6 @@ namespace space_control
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
-        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr q_forward_controller_sub;
 
         // Publishers
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
@@ -94,6 +93,7 @@ namespace space_control
         rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
         rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
         rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
         rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reset_qp_solving_pub_;
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr retract_status_pub_;
@@ -135,6 +135,10 @@ namespace space_control
 
         bool active_trajectory_;
 
+        bool qp_inria_;
+
+        std::string active_controller_;
+
         std::atomic<bool> lock_{false};
 
         enum class ControlState
@@ -156,12 +160,12 @@ namespace space_control
         geometry_msgs::msg::TwistStamped cartesian_vel_;
         std_msgs::msg::Float64MultiArray joint_vel_;
         std_msgs::msg::Float64 gripper_vel_;
+        std_msgs::msg::Float64MultiArray gripper_command_;
 
         explorer_msgs::msg::ControlFrameSelection frame_id_;
 
         geometry_msgs::msg::Pose x_current_;
         std::array<double,7> q_current_;
-        double q_gripper_;
 
         sensor_msgs::msg::JointState current_pos_;
 

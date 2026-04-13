@@ -40,6 +40,7 @@ def generate_launch_description():
     host_arg = LaunchConfiguration('host')
     mode_config_path_arg = LaunchConfiguration('mode_config_path')
     input_device = LaunchConfiguration('input_device')
+    qp_inria = LaunchConfiguration('qp_inria')
 
     # Declare arguments
     declared_arguments = []
@@ -154,6 +155,13 @@ def generate_launch_description():
             description="Input device type: 'movis' or 'xbox'"
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "qp_inria",
+            default_value="false",
+            description="Use QP solver from Inria"
+        )
+    )
     
     
 
@@ -167,7 +175,8 @@ def generate_launch_description():
             'use_POC2': poc2,
             'gui': gui,
             'use_sim_time': use_sim_time,
-            'rviz_delay': '0.0'
+            'rviz_delay': '0.0',
+            'qp_inria': qp_inria,
         }.items(),
         condition=IfCondition(simulation)
     )
@@ -185,7 +194,8 @@ def generate_launch_description():
             'can_port': can_port,
             'host_id': host_id,
             'use_POC2': poc2,
-            'rviz_delay': '5.0'
+            'rviz_delay': '5.0',
+            'qp_inria': qp_inria,
         }.items(),
         condition=UnlessCondition(simulation)
     )
@@ -220,6 +230,7 @@ def generate_launch_description():
         parameters=[
             {'use_sim_time': use_sim_time}
         ],
+        condition=UnlessCondition(qp_inria),
     )
 
     output_integrator_node = Node(
@@ -229,20 +240,29 @@ def generate_launch_description():
         parameters=[
             {'use_sim_time': use_sim_time}
         ],
+        condition=UnlessCondition(qp_inria),
     )
 
     qp_solving_POC1_node = Node(
         package="explorer_controllers",
         executable="qp_solving",
         parameters=[config_POC1, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=UnlessCondition(poc2),
+        condition=IfCondition(
+            PythonExpression([
+                "'", poc2, "' == 'false' and '", qp_inria, "' == 'false'"
+            ])
+        ),
     )
 
     qp_solving_POC2_node = Node(
         package="explorer_controllers",
         executable="qp_solving",
         parameters=[config_POC2, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=IfCondition(poc2),
+        condition=IfCondition(
+            PythonExpression([
+                "'", poc2, "' == 'true' and '", qp_inria, "' == 'false'"
+            ])
+        ),
     )
 
     pkg_share = get_package_share_directory('explorer_user_interfaces_cpp')
@@ -273,6 +293,7 @@ def generate_launch_description():
             "mode_file": yaml_file_path,
             "trajectory_file": trajectory_yaml_file_path,
             "active_trajectory": trajectory,
+            "qp_inria": qp_inria,
         }],
         remappings=[
             ('/command_node/cartesian_velocity_command', '/explorer_user_interfaces/rqt_armcontrol/input_device_velocity'),

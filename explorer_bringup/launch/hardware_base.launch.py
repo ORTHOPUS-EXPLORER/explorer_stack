@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.actions import RegisterEventHandler
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -31,6 +31,8 @@ def generate_launch_description():
 
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
+
+    qp_inria = LaunchConfiguration('qp_inria', default='false')
 
     # Declare arguments
     declared_arguments = []
@@ -67,6 +69,13 @@ def generate_launch_description():
             "host_id",
             default_value="45",
             description="Host CAN ID for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "qp_inria",
+            default_value="false",
+            description="Use QP solver from Inria",
         )
     )
 
@@ -137,6 +146,14 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
         output="log",
+        condition=UnlessCondition(qp_inria)
+    )
+
+    qcontrol_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
+        condition=IfCondition(qp_inria)
     )
 
     trajectory_controller_spawner = Node(
@@ -162,6 +179,7 @@ def generate_launch_description():
             target_action=joint_state_broadcaster_spawner,
             on_exit = [
                 robot_controller_spawner,
+                qcontrol_spawner,
                 trajectory_controller_spawner
             ]
         )

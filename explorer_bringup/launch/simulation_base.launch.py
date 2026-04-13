@@ -34,6 +34,7 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     rviz_delay = LaunchConfiguration("rviz_delay")
     world_file = LaunchConfiguration("world_file")
+    qp_inria = LaunchConfiguration('qp_inria', default='false') 
     
     # Declare arguments
     declared_arguments = []
@@ -69,6 +70,13 @@ def generate_launch_description():
             "world_file",
             default_value="empty_world.world",
             description="Gazebo world file to load",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "qp_inria",
+            default_value="false",
+            description="Use QP solver from Inria"
         )
     )
 
@@ -115,10 +123,24 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    robot_controller_spawner = Node(
+    robot_controller_spawner= Node(
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        condition=UnlessCondition(qp_inria)
+    )
+
+    qcontrol_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
+        condition=IfCondition(qp_inria)
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
     )
 
     trajectory_controller_spawner = Node(
@@ -143,6 +165,8 @@ def generate_launch_description():
                 on_exit=[
                     joint_state_broadcaster_spawner,
                     robot_controller_spawner,
+                    qcontrol_spawner,
+                    gripper_controller_spawner,
                     trajectory_controller_spawner,
                     controllers_control_node,
                 ],

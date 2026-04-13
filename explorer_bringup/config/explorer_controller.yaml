@@ -1,15 +1,44 @@
 controller_manager:
   ros__parameters:
-    update_rate: 1000  # Hz
+    update_rate: 250  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
+      auto_start: false
+
+    qontrol_explorer:
+      type: qontrol_controller/QontrolVelocityController
+      auto_start: false
 
     forward_position_controller:
       type: forward_command_controller/ForwardCommandController
+      auto_start: false
+
+    gripper_controller:
+      type: forward_command_controller/ForwardCommandController
+      auto_start: false
 
     joint_trajectory_controller:
-      type: joint_trajectory_controller/JointTrajectoryController
+      type: "joint_trajectory_controller/JointTrajectoryController"
+      auto_start: false
+
+qontrol_explorer:
+  ros__parameters:
+    # Base parameters
+    robot_description_origin: robot_state_publisher
+    tip_frame: ft_frame
+    root_frame: base_link
+    state_interface:
+      - position
+      - velocity
+      - effort
+    robot_command: position
+
+    # Velocity parameters
+    command_max_linear_velocity: 0.03
+    command_max_angular_velocity: 0.5
+    input_topic_name: /explorer_user_interfaces/rqt_armcontrol/input_device_velocity
+    regularisation_weight: 1e-3
 
 forward_position_controller:
   ros__parameters:
@@ -20,8 +49,15 @@ forward_position_controller:
       - joint_4
       - joint_5
       - joint_6
+    interface_name: position
+
+
+gripper_controller:
+  ros__parameters:
+    joints:
       - right_finger_joint
     interface_name: position
+
 
 joint_trajectory_controller:
   ros__parameters:
@@ -32,14 +68,11 @@ joint_trajectory_controller:
       - joint_4
       - joint_5
       - joint_6
-      - right_finger_joint
-
     command_interfaces:
       - position
-
     state_interfaces:
       - position
-
+      
     action_monitor_rate: 20.0
 
     allow_partial_joints_goal: false
