@@ -149,6 +149,12 @@ def generate_launch_description():
         condition=UnlessCondition(qp_inria)
     )
 
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+    )
+
     qcontrol_spawner = Node(
         package="controller_manager",
         executable="spawner",
@@ -179,6 +185,7 @@ def generate_launch_description():
             target_action=joint_state_broadcaster_spawner,
             on_exit = [
                 robot_controller_spawner,
+                gripper_controller_spawner,
                 qcontrol_spawner,
                 trajectory_controller_spawner
             ]
