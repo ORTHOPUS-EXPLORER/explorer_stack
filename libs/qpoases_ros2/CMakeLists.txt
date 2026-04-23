@@ -16,6 +16,8 @@ endif()
 #   add_compile_options(-Wall -Wextra -Wpedantic)
 # endif()
 add_compile_options(-Wno-format-truncation)
+# Disable export compile commands (ament_clang_tidy) for this package
+set(CMAKE_EXPORT_COMPILE_COMMANDS OFF force)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
