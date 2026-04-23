@@ -22,8 +22,8 @@ COPY . ${ROS_WS}
 ## Taken from an official ROS image
 RUN bash -e <<'EOF'
 declare -A types=(
-  [exec]="--dependency-types=exec"
-  [build]="")
+  [exec]="--dependency-types=build --dependency-types=exec --dependency-types=test --dependency-types=doc"
+  [build]="--dependency-types=build --dependency-types=test")
 for type in "${!types[@]}"; do
   rosdep install -y \
     --from-paths . \
@@ -74,11 +74,10 @@ RUN apt update && apt install -y --no-install-recommends\
     vim \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=explorer_cacher /tmp/*_dependencies.txt /tmp/
+COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    < /tmp/build_dependencies.txt xargs apt-get install -y --no-install-recommends && \
     < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends
 
 WORKDIR ${ROS_WS}
