@@ -1,0 +1,71 @@
+name: Build ROS2 package and lint check
+on:
+  pull_request:
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      image: ghcr.io/orthopus-explorer/ros-iron-explorer/builder:latest
+      options: --user root
+    permissions:
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "Build ROS package with support for linter (compile-commands)"
+        run: whoami && ls -lRa ~/.colcon/mixin && colcon mixin update default && colcon build --symlink-install --continue-on-error --mixin compile-commands
+      
+        # Only exec when testing locally with Act (https://github.com/nektos/act/issues/973)
+      - name: Act Workaround
+        if: ${{ env.ACT }}
+        run: curl -fsSL https://deb.nodesource.com/setup_22.x | bash && apt install -y nodejs 
+
+      - name: 'Upload build/install Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ros2-build
+          path: |
+            build/
+            install/
+            log/
+          retention-days: 2
+
+
+  report-cpp-lint-and-format:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Download build folder from build job
+        uses: actions/download-artifact@v5
+        with:
+          name: ros2-build
+
+      - uses: cpp-linter/cpp-linter-action@v2
+        id: linter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tidy-review: true
+          # Use .clang-format config file
+          style: 'file'
+          # Use .clang-tidy config file
+          tidy-checks: ''
+          # only 'update' a single comment in a pull request thread.
+          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          step-summary: true
+
+      - name: Check if cpp lint failed
+        if: steps.linter.outputs.checks-failed > 0
+        run: exit 1
