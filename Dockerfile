@@ -1,6 +1,7 @@
 ## Overridable ROS distro argument (generic)
 ARG ROS_DISTRO=iron
-ARG ROS_WS=/src/
+ARG ROS_USER=orthopus
+ARG ROS_WS=/home/${ROS_USER}/src/
 
 ## Multi stage build
 
@@ -45,14 +46,18 @@ LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/expl
 LABEL org.opencontainers.image.description="CI/CD image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
 ARG ROS_WS
+ARG ROS_USER
+ENV ROS_USER=${ROS_USER}
 
 COPY --from=explorer_cacher /tmp/build_dependencies.txt /tmp/build_dependencies.txt
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    < /tmp/build_dependencies.txt xargs apt-get install -y --no-install-recommends
+    # Install build dependencies from rosdep
+    < /tmp/build_dependencies.txt xargs apt-get install -y --no-install-recommends \
+    # CI build caching
+    && apt install -y ccache
 
-WORKDIR ${ROS_WS}
 
 ##  ---------------- Runner part (dev)---------------- 
 FROM osrf/ros:${ROS_DISTRO}-desktop AS explorer_dev
@@ -60,10 +65,13 @@ LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/expl
 LABEL org.opencontainers.image.description="Development image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
 ARG ROS_WS
+ARG ROS_USER
+ENV ROS_USER=${ROS_USER}
 
-## Runtime dependencies
+## Support / dev dependencies
 RUN apt update && apt install -y --no-install-recommends\
     can-utils \
+    ccache \
     iproute2 \
     python3-pip \
     ros-${ROS_DISTRO}-plotjuggler \
@@ -74,25 +82,33 @@ RUN apt update && apt install -y --no-install-recommends\
     vim \
     && rm -rf /var/lib/apt/lists/*
 
+ENV ROS_LOCALHOST_ONLY=1
+RUN sed --in-place \
+    # Source build (if exists) automatically
+    -e '/^source .*/a [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash" --' \
+    # Fix UID/GUID issue dynamically (issue about permissions when mounting folder)
+    -e 's|^exec "$@"|if [ -z "${USER_UID}" ]; then\n    echo "USER_UID env var not set, file permissions will occurs, please provides: -e USER_UID=\\$(id -u)"\nelse\n    usermod -u $USER_UID ${ROS_USER}\nfi\nexec gosu ${ROS_USER} "$@"|' \
+    /ros_entrypoint.sh
+
 COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends
+    # Install build/exec dependencies from rosdep
+    < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends \
+    # Install gosu
+    && apt-get install -y --no-install-recommends gosu
 
+RUN groupadd -r ${ROS_USER} && useradd -m --no-log-init -r -g ${ROS_USER} ${ROS_USER}
+# Copy colcon config (no need to reinstall mixins)
+RUN cp -r /root/.colcon /home/${ROS_USER}
 WORKDIR ${ROS_WS}
 
-ENV ROS_LOCALHOST_ONLY=1
-RUN sed --in-place \
-    '/^source .*/a [[ -f "/src/install/setup.bash" ]] && source "/src/install/setup.bash" --' \
-    /ros_entrypoint.sh
 
 ## ---------------- Runner part (prod) ----------------
 FROM explorer_dev AS explorer_prod
 LABEL org.opencontainers.image.description="Ready to uses image for Orthopus Explorer project"
 
-COPY . /src/
+COPY . ${ROS_WS}
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build --symlink-install --continue-on-error --mixin release
-
-## TODO Launch prod node automatically
