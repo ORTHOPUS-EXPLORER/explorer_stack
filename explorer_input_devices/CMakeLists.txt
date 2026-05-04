@@ -22,7 +22,7 @@ endforeach()
 
 # INSTALL
 install(DIRECTORY config
-  DESTINATION share/explorer_input_devices
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 add_executable(spacenav

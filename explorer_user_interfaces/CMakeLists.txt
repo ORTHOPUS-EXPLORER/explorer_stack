@@ -14,14 +14,14 @@ ament_python_install_package(${PROJECT_NAME})
 
 # Install resource files
 install(DIRECTORY
-  resource/
-  DESTINATION share/${PROJECT_NAME}/resource
+  resource
+  DESTINATION share/${PROJECT_NAME}
 )
 
 # Install launch files
 install(DIRECTORY
-  launch/
-  DESTINATION share/${PROJECT_NAME}/launch
+  launch
+  DESTINATION share/${PROJECT_NAME}
   FILES_MATCHING PATTERN "*.launch.py"
 )
 

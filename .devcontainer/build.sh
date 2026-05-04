@@ -3,11 +3,11 @@
 # Immediately catch all errors
 set -eo pipefail
 
-# setup ros2 environment
-source "/opt/ros/$ROS_DISTRO/setup.bash"
-if [[ -f "install/setup.bash" ]]; then
-    source "install/setup.bash"
-fi
+# Delete install folder if already exist and was built in "isolated" layout
+if [[ -f "install/.colcon_install_layout" && ! -z $(grep "isolated" "install/.colcon_install_layout") ]]; then rm -r install; fi
+
+# Source ROS / colcon install files
+echo 'source /opt/ros/${ROS_DISTRO}/setup.bash && source install/setup.bash' >> ~/.bashrc;
 
 # Build workspace as non root user (prevent permission issues)
 CCACHE_DIR=/home/orthopus/.ccache /ros_entrypoint.sh colcon build --symlink-install --mixin debug ccache compile-commands
