@@ -42,11 +42,6 @@
             "source": "vscode-cache-${devcontainerId}",
             "target": "${containerWorkspaceFolder}/.cache",
             "type": "volume"
-        },
-        {
-            "source": "ros2-cache-${devcontainerId}",
-            "target": "${containerWorkspaceFolder}/build",
-            "type": "volume"
         }
     ],
     "features": {
