@@ -1,0 +1,67 @@
+{
+    "name": "Orthopus explorer stack (ROS2 - Iron)",
+    "build": {
+        "context": "..",
+        "dockerfile": "../Dockerfile",
+        "target": "explorer_dev",
+        "cacheFrom": "ghcr.io/orthopus-explorer/ros-iron-explorer/dev:latest",
+        "args": {
+            "ROS_DISTRO": "iron"
+        }
+    },
+    "runArgs": [
+        "--env-file", "${localWorkspaceFolder}/.devcontainer/.env",
+        "--name=orthopus-explorer-devcontainer",
+        // shared memory transport with host, e.g. rviz GUIs
+        "--ipc=host",
+        // X11 socket for GUI applications
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+        // enable debugging, e.g. gdb
+        "--security-opt=seccomp=unconfined"
+        // "--cap-add=SYS_PTRACE", // enable debugging, e.g. gdb
+        // "--network=host", // network access to host interfaces, e.g. eth0
+        // "--pid=host", // DDS discovery with host, without --network=host
+        // "--privileged", // device access to host peripherals, e.g. USB
+        // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
+    ],
+    "workspaceFolder": "/home/orthopus/explorer_ws/explorer_stack",
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
+    "initializeCommand": "echo USER_UID=$(id -u) > ${localWorkspaceFolder}/.devcontainer/.env",
+    "postCreateCommand": ".devcontainer/build.sh",
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}/..",
+    "remoteEnv": {
+        // "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
+    },
+    "mounts": [
+        {
+            "source": "ccache-${devcontainerId}",
+            "target": "/home/orthopus/.ccache",
+            "type": "volume"
+        },
+        {
+            "source": "vscode-cache-${devcontainerId}",
+            "target": "${containerWorkspaceFolder}/.cache",
+            "type": "volume"
+        },
+        {
+            "source": "ros2-cache-${devcontainerId}",
+            "target": "${containerWorkspaceFolder}/build",
+            "type": "volume"
+        }
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            },
+            "extensions": [
+                "llvm-vs-code-extensions.vscode-clangd",
+                "ranch-hand-robotics.rde-pack",
+                "ms-vscode.cmake-tools"
+            ]
+        }
+    }
+}

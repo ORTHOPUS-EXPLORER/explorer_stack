@@ -17,7 +17,7 @@ APT::Install-Suggests "false";
 EOF
 
 WORKDIR ${ROS_WS}
-COPY . ${ROS_WS}
+COPY --exclude=build --exclude=install . ${ROS_WS}
 
 ## Derive build/exec dependencies into a /tmp/[build|exec]_dependencies.txt
 ## Taken from an official ROS image
@@ -87,17 +87,52 @@ RUN sed --in-place \
     # Source build (if exists) automatically
     -e '/^source .*/a [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash" --' \
     # Fix UID/GUID issue dynamically (issue about permissions when mounting folder)
-    -e 's|^exec "$@"|if [ -z "${USER_UID}" ]; then\n    echo "USER_UID env var not set, file permissions will occurs, please provides: -e USER_UID=\\$(id -u)"\nelse\n    usermod -u $USER_UID ${ROS_USER}\nfi\nexec gosu ${ROS_USER} "$@"|' \
+    -e 's|^exec "$@"|if [ -z "${USER_UID}" ]; then\n\
+    \techo "USER_UID env var not set, file permissions will occurs, please provides: -e USER_UID=\\$(id -u)"\n\
+    else\n\
+    \tusermod -u ${USER_UID} ${ROS_USER}\n\
+    \tif [[ -d "/home/${ROS_USER}/.ccache" ]]; then\n\
+    \t\tchown -R ${ROS_USER}:${ROS_USER} /home/${ROS_USER}/.ccache\n\
+    \tfi\n\
+    \tif [[ -d "${PWD}/.cache" ]]; then\n\
+    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/.cache\n\
+    \tfi\n\
+    \tif [[ -d "${PWD}/build" ]]; then\n\
+    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/build\n\
+    \tfi\n\
+    \tif [[ -d "${PWD}/install" ]]; then\n\
+    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/install\n\
+    \tfi\n\
+    fi\n\
+    exec gosu ${ROS_USER} "$@"|' \
     /ros_entrypoint.sh
 
 COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/
+# Install build/exec dependencies from rosdep
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    # Install build/exec dependencies from rosdep
-    < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends \
-    # Install gosu
-    && apt-get install -y --no-install-recommends gosu
+    ## Delete any clang related packages (latest version will be installed at next step)
+    sed -i '/.*clang.*/d' /tmp/exec_dependencies.txt \
+    && < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends
+
+# # Install dev dependencies
+RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
+    --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get install -y gosu software-properties-common wget \
+    ## Install latest LLVM toolchain (clangd)
+    && UBUNTU_CODENAME=$(lsb_release -c -s) \
+    && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
+    && add-apt-repository -y deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-22 main \
+    && apt update \
+    # Install clang related packages
+    && apt-get install -y --no-install-recommends clang-22 clang-tools-22 clang-22-doc libclang-common-22-dev libclang-22-dev libclang1-22 clang-format-22 python3-clang-22 clangd-22 clang-tidy-22 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 22 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-22 22 \
+    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 22 \
+    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 22 \
+    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-22 22
 
 RUN groupadd -r ${ROS_USER} && useradd -m --no-log-init -r -g ${ROS_USER} ${ROS_USER}
 # Copy colcon config (no need to reinstall mixins)

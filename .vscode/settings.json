@@ -1,0 +1,16 @@
+{
+  "ROS2.distro": "iron",
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": false
+  },
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": false
+  },
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "-log=verbose",
+    "--clang-tidy",
+  ]
+}

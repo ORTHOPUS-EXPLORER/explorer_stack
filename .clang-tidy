@@ -1,6 +1,6 @@
 ---
 Checks: "bugprone-*, cppcoreguidelines-*, clang-analyzer-*, misc-*, modernize-*,
-  performance-*"
-WarningsAsErrors: true
+  performance-*, -modernize-use-trailing-return-type"
 HeaderFilterRegex: ""
-FormatStyle: none
+WarningsAsErrors: ''
+FormatStyle: file
