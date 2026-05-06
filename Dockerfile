@@ -82,7 +82,9 @@ RUN apt update && apt install -y --no-install-recommends\
     vim \
     && rm -rf /var/lib/apt/lists/*
 
-ENV ROS_LOCALHOST_ONLY=1
+# Control how far ROS nodes will try to discover each other: SUBNET|LOCALHOST|OFF|SYSTEM_DEFAULT
+ENV ROS_AUTOMATIC_DISCOVERY_RANGE="LOCALHOST"
+
 RUN sed --in-place \
     # Source build (if exists) automatically
     -e '/^source .*/a [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash" --' \
