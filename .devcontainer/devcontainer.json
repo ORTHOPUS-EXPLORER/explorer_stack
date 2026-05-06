@@ -16,12 +16,14 @@
         "--ipc=host",
         // X11 socket for GUI applications
         "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
-        // enable debugging, e.g. gdb
+        // network access to host interfaces, e.g. eth0
+        "--network=host",
+        // device access to host peripherals, e.g. USB
+        "--privileged",
         "--security-opt=seccomp=unconfined"
-        // "--cap-add=SYS_PTRACE", // enable debugging, e.g. gdb
-        // "--network=host", // network access to host interfaces, e.g. eth0
+        // enable debugging, e.g. gdb
+        // "--cap-add=SYS_PTRACE",
         // "--pid=host", // DDS discovery with host, without --network=host
-        // "--privileged", // device access to host peripherals, e.g. USB
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],
     "workspaceFolder": "/home/orthopus/explorer_ws/explorer_stack",
@@ -30,7 +32,8 @@
     "postCreateCommand": ".devcontainer/build.sh",
     "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}/..",
     "remoteEnv": {
-        // "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
+        "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
+        "SSH_AUTH_SOCK": "/ssh-agent"
     },
     "mounts": [
         {
@@ -39,9 +42,14 @@
             "type": "volume"
         },
         {
-            "source": "vscode-cache-${devcontainerId}",
-            "target": "${containerWorkspaceFolder}/.cache",
-            "type": "volume"
+            "source": "${localEnv:SSH_AUTH_SOCK}",
+            "target": "/ssh-agent",
+            "type": "bind"
+        },
+        {
+            "source": "/dev",
+            "target": "/dev",
+            "type": "bind"
         }
     ],
     "features": {
