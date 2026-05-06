@@ -69,7 +69,11 @@ ARG ROS_USER
 ENV ROS_USER=${ROS_USER}
 
 ## Support / dev dependencies
-RUN apt update && apt install -y --no-install-recommends\
+RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
+    --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt install -y --no-install-recommends\
+    bash-completion \
     can-utils \
     ccache \
     iproute2 \
@@ -79,8 +83,13 @@ RUN apt update && apt install -y --no-install-recommends\
     ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
     terminator \
     tmux \
-    vim \
-    && rm -rf /var/lib/apt/lists/*
+    vim
+
+RUN cat <<EOT >> ~/.bashrc
+if [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
+EOT
 
 # Control how far ROS nodes will try to discover each other: SUBNET|LOCALHOST|OFF|SYSTEM_DEFAULT
 ENV ROS_AUTOMATIC_DISCOVERY_RANGE="LOCALHOST"
