@@ -63,7 +63,9 @@
             "extensions": [
                 "llvm-vs-code-extensions.vscode-clangd",
                 "ranch-hand-robotics.rde-pack",
-                "ms-vscode.cmake-tools"
+                "ms-vscode.cmake-tools",
+                "charliermarsh.ruff",
+                "njpwerner.autodocstring"
             ]
         }
     }

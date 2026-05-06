@@ -13,6 +13,14 @@
     "-log=verbose",
     "--clang-tidy",
   ],
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": false
+  },
+  "autoDocstring.customTemplatePath": ".vscode/docstring.mustache",
+  "autoDocstring.docstringFormat": "google",
+  "autoDocstring.generateDocstringOnEnter": true,
+  "python.analysis.ignore": ["*"],
   "python.autoComplete.extraPaths": [
     "/opt/ros/iron/lib/python3.10/site-packages",
     "install/lib/python3.10/site-packages/",

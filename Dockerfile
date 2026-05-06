@@ -118,7 +118,7 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     sed -i '/.*clang.*/d' /tmp/exec_dependencies.txt \
     && < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends
 
-# # Install dev dependencies
+# Install dev dependencies (clangd related)
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -135,6 +135,9 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 22 \
     && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 22 \
     && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-22 22
+
+# Install dev dependencies (ruff related)
+RUN pip install ruff
 
 RUN groupadd -r ${ROS_USER} && useradd -m --no-log-init -r -g ${ROS_USER} ${ROS_USER}
 # Copy colcon config (no need to reinstall mixins)
