@@ -15,12 +15,16 @@
   ],
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": false
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "explicit"
+    }
   },
   "autoDocstring.customTemplatePath": ".vscode/docstring.mustache",
   "autoDocstring.docstringFormat": "google",
   "autoDocstring.generateDocstringOnEnter": true,
   "python.analysis.ignore": ["*"],
+  "python.analysis.autoImportCompletions": true,
   "python.autoComplete.extraPaths": [
     "/opt/ros/iron/lib/python3.10/site-packages",
     "install/lib/python3.10/site-packages/",
