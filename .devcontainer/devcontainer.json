@@ -33,6 +33,7 @@
     "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}/..",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
+        "XAUTHORITY": "/home/orthopus/.Xauthority", // Allow access to display through XServer
         "SSH_AUTH_SOCK": "/ssh-agent"
     },
     "mounts": [
@@ -49,6 +50,11 @@
         {
             "source": "/dev",
             "target": "/dev",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:XAUTHORITY}",
+            "target": "/home/orthopus/.Xauthority",
             "type": "bind"
         }
     ],
