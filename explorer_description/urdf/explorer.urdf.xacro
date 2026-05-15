@@ -3,7 +3,6 @@
   <xacro:arg name="use_POC2" default="false" />
   <xacro:arg name="simulation" default="false" />
     <!-- if Simulation-->
-    <xacro:arg name="use_ignition" default="true" />
     <!-- else -->
     <xacro:arg name="can_port" default="vxcan1" />
     <xacro:arg name="host_id" default="45" />
@@ -94,7 +93,7 @@
   <!-- Import explorer ros2_control description -->
   <xacro:if value="$(arg simulation)">
     <xacro:include filename="$(find explorer_description)/ros2_control/explorer_simulation.ros2_control.xacro" />
-    <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)" />
+    <xacro:explorer_ros2_control name="explorer"/>
   </xacro:if>
   <xacro:unless value="$(arg simulation)">
     <xacro:include filename="$(find explorer_description)/ros2_control/explorer_actuators.ros2_control.xacro" />

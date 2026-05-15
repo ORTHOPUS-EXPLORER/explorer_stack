@@ -1,17 +1,12 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|true">
+  <xacro:macro name="explorer_ros2_control" params="name">
 
     <xacro:include filename="$(find explorer_description)/urdf/explorer_joints.xacro" />
 
     <ros2_control name="${name}" type="system">
       <hardware>
-        <xacro:if value="${use_ignition}">
-          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-        </xacro:if>
-        <xacro:unless value="${use_ignition}">
-          <plugin>gazebo_ros2_control/GazeboSystem</plugin>
-        </xacro:unless>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
       </hardware>
 
       <xacro:explorer_joint_1 />
@@ -27,7 +22,7 @@
 
     <!-- Import Gazebo definitions + plugin -->
       <xacro:include filename="$(find explorer_description)/gazebo/explorer.gazebo.xacro" />
-      <xacro:explorer_gazebo use_ignition="$(arg use_ignition)"/>
+      <xacro:explorer_gazebo/>
 
   </xacro:macro>
 

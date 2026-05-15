@@ -89,8 +89,6 @@ def declare_shared_argument_list(use_actuator_interface: bool = True) -> List[De
                     get_parameter_simulation(),
                     " use_actuator_interface:=",
                     str(use_actuator_interface).lower(),
-                    " use_ignition:=",
-                    get_parameter_simulation(),
                     " use_POC2:=",
                     get_parameter_use_poc2(),
                 ]
