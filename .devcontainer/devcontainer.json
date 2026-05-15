@@ -31,6 +31,7 @@
     "initializeCommand": "echo USER_UID=$(id -u) > ${localWorkspaceFolder}/.devcontainer/.env",
     "postCreateCommand": ".devcontainer/build.sh",
     "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}/..",
+    "remoteUser": "orthopus",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
         "XAUTHORITY": "/home/orthopus/.Xauthority", // Allow access to display through XServer

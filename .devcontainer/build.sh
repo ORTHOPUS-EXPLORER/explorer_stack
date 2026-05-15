@@ -10,4 +10,4 @@ if [[ -f "install/.colcon_install_layout" && ! -z $(grep "isolated" "install/.co
 echo 'source /opt/ros/${ROS_DISTRO}/setup.bash && source install/setup.bash' >> ~/.bashrc;
 
 # Build workspace as non root user (prevent permission issues)
-CCACHE_DIR=/home/orthopus/.ccache /ros_entrypoint.sh colcon build --symlink-install --mixin debug ccache compile-commands
+CCACHE_DIR=/home/orthopus/.ccache colcon build --symlink-install --mixin debug ccache compile-commands
