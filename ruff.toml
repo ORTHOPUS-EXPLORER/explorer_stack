@@ -36,4 +36,4 @@ select = [
     "E225",   # Missing whitespace around operator
     "F",      # PEP8 warnings
 ]
-ignore = [ "D200", "D204", "D205", "D400", "D401", "D413" ]
+ignore = [ "D200", "D204", "D205", "D400", "D401", "D413", "D415" ]
