@@ -15,6 +15,9 @@
 
 from typing import Literal
 
+from click.core import Group
+from launch.actions import GroupAction
+from launch.conditions import IfCondition
 from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
@@ -22,10 +25,13 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-from explorer_bringup.launch.optional_parameters import get_parameter_input_device
+from explorer_bringup.launch.optional_parameters import (
+    get_parameter_input_device,
+    get_parameter_spacenav,
+)
 
 
-def declare_joy_node(unique_device: Literal [ "movis", "xbox" ] | None) -> Node:
+def declare_joy_node(unique_device: Literal["movis", "xbox"] | None = None) -> Node:
     """Generate joy node
 
     Args:
@@ -36,7 +42,7 @@ def declare_joy_node(unique_device: Literal [ "movis", "xbox" ] | None) -> Node:
     """
     device_config_map = {
         "movis": "movis_joystick_settings.yaml",
-        "xbox": "xbox_gamepad_settings.yaml"
+        "xbox": "xbox_gamepad_settings.yaml",
     }
 
     # Select device config based on unique_device (if provided) (fallback to launch param 'input_device parameter')
@@ -47,10 +53,12 @@ def declare_joy_node(unique_device: Literal [ "movis", "xbox" ] | None) -> Node:
             PythonExpression(
                 [
                     f'{device_config_map}["',
-                    unique_device if unique_device is not None else get_parameter_input_device(),
+                    unique_device
+                    if unique_device is not None
+                    else get_parameter_input_device(),
                     '"]',
                 ]
-            )
+            ),
         ]
     )
 
@@ -59,4 +67,32 @@ def declare_joy_node(unique_device: Literal [ "movis", "xbox" ] | None) -> Node:
         executable="joy_node",
         output="screen",
         parameters=[device_yaml_file_path],
+    )
+
+
+def declare_spacenav_node_group() -> GroupAction:
+    spacenav_config = PathJoinSubstitution(
+        [FindPackageShare("explorer_input_devices"), "config", "spacenav_settings.yaml"]
+    )
+    return GroupAction(
+        actions=[
+            Node(
+                package="explorer_input_devices",
+                executable="spacenav",
+                parameters=[
+                    spacenav_config,
+                    {"static_rot_deadband": 0.5},
+                    {"static_trans_deadband": 0.5},
+                ],
+            ),
+            Node(
+                package="spacenav",
+                executable="spacenav_node",
+                parameters=[
+                    {"static_rot_deadband": 0.5},
+                    {"static_trans_deadband": 0.5},
+                ],
+            ),
+        ],
+        condition=IfCondition(get_parameter_spacenav()),
     )

@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from typing import Callable, Dict, List, Literal
 
 from launch import Action
 from launch.actions import GroupAction, RegisterEventHandler
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import UnlessCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import (
     PathJoinSubstitution,
@@ -24,38 +24,47 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-from explorer_bringup.launch.shared import (
+from explorer_bringup.launch.controller_manager_spawner import (
     declare_node_forward_position_controller_spawner,
     declare_node_joint_state_broadcaster_spawner,
-    declare_node_robot_state_publisher,
     declare_node_trajectory_controller_spawner,
+)
+from explorer_bringup.launch.shared import (
+    declare_node_robot_state_publisher,
     declare_qp_solving_node_list,
+    declare_rviz_node,
 )
 from explorer_bringup.launch.shared_parameters import (
-    get_parameter_gui,
     get_parameter_simulation,
-    get_parameter_use_sim_time,
 )
 
+ALLOWED_CONTROLLER_TYPE = Literal["default", "multi_intf"]
 
-def declare_node_controller_manager_control_node() -> Node:
-    """Generate controller manager control node (only needed in HW, gazebo launch it automatically in simulation)
+
+def _declare_node_controller_manager_control_node(
+    controller_type: ALLOWED_CONTROLLER_TYPE,
+) -> Node:
+    """Declare controller manager control node (only needed in HW, gazebo launch it automatically in simulation)
 
     Returns:
         Node:
     """
+    robot_controller_config_map = {
+        "default": "controller",
+        "multi_intf": "multi_intf_controller",
+    }
+    controller_config = PathJoinSubstitution(
+        [
+            FindPackageShare("explorer_bringup"),
+            "config",
+            "explorer_" + robot_controller_config_map[controller_type] + ".yaml",
+        ]
+    )
+
     return Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[
-            PathJoinSubstitution(
-                [
-                    FindPackageShare("explorer_bringup"),
-                    "config",
-                    "explorer_controller.yaml",
-                ]
-            )
-        ],
+        parameters=[controller_config],
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),
@@ -63,17 +72,42 @@ def declare_node_controller_manager_control_node() -> Node:
     )
 
 
-def declare_hardware_node_list(
-    launch_qp_solving: bool, qp_solving_post_start_list: List[Action]
+def _declare_command_controller_list(
+    controller_type: ALLOWED_CONTROLLER_TYPE,
+) -> List[Node]:
+    command_controller_generator_map: Dict[ALLOWED_CONTROLLER_TYPE, Callable] = {
+        "default": lambda: [
+            declare_node_trajectory_controller_spawner(),
+            declare_node_forward_position_controller_spawner(),
+        ],
+        "multi_intf": lambda: [],
+    }
+
+    return command_controller_generator_map[controller_type]()
+
+
+def declare_hardware_node_group(
+    launch_qp_solving: bool,
+    qp_solving_post_start_list: List[Action] = [],
+    controller_manager_type: ALLOWED_CONTROLLER_TYPE = "default",
 ) -> GroupAction:
+    """Declare nodes needed when using hardware
+
+    Returns:
+        GroupAction: hardware node list object
+    """
     # Nodes
-    controller_manager_node = declare_node_controller_manager_control_node()
-    joint_state_broadcaster_spawner = declare_node_joint_state_broadcaster_spawner()
-    trajectory_controller_spawner = declare_node_trajectory_controller_spawner()
-    forward_position_robot_controller_spawner = (
-        declare_node_forward_position_controller_spawner()
+    controller_manager_node = _declare_node_controller_manager_control_node(
+        controller_type=controller_manager_type
     )
+    joint_state_broadcaster_spawner = declare_node_joint_state_broadcaster_spawner()
+
+    command_controller_list = _declare_command_controller_list(
+        controller_type=controller_manager_type
+    )
+
     robot_state_publisher = declare_node_robot_state_publisher()
+    rviz_node = declare_rviz_node()
     nodes = [
         controller_manager_node,
     ]
@@ -93,26 +127,8 @@ def declare_hardware_node_list(
             OnProcessExit(
                 target_action=joint_state_broadcaster_spawner,
                 on_exit=[
-                    forward_position_robot_controller_spawner,
-                    trajectory_controller_spawner,
-                    Node(
-                        package="rviz2",
-                        executable="rviz2",
-                        name="rviz2",
-                        output="log",
-                        arguments=[
-                            "-d",
-                            PathJoinSubstitution(
-                                [
-                                    FindPackageShare("explorer_description"),
-                                    "rviz",
-                                    "view_robot.rviz",
-                                ]
-                            ),
-                        ],
-                        condition=IfCondition(get_parameter_gui()),
-                        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
-                    ),
+                    *command_controller_list,
+                    rviz_node,
                 ],
             )
         ),

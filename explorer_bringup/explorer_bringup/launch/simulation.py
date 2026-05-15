@@ -27,23 +27,25 @@ from launch.substitutions import PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-from explorer_bringup.launch.shared import (
+from explorer_bringup.launch.controller_manager_spawner import (
     declare_node_forward_position_controller_spawner,
     declare_node_joint_state_broadcaster_spawner,
-    declare_node_robot_state_publisher,
     declare_node_trajectory_controller_spawner,
+)
+from explorer_bringup.launch.shared import (
+    declare_node_robot_state_publisher,
     declare_qp_solving_node_list,
+    declare_rviz_node,
 )
 from explorer_bringup.launch.shared_parameters import (
     get_parameter_gui,
     get_parameter_simulation,
-    get_parameter_use_sim_time,
 )
 from explorer_bringup.launch.simulation_parameters import get_parameter_world_file
 
 
-def declare_node_list_gazebo(gazebo_on_exit_node_list: List) -> List[Action]:
-    """Generate node list related to gazebo.
+def _declare_gazebo_node_list(gazebo_on_exit_node_list: List) -> List [ Action ]:
+    """Generate gazebo node(s).
 
     Args:
         gazebo_on_exit_node_list (List): List of nodes to launch only after Gazebo is up
@@ -100,8 +102,8 @@ def declare_node_list_gazebo(gazebo_on_exit_node_list: List) -> List[Action]:
     ]
 
 
-def declare_simulation_node_list(
-    launch_qp_solving: bool, qp_solving_post_start_list: List[Action]
+def declare_simulation_node_group(
+    launch_qp_solving: bool, qp_solving_post_start_list: List[Action] = []
 ) -> GroupAction:
     """Generate all nodes related to simulation
 
@@ -117,13 +119,13 @@ def declare_simulation_node_list(
     trajectory_controller_spawner = declare_node_trajectory_controller_spawner()
     forward_position_controller_spawner = declare_node_forward_position_controller_spawner()
     robot_state_publisher = declare_node_robot_state_publisher()
-
+    rviz_node = declare_rviz_node()
     gazebo_on_exit_node_list = [
         joint_state_broadcaster_spawner,
         trajectory_controller_spawner,
         forward_position_controller_spawner,
     ]
-    gazebo_node_list = declare_node_list_gazebo(
+    gazebo_node_list = _declare_gazebo_node_list(
         gazebo_on_exit_node_list=gazebo_on_exit_node_list
     )
 
@@ -133,24 +135,7 @@ def declare_simulation_node_list(
             event_handler=OnProcessExit(
                 target_action=joint_state_broadcaster_spawner,
                 on_exit=[
-                    Node(
-                        package="rviz2",
-                        executable="rviz2",
-                        name="rviz2",
-                        output="log",
-                        arguments=[
-                            "-d",
-                            PathJoinSubstitution(
-                                [
-                                    FindPackageShare("explorer_description"),
-                                    "rviz",
-                                    "view_robot.rviz",
-                                ]
-                            ),
-                        ],
-                        condition=IfCondition(get_parameter_gui()),
-                        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
-                    )
+                    rviz_node
                 ],
             )
         ),

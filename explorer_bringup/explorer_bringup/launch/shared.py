@@ -29,6 +29,7 @@ from launch_ros.descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.shared_parameters import (
+    get_parameter_gui,
     get_parameter_robot_description,
     get_parameter_use_poc2,
     get_parameter_use_sim_time,
@@ -41,48 +42,12 @@ def declare_node_robot_state_publisher() -> Node:
         executable="robot_state_publisher",
         output="log",
         parameters=[
-            {"robot_description": ParameterValue( get_parameter_robot_description(), value_type=str)},
+            {
+                "robot_description": ParameterValue(
+                    get_parameter_robot_description(), value_type=str
+                )
+            },
             {"use_sim_time": get_parameter_use_sim_time()},
-        ]
-    )
-
-
-def declare_node_joint_state_broadcaster_spawner(output: str = "log") -> Node:
-    return Node(
-        package="controller_manager",
-        executable="spawner",
-        output=output,
-        arguments=[
-            "joint_state_broadcaster",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-    )
-
-
-def declare_node_trajectory_controller_spawner(output: str = "log") -> Node:
-    return Node(
-        package="controller_manager",
-        executable="spawner",
-        output=output,
-        arguments=[
-            "joint_trajectory_controller",
-            "--controller-manager",
-            "/controller_manager",
-            "--inactive"
-        ],
-    )
-
-
-def declare_node_forward_position_controller_spawner(output: str = "log") -> Node:
-    return Node(
-        package="controller_manager",
-        executable="spawner",
-        output=output,
-        arguments=[
-            "forward_position_controller",
-            "--controller-manager",
-            "/controller_manager",
         ],
     )
 
@@ -163,3 +128,24 @@ def declare_qp_solving_node_list(qp_solving_post_start_list: List[Action]):
         )
 
     return [qp_solving_POC1_node, qp_solving_POC2_node, *register_event_handlers]
+
+
+def declare_rviz_node() -> Node:
+    return Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="log",
+        arguments=[
+            "-d",
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("explorer_description"),
+                    "rviz",
+                    "view_robot.rviz",
+                ]
+            ),
+        ],
+        condition=IfCondition(get_parameter_gui()),
+        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+    )
