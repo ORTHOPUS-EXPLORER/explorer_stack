@@ -47,6 +47,8 @@ PUBLIC
   ${EIGEN3_INCLUDE_DIRS}
 )
 
+target_link_libraries(input_integrator qpoases_ros2)
+
 ament_target_dependencies(input_integrator
   ${CONTROLLERS_DEPENDENCIES}
 )
@@ -73,6 +75,8 @@ ament_target_dependencies(output_integrator
 add_executable(joint_output_integrator
   src/qp_cartesian/joint_output_integrator.cpp
 )
+
+target_link_libraries(output_integrator qpoases_ros2)
 
 target_link_libraries(output_integrator
   controllers
@@ -111,6 +115,8 @@ ament_target_dependencies(qp_solving
 target_link_libraries(qp_solving
   controllers
 )
+
+target_link_libraries(qp_solving qpoases_ros2)
 
 install(TARGETS input_integrator
                 output_integrator
