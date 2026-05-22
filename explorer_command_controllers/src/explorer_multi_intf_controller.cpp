@@ -38,13 +38,6 @@
 
 namespace explorer_command_controllers
 {
-
-// Changed services history QoS to keep all so we don't lose any client service calls
-rclcpp::QoS qos_services =
-  rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1))
-    .reliable()
-    .durability_volatile();
-
 static const auto NaN = std::numeric_limits<double>::quiet_NaN();
 
 MultiIntfController::MultiIntfController()
