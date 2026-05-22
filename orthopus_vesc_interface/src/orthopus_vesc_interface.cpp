@@ -21,10 +21,6 @@ T from_str(const std::string& str, const T& def_v)
   return ss.fail() ? def_v : out;
 }
 
-const auto qos_services = rclcpp::QoS(rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_ALL, 1))
-                            .reliable()
-                            .durability_volatile();
-
 const auto qos_pub = rclcpp::SystemDefaultsQoS();
 
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
