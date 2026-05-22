@@ -24,7 +24,6 @@ explorer_multi_intf_controller:
       joint_1: { 
         state: "position", 
         command: "position", 
-        mode: "integrate",
         cmd_min: -0.2,
         cmd_max:  0.2,
         step_max: 0.0005,
@@ -34,7 +33,6 @@ explorer_multi_intf_controller:
       joint_2: {
         state: "position",
         command: "position",
-        mode: "integrate",
         cmd_min: -1.57,
         cmd_max: -0.78,
         step_max: 0.0005,
@@ -44,7 +42,6 @@ explorer_multi_intf_controller:
       joint_3: {
         state: "position",
         command: "position",
-        mode: "integrate",
         cmd_min: -0.78,
         cmd_max:  0.78,
         step_max: 0.0005,
@@ -54,7 +51,6 @@ explorer_multi_intf_controller:
       joint_4: {
         state: "position",
         command: "velocity",
-        mode: "forward",
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -65,7 +61,6 @@ explorer_multi_intf_controller:
       joint_5: {
         state: "position",
         command: "velocity",
-        mode: "forward",
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -76,7 +71,6 @@ explorer_multi_intf_controller:
       joint_6: {
         state: "position",
         command: "velocity",
-        mode: "forward",
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -87,7 +81,6 @@ explorer_multi_intf_controller:
       right_finger_joint: {
         state: "position",
         command: "position",
-        mode: "integrate",
         cmd_min:  0.15,
         cmd_max:  0.65,
         step_max: 0.001,

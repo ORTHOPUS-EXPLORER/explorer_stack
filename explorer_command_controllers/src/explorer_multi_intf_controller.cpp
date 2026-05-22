@@ -110,27 +110,8 @@ controller_interface::CallbackReturn MultiIntfController::on_configure(
   _joints.reserve(sz);
   for(const auto& [joint_name, settings]: params_.settings.joints_map)
   {
-    const auto& ctrl_mode = settings.mode;
-    auto m = JointMode::Undefined;
-    if(settings.command != "")
-    {
-      if(ctrl_mode == "forward")
-        m = JointMode::Forward;
-      else if(ctrl_mode == "add" && settings.state != "")
-        m = JointMode::Add;
-      else if(ctrl_mode == "transparent" && settings.state != "")
-        m = JointMode::Transparent;
-      else if(ctrl_mode == "integrate" && settings.state != "")
-        m = JointMode::Integrate;
-      else if(ctrl_mode == "lock")
-        m = JointMode::Lock;
-      else
-      {
-        // throw warning
-      }
-    }
-    _joints.emplace_back(joint_t{joint_name, settings, m, nullptr, 0.0, nullptr, 0.0, 0.0, nullptr, 0.0});
-    RCLCPP_INFO(log, "on_configure: Register '%s', mode '%s'", joint_name.c_str(), ctrl_mode.c_str());
+    _joints.emplace_back(joint_t{joint_name, settings, nullptr, 0.0, nullptr, 0.0, 0.0, nullptr, 0.0});
+    RCLCPP_INFO(log, "on_configure: Register '%s'", joint_name.c_str());
   }
   
    // topics QoS
@@ -155,8 +136,6 @@ controller_interface::InterfaceConfiguration MultiIntfController::command_interf
 
   for(const auto& j: _joints)
   {
-    if(j.mode == JointMode::Undefined)
-      continue;
     const auto intf_name = j.name + "/" + j.settings.command;
     command_interfaces_config.names.emplace_back(intf_name);
     //RCLCPP_INFO(log, "command_interface_configuration: Will try to claim '%s'", intf_name.c_str());
@@ -172,8 +151,6 @@ controller_interface::InterfaceConfiguration MultiIntfController::state_interfac
   state_interfaces_config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   for(const auto& j: _joints)
   {
-    if(j.mode == JointMode::Undefined)
-      continue;
     const auto intf_name = j.name + "/" + j.settings.state;
     state_interfaces_config.names.emplace_back(intf_name);
     //RCLCPP_INFO(log, "state_interface_configuration: Will try to attach to '%s'", intf_name.c_str());
@@ -314,28 +291,7 @@ controller_interface::return_type MultiIntfController::update_and_write_commands
     for(auto& j: _joints)
     {
       auto v = (*refs)->data[i++]*j.settings.ref_mult;
-      switch(j.mode)
-      {
-        case JointMode::Forward:
-          // Nothing to do
-          break;
-        case JointMode::Transparent:
-          v = j.state_v;
-          break;
-        case JointMode::Add:
-          v += j.state_v;
-          break;
-        case JointMode::Integrate:
-          v += j.cmd_v;
-          break;
-        case JointMode::Lock:
-          v = j.cmd_v;
-          break;
-        default:
-          RCLCPP_ERROR_THROTTLE(log, clock, 1000,
-            "[%s] Unknown Control mode",j.name.c_str());
-          continue;
-      }
+      v = j.state_v;
       j.cmd_v = v;
     }
   }
