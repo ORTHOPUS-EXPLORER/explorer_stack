@@ -84,21 +84,10 @@ protected:
   realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>>  refs_rt_b_;
 
 private:
-  enum class JointMode
-  {
-    Forward,
-    Add,
-    Integrate,
-    Lock,
-    Transparent,
-    Undefined,
-  };
-
   typedef struct
   {
     const std::string&                          name;
     const struct Params::Settings::MapJoints&   settings;
-    JointMode                                   mode;
     hardware_interface::LoanedStateInterface*   state_if;
     double                                      state_v;
     hardware_interface::LoanedCommandInterface* cmd_if;
