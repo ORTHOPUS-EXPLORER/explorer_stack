@@ -28,8 +28,7 @@
 namespace explorer_command_controllers
 {
 
-class MultiIntfController
-: public controller_interface::ChainableControllerInterface
+class MultiIntfController : public controller_interface::ChainableControllerInterface
 {
 public:
   using CmdType = std_msgs::msg::Float64MultiArray;
@@ -52,60 +51,57 @@ public:
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
   controller_interface::CallbackReturn on_configure(
-    const rclcpp_lifecycle::State & previous_state) override;
+    const rclcpp_lifecycle::State& previous_state) override;
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
   controller_interface::CallbackReturn on_activate(
-    const rclcpp_lifecycle::State & previous_state) override;
+    const rclcpp_lifecycle::State& previous_state) override;
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
   controller_interface::CallbackReturn on_deactivate(
-    const rclcpp_lifecycle::State & previous_state) override;
+    const rclcpp_lifecycle::State& previous_state) override;
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
   controller_interface::return_type update_reference_from_subscribers(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+    const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
   controller_interface::return_type update_and_write_commands(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+    const rclcpp::Time& time, const rclcpp::Duration& period) override;
+
 protected:
+  // override methods from ChainableControllerInterface
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
+  bool on_set_chained_mode(bool chained_mode) override;
+
   using Params = explorer_multi_intf_controller::Params;
   using ParamListener = explorer_multi_intf_controller::ParamListener;
 
   std::shared_ptr<ParamListener> param_listener_;
   Params params_;
-
-  // override methods from ChainableControllerInterface
-  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
-  bool on_set_chained_mode(bool chained_mode) override;
-
-  rclcpp::Subscription<CmdType>::SharedPtr                  refs_subscriber_;
-  realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>>  refs_rt_b_;
+  rclcpp::Subscription<CmdType>::SharedPtr refs_subscriber_;
+  realtime_tools::RealtimeBuffer<std::shared_ptr<CmdType>> refs_rt_b_;
 
 private:
-  typedef struct
+  using joint_t = struct
   {
-    const std::string&                          name;
-    const struct Params::Settings::MapJoints&   settings;
-    hardware_interface::LoanedStateInterface*   state_if;
-    double                                      state_v;
+    const std::string& name;
+    const struct Params::Settings::MapJoints& settings;
+    hardware_interface::LoanedStateInterface* state_if;
+    double state_v;
     hardware_interface::LoanedCommandInterface* cmd_if;
-    double                                      cmd_v, cmd_v_p;
+    double cmd_v, cmd_v_p;
     hardware_interface::LoanedCommandInterface* ref_if;
-    double                                      ref_v;
-  } joint_t;
-
-  std::vector<joint_t> _joints;
-  void printJoints();
-  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr printJoint_srv;
+    double ref_v;
+  };
 
   // callback for topic interface
   EXPLORER_COMMAND_CONTROLLERS_LOCAL
   void reference_callback(const std::shared_ptr<CmdType> msg);
+  void print_joints();
 
-  
-
+  std::vector<joint_t> joints_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr print_joint_srv_;
 };
 
 }  // namespace explorer_command_controllers
