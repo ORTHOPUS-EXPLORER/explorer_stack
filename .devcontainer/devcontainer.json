@@ -39,11 +39,6 @@
     },
     "mounts": [
         {
-            "source": "ccache-${devcontainerId}",
-            "target": "/home/orthopus/.ccache",
-            "type": "volume"
-        },
-        {
             "source": "${localEnv:SSH_AUTH_SOCK}",
             "target": "/ssh-agent",
             "type": "bind"
