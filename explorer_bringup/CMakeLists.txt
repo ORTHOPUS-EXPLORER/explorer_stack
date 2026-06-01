@@ -6,13 +6,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 
 # INSTALL
 install(DIRECTORY 
-                  launch
-                  config
-  DESTINATION share/${CMAKE_PROJECT_NAME}
+launch
+config
+DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 
+ament_python_install_package(${PROJECT_NAME})
 ament_package()
