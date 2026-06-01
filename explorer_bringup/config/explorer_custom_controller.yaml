@@ -4,13 +4,11 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-      auto_start: false
 
-    explorer_multi_intf_controller:
-      type: explorer_command_controllers/MultiIntfController
-      auto_start: false
+    explorer_custom_controller:
+      type: explorer_command_controllers/CustomController
 
-explorer_multi_intf_controller:
+explorer_custom_controller:
   ros__parameters:
     joints:
       - joint_1
@@ -22,8 +20,10 @@ explorer_multi_intf_controller:
       - right_finger_joint
     settings:
       joint_1: { 
-        state: "position", 
-        command: "position", 
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -0.2,
         cmd_max:  0.2,
         step_max: 0.0005,
@@ -31,8 +31,10 @@ explorer_multi_intf_controller:
         ref_mult: 0.01,
       }
       joint_2: {
-        state: "position",
-        command: "position",
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -1.57,
         cmd_max: -0.78,
         step_max: 0.0005,
@@ -40,8 +42,10 @@ explorer_multi_intf_controller:
         ref_mult: 0.01,
       }
       joint_3: {
-        state: "position",
-        command: "position",
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -0.78,
         cmd_max:  0.78,
         step_max: 0.0005,
@@ -49,8 +53,10 @@ explorer_multi_intf_controller:
         ref_mult: 0.01,
       }
       joint_4: {
-        state: "position",
-        command: "velocity",
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -59,8 +65,10 @@ explorer_multi_intf_controller:
         ref_mult: 50.0,
       }
       joint_5: {
-        state: "position",
-        command: "velocity",
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -69,8 +77,10 @@ explorer_multi_intf_controller:
         ref_mult: 50.0,
       }
       joint_6: {
-        state: "position",
-        command: "velocity",
+        mode: "position",
+        command_interface_list: ["effort", "position", "velocity"],
+        state_interface_list: ["effort", "position", "velocity"],
+        enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
         step_max: 0.2,
@@ -79,8 +89,10 @@ explorer_multi_intf_controller:
         ref_mult: 50.0,
       }
       right_finger_joint: {
-        state: "position",
-        command: "position",
+        mode: "position",
+        command_interface_list: ["position"],
+        state_interface_list: ["position"],
+        enable_limits: false,
         cmd_min:  0.15,
         cmd_max:  0.65,
         step_max: 0.001,
