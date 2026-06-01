@@ -19,8 +19,13 @@
         // network access to host interfaces, e.g. eth0
         "--network=host",
         // device access to host peripherals, e.g. USB
-        "--privileged",
-        "--security-opt=seccomp=unconfined"
+        // Should be replaced by --device if really needed
+        // "--privileged",
+        "--security-opt=seccomp=unconfined",
+        //
+        "--cap-add=sys_nice",
+        "--ulimit", "rtprio=99",
+        "--ulimit", "memlock=-1"
         // enable debugging, e.g. gdb
         // "--cap-add=SYS_PTRACE",
         // "--pid=host", // DDS discovery with host, without --network=host
@@ -67,7 +72,8 @@
                 "ranch-hand-robotics.rde-pack",
                 "ms-vscode.cmake-tools",
                 "charliermarsh.ruff",
-                "njpwerner.autodocstring"
+                "njpwerner.autodocstring",
+                "cschlosser.doxdocgen"
             ]
         }
     }
