@@ -2,6 +2,7 @@
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="explorer">
   <xacro:arg name="use_POC2" default="false" />
   <xacro:arg name="simulation" default="false" />
+  <xacro:arg name="robot_controller_config" default="controller" />
     <!-- if Simulation-->
     <xacro:arg name="use_ignition" default="true" />
     <!-- else -->
@@ -94,7 +95,7 @@
   <!-- Import explorer ros2_control description -->
   <xacro:if value="$(arg simulation)">
     <xacro:include filename="$(find explorer_description)/ros2_control/explorer_simulation.ros2_control.xacro" />
-    <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)" />
+    <xacro:explorer_ros2_control name="explorer" use_ignition="$(arg use_ignition)" robot_controller_config="$(arg robot_controller_config)"/>
   </xacro:if>
   <xacro:unless value="$(arg simulation)">
     <xacro:include filename="$(find explorer_description)/ros2_control/explorer_actuators.ros2_control.xacro" />
