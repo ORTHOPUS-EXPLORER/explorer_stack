@@ -10,6 +10,8 @@
 
   <maintainer email="bmi.dev@redox.ws">BMi</maintainer>
 
+  <build_depend>orthopus_vesc</build_depend>
+
   <depend>backward_ros</depend>
   <depend>controller_interface</depend>
   <depend>generate_parameter_library</depend>
