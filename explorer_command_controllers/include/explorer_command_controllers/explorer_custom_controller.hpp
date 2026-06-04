@@ -137,6 +137,7 @@ private:
     std::map<orthopus::JointVariableType, ControllerJointState> joint_state_map;
   };
 
+  bool set_joint_mode_(const std::string&, const std::string&) const;
   void init_ros_subscribers_();
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
