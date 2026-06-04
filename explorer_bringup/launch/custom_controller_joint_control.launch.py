@@ -72,7 +72,7 @@ def generate_launch_description():
     )
 
     robot_controller_list = [
-        declare_custom_controller_spawner()
+        *declare_custom_controller_spawner(robot_controller_config=robot_controller_config)
     ]
 
     robot_simulation = declare_simulation_node_group(
