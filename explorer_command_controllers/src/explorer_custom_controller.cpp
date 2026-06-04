@@ -14,18 +14,10 @@
 
 #include "explorer_command_controllers/explorer_custom_controller.hpp"
 
-#include <algorithm>
-#include <cmath>
 #include <controller_interface/controller_interface_base.hpp>
-#include <controller_interface/helpers.hpp>
-#include <cstddef>
 #include <hardware_interface/loaned_state_interface.hpp>
-#include <memory>
-#include <rcl_interfaces/msg/detail/parameter_descriptor__struct.hpp>
-#include <rclcpp/logging.hpp>
-#include <stdexcept>
-#include <string>
-#include <vector>
+
+#include "orthopus_vesc_interfaces/srv/set_mode.hpp"
 
 // https://control.ros.org/rolling/doc/ros2_control/controller_manager/doc/controller_chaining.html
 /* It goes:
@@ -44,11 +36,49 @@ namespace explorer_command_controllers
 namespace
 {
 std::string build_interface_name(
-  const std::string& joint_name, const orthopus::JointVariableType interface_joint_type)
+  const std::string& joint_name, orthopus::JointVariableType interface_joint_type)
 {
   return joint_name + "/" + orthopus::JointVariableType_to_string(interface_joint_type);
 }
 }  // namespace
+
+bool CustomController::set_joint_mode_(
+  const std::string& joint_name, const std::string& joint_mode) const
+{
+  auto service_name = "/explorer_" + joint_name + "/mode";
+  auto joint_mode_client =
+    get_node()->create_client<orthopus_vesc_interfaces::srv::SetMode>(service_name);
+  if (!joint_mode_client->wait_for_service())
+  {
+    RCLCPP_ERROR(
+      get_node()->get_logger(), "Service %s is not ready and timeout occured, returning error.",
+      service_name.c_str());
+    return false;
+  }
+  auto request = std::make_shared<orthopus_vesc_interfaces::srv::SetMode::Request>();
+  request->joint_name = joint_name;
+  request->mode = joint_mode;
+  joint_mode_client->async_send_request(
+    request,
+    [this, request](rclcpp::Client<orthopus_vesc_interfaces::srv::SetMode>::SharedFuture future)
+    {
+      auto& response = future.get();
+      if (response->ret)
+      {
+        RCLCPP_INFO(
+          get_node()->get_logger(), "Joint %s set to mode %s successfully.",
+          request->joint_name.c_str(), request->mode.c_str());
+      }
+      else
+      {
+        RCLCPP_ERROR(
+          get_node()->get_logger(),
+          "Joint %s couldn't be set to mode %s, see ActuatorInterface logs for more details.",
+          request->joint_name.c_str(), request->mode.c_str());
+      }
+    });
+  return true;
+}
 
 controller_interface::CallbackReturn CustomController::on_init()
 {
@@ -103,8 +133,16 @@ controller_interface::CallbackReturn CustomController::on_init()
         joint_name.c_str());
     }
 
+    // Set actuator mode only when using real hardware && for "real joint" actuators (excluding gripper)
+    if (!params_.simulation && joint_name.substr(0, 6).find("joint_") != std::string::npos)
+    {
+      if (!set_joint_mode_(joint_name, settings.mode))
+      {
+        return controller_interface::CallbackReturn::ERROR;
+      }
+    }
+
     joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
-    RCLCPP_INFO(get_node()->get_logger(), "on_configure: Register '%s'", joint_name.c_str());
   }
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -204,6 +242,20 @@ controller_interface::InterfaceConfiguration CustomController::command_interface
 
   for (const auto& [joint_name, settings] : params_.settings.joints_map)
   {
+    // Claim only one command interface in simulation (gazebo limitation)
+    if (params_.simulation)
+    {
+      auto command_interface_mode = orthopus::JointVariableType_from_string(settings.mode);
+      // Only claim Position command interface in simulation mode (cannot claim both 3 interfaces with gazebo)
+      if (command_interface_mode == orthopus::JointVariableType::EFFORT)
+      {
+        command_interface_mode = orthopus::JointVariableType::POSITION;
+      }
+      auto interface_name = build_interface_name(joint_name, command_interface_mode);
+      interface_config.names.emplace_back(interface_name);
+      continue;
+    }
+
     // Loop for each command interface for this joint
     for (const auto& interface_joint_type_str : settings.command_interface_names)
     {

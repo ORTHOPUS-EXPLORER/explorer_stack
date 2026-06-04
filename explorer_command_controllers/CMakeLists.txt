@@ -16,6 +16,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   std_msgs
   std_srvs
   orthopus_vesc
+  orthopus_vesc_interfaces
 )
 
 find_package(ament_cmake REQUIRED)
