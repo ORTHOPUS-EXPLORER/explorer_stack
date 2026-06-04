@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef EXPLORER_COMMAND_CONTROLLERS__MULTI_INTERFACE_CONTROLLER_HPP_
-#define EXPLORER_COMMAND_CONTROLLERS__MULTI_INTERFACE_CONTROLLER_HPP_
+#ifndef EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
+#define EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
 
 #include <map>
 #include <memory>
@@ -98,36 +98,47 @@ private:
 
   struct ControllerJoint
   {
-    ControllerJoint(const std::string& name, const struct Params::Settings::MapJoints& settings)
-    : name(name), settings(settings)
+    ControllerJoint(
+      const std::string& name, const struct Params::Settings::MapJoints& settings,
+      orthopus::JointVariableType mode, bool simulation_enabled)
+    : name(name), settings(settings), mode(mode)
     {
-      joint_command_map[orthopus::JointVariableType::POSITION] = ControllerJointControl();
-      joint_state_map[orthopus::JointVariableType::POSITION] = ControllerJointState();
-
-      // Add only for supported joints (6 "real" joints)
-      // FIXME Really not that great (loop over state / command interfaces in settings ?)
-      if (name.substr(0, 6).find("joint_") != std::string::npos)
+      if (simulation_enabled)
       {
-        // TODO It exists in libs/orthopus_vesc->target but it's never set, do we have data ?
-        // joint_state_map[orthopus::JointVariableType::ACCELERATION] = ControllerJointState();
+        auto command_interface_mode = mode;
+        // Only claim Position command interface in simulation mode (cannot claim both 3 interfaces with gazebo)
+        if (mode == orthopus::JointVariableType::EFFORT)
+        {
+          command_interface_mode = orthopus::JointVariableType::POSITION;
+        }
+        joint_command_map[command_interface_mode] = ControllerJointControl();
+        joint_state_map[command_interface_mode] = ControllerJointState();
+        return;
+      }
 
-        // joint_state_map[orthopus::JointVariableType::EFFORT] = ControllerJointState();
-        // joint_state_map[orthopus::JointVariableType::VELOCITY] = ControllerJointState();
+      for (const auto& command_interface_name : settings.command_interface_names)
+      {
+        auto command_interface_type =
+          orthopus::JointVariableType_from_string(command_interface_name);
+        joint_command_map[command_interface_type] = ControllerJointControl();
+      }
 
-        joint_command_map[orthopus::JointVariableType::EFFORT] = ControllerJointControl();
-        // joint_command_map[orthopus::JointVariableType::VELOCITY] = ControllerJointControl();
+      for (const auto& state_interface_name : settings.state_interface_names)
+      {
+        auto state_interface_type = orthopus::JointVariableType_from_string(state_interface_name);
+        joint_state_map[state_interface_type] = ControllerJointState();
       }
     }
 
     const std::string& name;
     const struct Params::Settings::MapJoints& settings;
+    orthopus::JointVariableType mode;
     std::map<orthopus::JointVariableType, ControllerJointControl> joint_command_map;
     std::map<orthopus::JointVariableType, ControllerJointState> joint_state_map;
   };
 
   void init_ros_subscribers_();
-  controller_interface::InterfaceConfiguration generate_interface_configuration_(const char*) const;
-  void apply_joint_input_command_(
+  bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
     const std::shared_ptr<ControllerInputCommand>*);
   std::string build_interface_name_(const std::string&, orthopus::JointVariableType) const;
@@ -164,4 +175,4 @@ private:
 
 }  // namespace explorer_command_controllers
 
-#endif  // EXPLORER_COMMAND_CONTROLLERS__MULTI_INTERFACE_CONTROLLER_HPP_
+#endif  // EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_

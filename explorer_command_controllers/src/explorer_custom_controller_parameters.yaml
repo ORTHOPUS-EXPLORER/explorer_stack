@@ -1,4 +1,9 @@
 explorer_custom_controller:
+  simulation: {
+        type: bool,
+        description: "Simulation enabled / disable (will be set automatically according to launch parameter 'simulation')",
+        default_value: false
+  }
   joints: {
     type: string_array,
     default_value: [],
@@ -17,6 +22,16 @@ explorer_custom_controller:
         validation: {
           one_of<>: [["effort", "position", "velocity"]]
         }
+      }
+      command_interface_names: {
+        type: string_array,
+        default_value: [],
+        description: "Names of the command interfaces to claim",
+      }
+      state_interface_names: {
+        type: string_array,
+        default_value: [],
+        description: "Names of the state interfaces to claim",
       }
       enable_limits: { type: bool, default_value: true }
       cmd_init_value: { type: double, default_value: 0.0 }

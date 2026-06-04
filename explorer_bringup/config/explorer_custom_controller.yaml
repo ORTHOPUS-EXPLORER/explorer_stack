@@ -21,8 +21,8 @@ explorer_custom_controller:
     settings:
       joint_1: { 
         mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -0.2,
         cmd_max:  0.2,
@@ -31,9 +31,9 @@ explorer_custom_controller:
         ref_mult: 0.01,
       }
       joint_2: {
-        mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        mode: "effort",
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -1.57,
         cmd_max: -0.78,
@@ -43,8 +43,8 @@ explorer_custom_controller:
       }
       joint_3: {
         mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -0.78,
         cmd_max:  0.78,
@@ -54,8 +54,8 @@ explorer_custom_controller:
       }
       joint_4: {
         mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
@@ -66,8 +66,8 @@ explorer_custom_controller:
       }
       joint_5: {
         mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
@@ -78,8 +78,8 @@ explorer_custom_controller:
       }
       joint_6: {
         mode: "position",
-        command_interface_list: ["effort", "position", "velocity"],
-        state_interface_list: ["effort", "position", "velocity"],
+        command_interface_names: ["effort", "position", "velocity"],
+        state_interface_names: ["effort", "position", "velocity"],
         enable_limits: false,
         cmd_min: -1.0,
         cmd_max:  1.0,
@@ -90,8 +90,8 @@ explorer_custom_controller:
       }
       right_finger_joint: {
         mode: "position",
-        command_interface_list: ["position"],
-        state_interface_list: ["position"],
+        command_interface_names: ["position"],
+        state_interface_names: ["position"],
         enable_limits: false,
         cmd_min:  0.15,
         cmd_max:  0.65,

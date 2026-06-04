@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <memory>
+#include <rcl_interfaces/msg/detail/parameter_descriptor__struct.hpp>
 #include <rclcpp/logging.hpp>
 #include <stdexcept>
 #include <string>
@@ -48,7 +49,6 @@ std::string build_interface_name(
   return joint_name + "/" + orthopus::JointVariableType_to_string(interface_joint_type);
 }
 }  // namespace
-static const auto NaN = std::numeric_limits<double>::quiet_NaN();
 
 controller_interface::CallbackReturn CustomController::on_init()
 {
@@ -82,22 +82,30 @@ controller_interface::CallbackReturn CustomController::on_init()
   }
 
   // Config: check that size of joints / settings matches
-  auto sz = params_.joints.size();
-  if (sz != params_.settings.joints_map.size())
+  if (params_.joints.size() != params_.settings.joints_map.size())
   {
     RCLCPP_ERROR(get_node()->get_logger(), "'joints' and 'settings' parameters sizes do not match");
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  // Pre built joints_ vector
-  joints_.reserve(sz);
+  clock_ = get_node()->get_clock();
+
   for (const auto& [joint_name, settings] : params_.settings.joints_map)
   {
-    joints_.emplace_back(joint_name, settings);
+    auto joint_mode = orthopus::JointVariableType_from_string(settings.mode);
+
+    if (params_.simulation && joint_mode == orthopus::JointVariableType::EFFORT)
+    {
+      RCLCPP_WARN(
+        get_node()->get_logger(),
+        "EFFORT MODE IS ENABLED FOR JOINT %s BUT IS NOT SUPPORTED IN SIMULATION,"
+        " DEFAULT TO POSITION MODE.",
+        joint_name.c_str());
+    }
+
+    joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
     RCLCPP_INFO(get_node()->get_logger(), "on_configure: Register '%s'", joint_name.c_str());
   }
-
-  clock_ = get_node()->get_clock();
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -187,76 +195,51 @@ controller_interface::CallbackReturn CustomController::on_configure(const rclcpp
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::InterfaceConfiguration CustomController::generate_interface_configuration_(
-  const char* interface_type) const
+controller_interface::InterfaceConfiguration CustomController::command_interface_configuration()
+  const
 {
   controller_interface::InterfaceConfiguration interface_config = {
     controller_interface::interface_configuration_type::INDIVIDUAL,
   };
 
-  for (const auto& j : joints_)
+  for (const auto& [joint_name, settings] : params_.settings.joints_map)
   {
-    if (std::strcmp(interface_type, "state") == 0)
+    // Loop for each command interface for this joint
+    for (const auto& interface_joint_type_str : settings.command_interface_names)
     {
-      // Loop for each state interface for this joint
-      for (const auto& [interface_joint_type, _] : j.joint_state_map)
-      {
-        auto interface_name = build_interface_name(j.name, interface_joint_type);
-        interface_config.names.emplace_back(interface_name);
-        RCLCPP_INFO(
-          get_node()->get_logger(), "%s_interface_configuration: Will try to claim '%s'",
-          interface_type, interface_name.c_str());
-      }
-    }
-    else
-    {
-      // Loop for each state interface for this joint
-      for (const auto& [interface_joint_type, _] : j.joint_command_map)
-      {
-        auto interface_name = build_interface_name(j.name, interface_joint_type);
-        interface_config.names.emplace_back(interface_name);
-        RCLCPP_INFO(
-          get_node()->get_logger(), "%s_interface_configuration: Will try to claim '%s'",
-          interface_type, interface_name.c_str());
-      }
+      auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
+      auto interface_name = build_interface_name(joint_name, interface_joint_type);
+      interface_config.names.emplace_back(interface_name);
+      RCLCPP_INFO(
+        get_node()->get_logger(), "command_interface_configuration: Will try to claim '%s'",
+        interface_name.c_str());
     }
   }
 
   return interface_config;
 }
 
-controller_interface::InterfaceConfiguration CustomController::command_interface_configuration()
-  const
-{
-  return generate_interface_configuration_("command");
-}
-
 controller_interface::InterfaceConfiguration CustomController::state_interface_configuration() const
 {
-  return generate_interface_configuration_("state");
-}
+  controller_interface::InterfaceConfiguration interface_config = {
+    controller_interface::interface_configuration_type::INDIVIDUAL,
+  };
 
-void CustomController::print_joints_() const
-{
-  RCLCPP_DEBUG(get_node()->get_logger(), "Joints");
-  for (const auto& j : joints_)
+  for (const auto& [joint_name, settings] : params_.settings.joints_map)
   {
-    RCLCPP_DEBUG(get_node()->get_logger(), "- %s:", j.name.c_str());
-    for (const auto& state_type_object : j.joint_state_map)
+    // Loop for each command interface for this joint
+    for (const auto& interface_joint_type_str : settings.state_interface_names)
     {
-      RCLCPP_DEBUG(
-        get_node()->get_logger(), "  State (%s) : %p, %f",
-        JointVariableType_to_string(state_type_object.first),
-        (void*)state_type_object.second.interface, state_type_object.second.state);
-    }
-    for (const auto& command_type_object : j.joint_command_map)
-    {
-      RCLCPP_DEBUG(
-        get_node()->get_logger(), "  Command (%s) : %p, %f",
-        JointVariableType_to_string(command_type_object.first),
-        (void*)command_type_object.second.interface, command_type_object.second.command);
+      auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
+      auto interface_name = build_interface_name(joint_name, interface_joint_type);
+      interface_config.names.emplace_back(interface_name);
+      RCLCPP_INFO(
+        get_node()->get_logger(), "state_interface_configuration: Will try to claim '%s'",
+        interface_name.c_str());
     }
   }
+
+  return interface_config;
 }
 
 // // Useful only when controllers are chained to this controller
@@ -360,42 +343,54 @@ controller_interface::return_type CustomController::update(
   size_t index = 0;
   for (auto& joint : joints_)
   {
-    // Applies input(s) command(s)
-    // apply_joint_input_command_(joint, index, orthopus::JointVariableType::EFFORT, effort_command);
-    apply_joint_input_command_(
-      joint, index, orthopus::JointVariableType::POSITION, position_command);
-    // apply_joint_input_command_(
-    //   joint, index, orthopus::JointVariableType::VELOCITY, velocity_command);
+    // Effort command
+    if (
+      apply_joint_input_command_(joint, index, orthopus::JointVariableType::EFFORT, effort_command))
+    {
+      write_effort_(joint);
+    };
+    // Position command
+    if (
+      apply_joint_input_command_(
+        joint, index, orthopus::JointVariableType::POSITION, position_command))
+    {
+      write_position_(joint);
+    }
+    // Velocity command
+    if (
+      apply_joint_input_command_(
+        joint, index, orthopus::JointVariableType::VELOCITY, velocity_command))
+    {
+      write_velocity_(joint);
+    }
     index++;
-
-    // Write commands
-    write_effort_(joint);
-    write_position_(joint);
-    write_velocity_(joint);
   }
   return controller_interface::return_type::ERROR;
 }
 
-void CustomController::apply_joint_input_command_(
+bool CustomController::apply_joint_input_command_(
   ControllerJoint& joint, size_t joint_index, orthopus::JointVariableType command_type,
   const std::shared_ptr<ControllerInputCommand>* input_command)
 {
   const std::shared_ptr<const rclcpp_lifecycle::LifecycleNode> node = get_node();
 
-  if (input_command && *input_command)
+  if (!input_command || !*input_command)
   {
-    try
-    {
-      joint.joint_command_map.at(command_type).command = (*input_command)->data[joint_index];
-    }
-    catch (const std::out_of_range& ex)
-    {
-      RCLCPP_ERROR_THROTTLE(
-        get_node()->get_logger(), *clock_, 1000,
-        "Couldn't find joint interface type '%s' for joint '%ld'",
-        JointVariableType_to_string(command_type), joint_index);
-    }
+    return false;
   }
+  try
+  {
+    joint.joint_command_map.at(command_type).command = (*input_command)->data[joint_index];
+  }
+  catch (const std::out_of_range& ex)
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "Couldn't find joint interface type '%s' for joint '%ld'",
+      JointVariableType_to_string(command_type), joint_index);
+    return false;
+  }
+  return true;
 }
 
 bool CustomController::is_command_ready_to_be_written_(
@@ -415,7 +410,7 @@ bool CustomController::is_command_ready_to_be_written_(
   if (!joint_command_control.interface || command_is_NaN)
   {
     RCLCPP_ERROR_THROTTLE(
-      get_node()->get_logger(), *clock_, 1000,
+      get_node()->get_logger(), *clock_, 5000,
       "Joint %s interface null (%d) or command is NaN (%d) for joint '%s'",
       orthopus::JointVariableType_to_string(command_type), (bool)!joint_command_control.interface,
       command_is_NaN, joint.name.c_str());
@@ -473,6 +468,29 @@ void CustomController::write_velocity_(ControllerJoint& joint)
 
   joint_velocity_command_control.interface->set_value(joint_velocity_command_control.command);
   joint_velocity_command_control.previous_command = joint_velocity_command_control.command;
+}
+
+void CustomController::print_joints_() const
+{
+  RCLCPP_DEBUG(get_node()->get_logger(), "Joints");
+  for (const auto& j : joints_)
+  {
+    RCLCPP_DEBUG(get_node()->get_logger(), "- %s:", j.name.c_str());
+    for (const auto& state_type_object : j.joint_state_map)
+    {
+      RCLCPP_DEBUG(
+        get_node()->get_logger(), "  State (%s) : %p, %f",
+        JointVariableType_to_string(state_type_object.first),
+        (void*)state_type_object.second.interface, state_type_object.second.state);
+    }
+    for (const auto& command_type_object : j.joint_command_map)
+    {
+      RCLCPP_DEBUG(
+        get_node()->get_logger(), "  Command (%s) : %p, %f",
+        JointVariableType_to_string(command_type_object.first),
+        (void*)command_type_object.second.interface, command_type_object.second.command);
+    }
+  }
 }
 
 }  // namespace explorer_command_controllers
