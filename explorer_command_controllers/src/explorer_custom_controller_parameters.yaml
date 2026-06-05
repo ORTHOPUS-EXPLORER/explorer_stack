@@ -33,10 +33,17 @@ explorer_custom_controller:
         default_value: [],
         description: "Names of the state interfaces to claim",
       }
+      impedance_damping: {
+        type: double,
+        description: "Impedance damping"
+      }
+      impedance_stiffness: {
+        type: double,
+        description: "Impedance stiffness"
+      }
       enable_limits: { type: bool, default_value: true }
-      cmd_init_value: { type: double, default_value: 0.0 }
-      cmd_init_from_state: { type: bool, default_value: false }
-      cmd_min:  { type: double }
-      cmd_max:  { type: double }
-      ref_mult:  { type: double , default_value: 1.0 }
-      step_max: { type: double }
+      position_command_min:  { type: double }
+      position_command_max:  { type: double }
+      position_step_max: { type: double }
+      # position_command_init_value: { type: double, default_value: 0.0 }
+      # ref_mult:  { type: double , default_value: 1.0 }

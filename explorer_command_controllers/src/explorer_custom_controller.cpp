@@ -16,6 +16,7 @@
 
 #include <controller_interface/controller_interface_base.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
+#include <orthopus_vesc_interfaces/srv/detail/cmd__struct.hpp>
 
 #include "orthopus_vesc_interfaces/srv/set_mode.hpp"
 
@@ -80,6 +81,27 @@ bool CustomController::set_joint_mode_(
   return true;
 }
 
+bool CustomController::set_impedance_config_(
+  const std::string& joint_name, double damping, double stiffness) const
+{
+  auto service_name = "/explorer_" + joint_name + "/mode";
+  auto send_cmd_client =
+    get_node()->create_client<orthopus_vesc_interfaces::srv::Cmd>(service_name);
+  if (!send_cmd_client->wait_for_service())
+  {
+    RCLCPP_ERROR(
+      get_node()->get_logger(), "Service %s is not ready and timeout occured, returning error.",
+      service_name.c_str());
+    return false;
+  }
+  auto request = std::make_shared<orthopus_vesc_interfaces::srv::Cmd::Request>();
+  request->cmd = "o_param set ctrl_damping " + std::to_string(damping);
+  send_cmd_client->async_send_request(request);
+  request->cmd = "o_param set ctrl_stiffness " + std::to_string(stiffness);
+  send_cmd_client->async_send_request(request);
+  return true;
+}
+
 controller_interface::CallbackReturn CustomController::on_init()
 {
   if (
@@ -140,6 +162,7 @@ controller_interface::CallbackReturn CustomController::on_init()
       {
         return controller_interface::CallbackReturn::ERROR;
       }
+      set_impedance_config_(joint_name, settings.impedance_damping, settings.impedance_stiffness);
     }
 
     joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
@@ -492,16 +515,16 @@ void CustomController::write_position_(ControllerJoint& joint)
   {
     // Ensure 'v' stays in range [cmd_min, cmd_max]
     joint_position_command_control.command = std::clamp(
-      joint_position_command_control.command, joint.settings.cmd_min, joint.settings.cmd_max);
+      joint_position_command_control.command, joint.settings.position_command_min, joint.settings.position_command_max);
 
-    const auto step_max = joint.settings.step_max;
+    const auto step_max = joint.settings.position_step_max;
     {
       auto diff =
         joint_position_command_control.command - joint_position_command_control.previous_command;
       if (std::abs(diff) > step_max)
       {
         // Returns the value settings.step_max but with the sign of diff.
-        auto ndiff = std::copysign(joint.settings.step_max, diff);
+        auto ndiff = std::copysign(joint.settings.position_step_max, diff);
         joint_position_command_control.command =
           joint_position_command_control.previous_command + ndiff;
       }

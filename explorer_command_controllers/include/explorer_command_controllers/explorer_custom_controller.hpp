@@ -138,6 +138,7 @@ private:
   };
 
   bool set_joint_mode_(const std::string&, const std::string&) const;
+  bool set_impedance_config_(const std::string& joint_name, double damping, double stiffness) const;
   void init_ros_subscribers_();
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
