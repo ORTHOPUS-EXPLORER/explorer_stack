@@ -1,4 +1,4 @@
-## Overridable ROS distro argument (generic)
+# Overridable ROS distro argument (generic)
 ARG ROS_DISTRO=iron
 ARG ROS_USER=orthopus
 ARG ROS_WS=/home/${ROS_USER}/src/
@@ -9,7 +9,7 @@ ARG ROS_WS=/home/${ROS_USER}/src/
 FROM osrf/ros:${ROS_DISTRO}-desktop AS explorer_cacher
 ARG ROS_WS
 
-## Overwrite apt-get defaults to prevent rosdep from installing optional packages
+# Overwrite apt-get defaults to prevent rosdep from installing optional packages
 RUN rosdep update --rosdistro $ROS_DISTRO && \
     cat <<EOF > /etc/apt/apt.conf.d/docker-clean && apt-get update
 APT::Install-Recommends "false";
@@ -19,8 +19,8 @@ EOF
 WORKDIR ${ROS_WS}
 COPY --exclude=build --exclude=install . ${ROS_WS}
 
-## Derive build/exec dependencies into a /tmp/[build|exec]_dependencies.txt
-## Taken from an official ROS image
+# Derive build/exec dependencies into a /tmp/[build|exec]_dependencies.txt
+# Taken from an official ROS image
 RUN bash -e <<'EOF'
 declare -A types=(
   [exec]="--dependency-types=build --dependency-types=exec --dependency-types=test --dependency-types=doc"
@@ -67,6 +67,15 @@ LABEL org.opencontainers.image.description="Development image for Orthopus Explo
 ARG ROS_WS
 ARG ROS_USER
 ENV ROS_USER=${ROS_USER}
+
+## Install latest Mesa version
+RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
+    --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt install --no-install-recommends -y software-properties-common && \
+    add-apt-repository -y ppa:kisak/turtle && \
+    apt update && \
+    apt upgrade -y
 
 ## Support / dev dependencies
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
@@ -131,7 +140,7 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    apt-get install -y gosu software-properties-common wget \
+    apt-get install -y gosu wget \
     ## Install latest LLVM toolchain (clangd)
     && UBUNTU_CODENAME=$(lsb_release -c -s) \
     && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
@@ -152,6 +161,13 @@ RUN groupadd -r ${ROS_USER} && useradd -m --no-log-init -r -g ${ROS_USER} ${ROS_
 # Copy colcon config (no need to reinstall mixins)
 RUN cp -r /root/.colcon /home/${ROS_USER}
 WORKDIR ${ROS_WS}
+
+# Create volume to stores .ccache folder
+RUN mkdir /home/${ROS_USER}/.ccache
+VOLUME /home/${ROS_USER}/.ccache
+
+# Setup passwordless sudoers for apt related commands
+RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository" >> /etc/sudoers
 
 
 ## ---------------- Runner part (prod) ----------------
