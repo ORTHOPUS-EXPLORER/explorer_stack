@@ -26,7 +26,7 @@ qontrol_explorer:
   ros__parameters:
     # Base parameters
     robot_description_origin: robot_state_publisher
-    tip_frame: ft_frame
+    tip_frame: tool0
     root_frame: base_link
     state_interface:
       - position
