@@ -61,14 +61,11 @@ def generate_launch_description():
                     "settings_joint_POC2.yaml",
                 ]
             ),
-            {"use_sim_time": get_parameter_use_sim_time()},
-        ],
-        remappings=[
-            (
-                "/forward_position_controller/commands",
-                "/explorer_custom_controller/position_commands",
-            )
-        ],
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "controller_position_topic_name": "/explorer_custom_controller/position/commands"
+            },
+        ]
     )
 
     robot_controller_list = [

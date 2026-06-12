@@ -84,35 +84,36 @@ namespace space_control
         SpaceVelocity dx_desired_;
 
         std_msgs::msg::Float64MultiArray dq_output_;
-        std_msgs::msg::Float64MultiArray q_current_debug;
+        std_msgs::msg::Float64MultiArray q_current_debug_;
         std_msgs::msg::Float64MultiArray q_command_prec_;
         sensor_msgs::msg::JointState current_pos_;
 
         geometry_msgs::msg::Pose x_init_;
 
         double sampling_period_;
-        bool init;
-        bool wheelchair;
-        bool first_use;
-        bool go_home;
-        bool go_zero;
-        bool go_J1_zero;
-        bool go_J2_zero;
-        bool go_J3_zero;
-        bool go_J4_zero;
-        bool go_J5_zero;
-        bool go_J6_zero;
+        bool init_;
+        bool wheelchair_;
+        bool first_use_;
+        bool go_home_;
+        bool go_zero_;
+        bool go_J1_zero_;
+        bool go_J2_zero_;
+        bool go_J3_zero_;
+        bool go_J4_zero_;
+        bool go_J5_zero_;
+        bool go_J6_zero_;
+        std::string controller_position_topic_name_;
 
         bool enable_movement_detection_global_;  /*!< Enable/disable global movement detection to prevent drift when no user input */
         double movement_detection_threshold_global_;  /*!< Velocity magnitude threshold to detect intentional user input (global drift prevention) */
 
         enum class Mode { INVALID, EXPLORER, FULL };
 
-        std::vector<std::string> expected_names_explorer = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
-        std::vector<std::string> expected_names_wheelchair = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint"};
+        std::vector<std::string> expected_names_explorer_ = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
+        std::vector<std::string> expected_names_wheelchair_ = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint"};
 
-        std::vector<size_t> joint_order;
-        Mode mode;
+        std::vector<size_t> joint_order_;
+        Mode mode_;
         std::vector<double> q_init_;
 
         void callback_current_pos_(const sensor_msgs::msg::JointState & msg);
@@ -137,11 +138,11 @@ namespace space_control
         void callback_J6_zero_released_(const std_msgs::msg::Bool & msg);
         void callback_J6_zero_pressed_(const std_msgs::msg::Bool & msg);
         void callback_control_frame_selection_(const explorer_msgs::msg::ControlFrameSelection::SharedPtr msg);
-        void timer_callback();
+        void timer_callback_();
         void callback_x_init_(const std::shared_ptr<explorer_msgs::srv::Pose::Request> req, std::shared_ptr<explorer_msgs::srv::Pose::Response> res);
         void callback_q_init_(const std::shared_ptr<explorer_msgs::srv::Float64::Request> req, std::shared_ptr<explorer_msgs::srv::Float64::Response> res);
-        void callback_reset(const std_msgs::msg::Bool & msg);
-        void send_output();
+        void callback_reset_(const std_msgs::msg::Bool & msg);
+        void send_output_();
         void publishDebugTopic_();
 
     };

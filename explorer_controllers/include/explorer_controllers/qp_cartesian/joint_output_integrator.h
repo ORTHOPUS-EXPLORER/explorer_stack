@@ -45,6 +45,7 @@ namespace space_control
         bool init;
         std::vector<std::string> joint_name;
         int joint_order[7];
+        std::string controller_position_topic_name_;
 
         JointPosition q_lower_limit_; /*!< Joint lower limit used in lower constraints bound vector lbA */
         JointPosition q_upper_limit_; /*!< Joint upper limit used in upper constraints bound vector ubA */

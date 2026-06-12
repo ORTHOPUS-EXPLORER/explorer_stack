@@ -146,23 +146,26 @@ controller_interface::CallbackReturn CustomController::on_init()
   {
     auto joint_mode = orthopus::JointVariableType_from_string(settings.mode);
 
-    if (params_.simulation && joint_mode == orthopus::JointVariableType::EFFORT)
+    if (joint_mode == orthopus::JointVariableType::EFFORT)
     {
-      RCLCPP_WARN(
-        get_node()->get_logger(),
-        "EFFORT MODE IS ENABLED FOR JOINT %s BUT IS NOT SUPPORTED IN SIMULATION,"
-        " DEFAULT TO POSITION MODE.",
-        joint_name.c_str());
-    }
-
-    // Set actuator mode only when using real hardware && for "real joint" actuators (excluding gripper)
-    if (!params_.simulation && joint_name.substr(0, 6).find("joint_") != std::string::npos)
-    {
-      if (!set_joint_mode_(joint_name, settings.mode))
+      if (params_.simulation)
       {
-        return controller_interface::CallbackReturn::ERROR;
+        RCLCPP_WARN(
+          get_node()->get_logger(),
+          "EFFORT MODE IS ENABLED FOR JOINT %s BUT IS NOT SUPPORTED IN SIMULATION,"
+          " DEFAULT TO POSITION MODE.",
+          joint_name.c_str());
+        joint_mode = orthopus::JointVariableType::POSITION;
       }
-      set_impedance_config_(joint_name, settings.impedance_damping, settings.impedance_stiffness);
+      // Set actuator mode only when using real hardware && for "real joint" actuators (excluding gripper)
+      else if (joint_name.substr(0, 6).find("joint_") != std::string::npos)
+      {
+        if (!set_joint_mode_(joint_name, settings.mode))
+        {
+          return controller_interface::CallbackReturn::ERROR;
+        }
+        set_impedance_config_(joint_name, settings.impedance_damping, settings.impedance_stiffness);
+      }
     }
 
     joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
@@ -207,7 +210,7 @@ void CustomController::init_ros_subscribers_()
   auto subscribers_qos = rclcpp::SystemDefaultsQoS().keep_last(1).best_effort();
 
   effort_commands_subscriber_ = get_node()->create_subscription<SubscriptionMsg>(
-    "~/effort_commands", subscribers_qos,
+    "~/effort/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
       auto command_type = orthopus::JointVariableType::EFFORT;
@@ -220,7 +223,7 @@ void CustomController::init_ros_subscribers_()
       effort_commands_buffer_rt_.writeFromNonRT(std::make_shared<ControllerInputCommand>(command));
     });
   position_commands_subscriber_ = get_node()->create_subscription<SubscriptionMsg>(
-    "~/position_commands", subscribers_qos,
+    "~/position/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
       auto command_type = orthopus::JointVariableType::POSITION;
@@ -234,7 +237,7 @@ void CustomController::init_ros_subscribers_()
         std::make_shared<ControllerInputCommand>(command));
     });
   velocity_commands_subscriber_ = get_node()->create_subscription<SubscriptionMsg>(
-    "~/velocity_commands", subscribers_qos,
+    "~/velocity/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
       auto command_type = orthopus::JointVariableType::VELOCITY;
@@ -515,7 +518,8 @@ void CustomController::write_position_(ControllerJoint& joint)
   {
     // Ensure 'v' stays in range [cmd_min, cmd_max]
     joint_position_command_control.command = std::clamp(
-      joint_position_command_control.command, joint.settings.position_command_min, joint.settings.position_command_max);
+      joint_position_command_control.command, joint.settings.position_command_min,
+      joint.settings.position_command_max);
 
     const auto step_max = joint.settings.position_step_max;
     {
