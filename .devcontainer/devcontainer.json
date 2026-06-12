@@ -18,14 +18,13 @@
         "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
         // network access to host interfaces, e.g. eth0
         "--network=host",
-        // device access to host peripherals, e.g. USB
-        // Should be replaced by --device if really needed
-        // "--privileged",
         "--security-opt=seccomp=unconfined",
         //
         "--cap-add=sys_nice",
         "--ulimit", "rtprio=99",
-        "--ulimit", "memlock=-1"
+        "--ulimit", "memlock=-1",
+        "--device", "/dev/dri:/dev/dri",
+        "--device", "/dev/input:/dev/input"
         // enable debugging, e.g. gdb
         // "--cap-add=SYS_PTRACE",
         // "--pid=host", // DDS discovery with host, without --network=host
@@ -33,10 +32,9 @@
     ],
     "workspaceFolder": "/home/orthopus/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
-    "initializeCommand": "echo USER_UID=$(id -u) > ${localWorkspaceFolder}/.devcontainer/.env",
-    "postCreateCommand": ".devcontainer/build.sh",
-    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}/..",
-    "remoteUser": "orthopus",
+    "initializeCommand": "printf \"USER_UID=$(id -u)\nGROUP_INPUT_UID=$(getent group input | cut -d: -f3)\" > ${localWorkspaceFolder}/.devcontainer/.env",
+    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
+    "postStartCommand": "sudo set_device_permissions.sh",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
         "XAUTHORITY": "/home/orthopus/.Xauthority", // Allow access to display through XServer
@@ -46,11 +44,6 @@
         {
             "source": "${localEnv:SSH_AUTH_SOCK}",
             "target": "/ssh-agent",
-            "type": "bind"
-        },
-        {
-            "source": "/dev",
-            "target": "/dev",
             "type": "bind"
         },
         {
