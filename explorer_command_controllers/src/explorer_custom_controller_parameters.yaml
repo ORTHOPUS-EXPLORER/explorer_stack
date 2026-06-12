@@ -1,8 +1,8 @@
 explorer_custom_controller:
   simulation: {
-        type: bool,
-        description: "Simulation enabled / disable (will be set automatically according to launch parameter 'simulation')",
-        default_value: false
+    type: bool,
+    description: "Simulation enabled / disable (will be set automatically according to launch parameter 'simulation')",
+    default_value: false
   }
   joints: {
     type: string_array,

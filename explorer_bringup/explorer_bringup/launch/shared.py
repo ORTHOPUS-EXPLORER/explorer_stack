@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import os
 from pathlib import Path
 from typing import List
 
+from ament_index_python.packages import get_package_share_directory
 from launch import Action
 from launch.actions import RegisterEventHandler
 from launch.conditions import IfCondition, UnlessCondition
@@ -23,12 +24,18 @@ from launch.event_handlers import OnProcessStart
 from launch.substitutions import (
     Command,
     FindExecutable,
+    LaunchConfiguration,
     PathJoinSubstitution,
 )
 from launch_ros.actions import Node
 from launch_ros.descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
+from explorer_bringup.launch.optional_parameters import (
+    get_parameter_web_gui_host,
+    get_parameter_web_gui_mode_config_path,
+    get_parameter_web_gui_port,
+)
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_gui,
@@ -166,3 +173,63 @@ def get_robot_controller_config_path(controller_type: CONTROLLER_CONFIG_TYPE) ->
         ]
     )
     return controller_config_path
+
+
+def declare_input_integrator_node(output: str = "log") -> Node:
+    return Node(
+        package="explorer_controllers",
+        executable="input_integrator",
+        name="input_integrator",
+        output = output,
+        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+    )
+
+
+def declare_output_integrator_node(output: str = "log") -> Node:
+    return Node(
+        package="explorer_controllers",
+        executable="output_integrator",
+        name="output_integrator",
+        output = output,
+        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+    )
+
+
+def declare_commande_node(output: str = "screen", remappings: List = []) -> Node:
+    ## It was like this before refactor but it's weird mapping trajectory / force_deploy
+    trajectory = LaunchConfiguration("force_deploy")
+    pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
+    yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
+    trajectory_yaml_file_path = os.path.join(
+        pkg_share, "config", "config_trajectory.yaml"
+    )
+
+    return Node(
+        package="explorer_user_interfaces_cpp",
+        executable="command_node",
+        output=output,
+        parameters=[
+            {
+                "mode_file": yaml_file_path,
+                "trajectory_file": trajectory_yaml_file_path,
+                "active_trajectory": trajectory,
+            }
+        ],
+        remappings=remappings
+    )
+
+def declare_web_gui_node(output: str = "screen") -> Node:
+    return Node(
+        package="explorer_user_interfaces_web",
+        executable="web_gui_node",
+        name="web_gui_node",
+        parameters=[
+            {
+                "port": get_parameter_web_gui_port(),
+                "host": get_parameter_web_gui_host(),
+                "mode_config_path": get_parameter_web_gui_mode_config_path(),
+            }
+        ],
+        output=output,
+        emulate_tty=True,
+    )
