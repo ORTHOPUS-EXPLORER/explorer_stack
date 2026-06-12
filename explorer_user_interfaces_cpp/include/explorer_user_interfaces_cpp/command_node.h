@@ -25,14 +25,7 @@
 using namespace std::chrono;
 
 namespace space_control
-{
-
-    // Parameter for each axis
-    struct AxisParam {
-        std::string name;
-        double value;
-    };
-    
+{  
     // Information about each axis control
     struct AxisInfo {
         std::string control_name;
@@ -77,15 +70,15 @@ namespace space_control
     private:
         rclcpp::Node::SharedPtr n_;
         
-        ButtonHandler button_handler;
-        TrajectoryManager trajectory_manager;
-        ControllerSwitcher controller_switcher;
+        ButtonHandler button_handler_;
+        TrajectoryManager trajectory_manager_;
+        ControllerSwitcher controller_switcher_;
 
         // Subscribers
         rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
         rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
-        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr q_forward_controller_sub;
+        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr default_controller_sub_;
 
         // Publishers
         rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
@@ -102,7 +95,7 @@ namespace space_control
 
         rclcpp::TimerBase::SharedPtr timer_;
         
-        std::string current_mode_name;
+        std::string current_mode_name_;
         std::unordered_map<std::string, std::function<void(AxisInfo)>> control_behaviors_;
 
         // Joystick state variables
@@ -116,22 +109,22 @@ namespace space_control
         float axis_1_smoothed_ = 0.0f;
         float axis_2_smoothed_ = 0.0f;
 
-        int button_threshold_ms;
+        int button_threshold_ms_;
         double sampling_period_;
 
-        ModeData data;
+        ModeData data_;
 
         // Speed control variables
-        float speed_factor;
-        int speed_level;
-        float joy_prec;
-        float speed_change_threshold;
-        float speed_level_multiplier;
+        float speed_factor_;
+        int speed_level_;
+        float joy_prec_;
+        float speed_change_threshold_;
+        float speed_level_multiplier_;
 
         bool complex_mode_;
-        double v_x = 0.0;
-        double v_y = 0.0;
-        double rotation_speed_scale;
+        double v_x_ = 0.0;
+        double v_y_ = 0.0;
+        double rotation_speed_scale_;
 
         bool active_trajectory_;
 
@@ -139,13 +132,13 @@ namespace space_control
 
         enum class ControlState
         {
-            FORWARD,        // forward_position_controller
+            DEFAULT_CONTROLLER,        // default controller used (forward_position_controller, explorer_custom_controller ... ?)
             SWITCHING_TO_TRAJ,
             TRAJECTORY,    // joint_trajectory_controller
-            SWITCHING_TO_FORWARD
+            RESTORING_DEFAULT_CONTROLLER
         };
 
-        ControlState control_state_ = ControlState::FORWARD;
+        ControlState control_state_ = ControlState::DEFAULT_CONTROLLER;
         
         bool trajectory_requested_ = false;
         bool switch_in_progress_ = false;
@@ -165,17 +158,15 @@ namespace space_control
 
         sensor_msgs::msg::JointState current_pos_;
 
-        bool init;
-        bool wheelchair;
-        bool first_use;
+        bool init_;
+        bool wheelchair_;
+        bool first_use_;
 
         enum class Mode { INVALID, EXPLORER, FULL };
 
-        std::vector<std::string> expected_names_explorer = { "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "left_external_rod_joint_mimic", "left_fingertip_joint_mimic", "left_finger_joint_mimic", "right_external_rod_joint_mimic", "right_fingertip_joint_mimic", "right_finger_joint"};
-        std::vector<std::string> expected_names_wheelchair = {"left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint", "right_rear_wheel_joint", "left_wheel_joint", "right_wheel_joint", "left_right_head_joint", "up_down_head_joint"};
 
-        std::vector<size_t> joint_order;
-        Mode mode;
+        std::vector<size_t> joint_order_;
+        Mode mode_;
 
         std::optional<double> j2_max_cached_;
         std::optional<double> j2_operational_max_cached_;
@@ -192,44 +183,47 @@ namespace space_control
 
         bool limits_initialized_ = false;
 
-        ModeData loadModeData(const std::string& filename);
-        bool validateModeData(const ModeData& data);
+        std::string default_controller_name_;
+        std::string default_controller_position_topic_name_;
 
-        void callback_joystick(const sensor_msgs::msg::Joy & msg);
+        ModeData loadModeData_(const std::string& filename);
+        bool validateModeData_(const ModeData& data);
 
-        void callback_x_current(const geometry_msgs::msg::Pose & msg);
+        void callback_joystick_(const sensor_msgs::msg::Joy & msg);
+
+        void callback_x_current_(const geometry_msgs::msg::Pose & msg);
 
         void callback_q_current_(const sensor_msgs::msg::JointState & msg);
 
-        void callback_q_forward_controller(const std_msgs::msg::Float64MultiArray & msg);
+        void callback_defaut_controller_(const std_msgs::msg::Float64MultiArray & msg);
 
-        void handle_controller_state();
+        void handle_controller_state_();
 
-        void modifyTargetNodeParameter(const std::string& param_name, const rclcpp::ParameterValue& value);
+        void modifyTargetNodeParameter_(const std::string& param_name, const rclcpp::ParameterValue& value);
 
-        void getDoubleParameter(const std::string & param_name, std::optional<double> & value);
+        void getDoubleParameter_(const std::string & param_name, std::optional<double> & value);
 
-        void timer();
+        void timer_callback_();
         
         // Execute behavior based on axis information
-        void executeBehavior(const AxisInfo& axis);
+        void executeBehavior_(const AxisInfo& axis);
 
         // Read joystick axis value
-        float readAxisValue(const AxisInfo& axis_info);
+        float readAxisValue_(const AxisInfo& axis_info);
 
-        void resetVelocities();
+        void resetVelocities_();
 
-        void complex_calculation(const double rotation_speed_scale);
+        void complex_calculation_(const double rotation_speed_scale);
 
         // Behavior functions
-        void cartesian_linear(const AxisInfo& axis_info);
-        void cartesian_rotation(const AxisInfo& axis_info); 
-        void joint_direct(const AxisInfo& axis_info);
-        void change_speed(const AxisInfo& axis_info);
-        void drink(const AxisInfo& axis_info);
-        void gripper(const AxisInfo& axis_info);
-        void complex(const AxisInfo& axis_info);
-        void trajectory_control(const AxisInfo& axis_info);
+        void cartesian_linear_(const AxisInfo& axis_info);
+        void cartesian_rotation_(const AxisInfo& axis_info); 
+        void joint_direct_(const AxisInfo& axis_info);
+        void change_speed_(const AxisInfo& axis_info);
+        void drink_(const AxisInfo& axis_info);
+        void gripper_(const AxisInfo& axis_info);
+        void complex_(const AxisInfo& axis_info);
+        void trajectory_control_(const AxisInfo& axis_info);
     
     };
 

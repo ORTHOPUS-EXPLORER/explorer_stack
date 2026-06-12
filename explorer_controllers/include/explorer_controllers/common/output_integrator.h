@@ -57,31 +57,33 @@ namespace space_control
         int call_service_attempt_;
         int init_attempt_;
         bool success_init_;
-        bool go_home;
-        bool go_zero;
-        bool go_J1_zero;
-        bool go_J2_zero;
-        bool go_J3_zero;
-        bool go_J4_zero;
-        bool go_J5_zero;
-        bool go_J6_zero;
-        bool reset;
+        bool go_home_;
+        bool go_zero_;
+        bool go_J1_zero_;
+        bool go_J2_zero_;
+        bool go_J3_zero_;
+        bool go_J4_zero_;
+        bool go_J5_zero_;
+        bool go_J6_zero_;
+        bool reset_;
 
-        void callback_dq_output(const std_msgs::msg::Float64MultiArray & msg);
-        void callback_gripper_vel(const std_msgs::msg::Float64 & msg);
-        void callback_home(const std_msgs::msg::Bool & msg);
-        void callback_zero(const std_msgs::msg::Bool & msg);
-        void callback_J1_zero(const std_msgs::msg::Bool & msg);
-        void callback_J2_zero(const std_msgs::msg::Bool & msg);
-        void callback_J3_zero(const std_msgs::msg::Bool & msg);
-        void callback_J4_zero(const std_msgs::msg::Bool & msg);
-        void callback_J5_zero(const std_msgs::msg::Bool & msg);
-        void callback_J6_zero(const std_msgs::msg::Bool & msg);
-        void timer_callback();
-        void home();
-        void zero();
-        void callback_reset(const std_msgs::msg::Bool & msg);
-        void callback_reset_response(rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future);
+        std::string controller_position_topic_name_;
+
+        void callback_dq_output_(const std_msgs::msg::Float64MultiArray & msg);
+        void callback_gripper_vel_(const std_msgs::msg::Float64 & msg);
+        void callback_home_(const std_msgs::msg::Bool & msg);
+        void callback_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J1_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J2_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J3_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J4_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J5_zero_(const std_msgs::msg::Bool & msg);
+        void callback_J6_zero_(const std_msgs::msg::Bool & msg);
+        void timer_callback_();
+        void home_();
+        void zero_();
+        void callback_reset_(const std_msgs::msg::Bool & msg);
+        void callback_reset_response_(rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future);
     };
 }
 #endif 

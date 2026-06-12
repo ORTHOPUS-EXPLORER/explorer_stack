@@ -77,6 +77,7 @@ def declare_hardware_node_group(
     launch_qp_solving: bool,
     qp_solving_post_start_list: List[Action] = [],
     robot_controller_config_type: CONTROLLER_CONFIG_TYPE = "controller",
+    controller_position_topic_name: str = "",
 ) -> GroupAction:
     """Declare nodes needed when using hardware
 
@@ -118,8 +119,14 @@ def declare_hardware_node_group(
     ]
 
     if launch_qp_solving:
+        if controller_position_topic_name == "":
+            raise ValueError(
+                "'controller_position_topic_name' parameter should be properly set in launch file when calling declare_simulation_node_group"
+            )
+
         qp_solving_node_list = declare_qp_solving_node_list(
-            qp_solving_post_start_list=qp_solving_post_start_list
+            controller_position_topic_name=controller_position_topic_name,
+            qp_solving_post_start_list=qp_solving_post_start_list,
         )
         event_handler_list.append(
             RegisterEventHandler(

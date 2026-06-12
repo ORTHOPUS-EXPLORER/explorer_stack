@@ -118,12 +118,14 @@ def _declare_gazebo_node_list(gazebo_on_exit_node_list: List) -> List[Action]:
 def declare_simulation_node_group(
     robot_controller_list: List,
     launch_qp_solving: bool,
+    controller_position_topic_name: str = "",
     qp_solving_post_start_list: List[Action] = [],
 ) -> GroupAction:
     """Generate all nodes related to simulation
 
     Args:
         launch_qp_solving: Enable qp solving node if True
+        controller_position_topic_name: Name of the position controller command topic (ignored if qpsolving is False, mandatory if True)
         qp_solving_post_start_list: List of node to start after ProcessStart on qp_solving node (ignored if qp_solving is False)
 
     Returns:
@@ -149,8 +151,14 @@ def declare_simulation_node_group(
     ]
 
     if launch_qp_solving:
+        if controller_position_topic_name == "":
+            raise ValueError(
+                "'controller_position_topic_name' parameter should be properly set in launch file when calling declare_simulation_node_group"
+            )
+
         qp_solving_node_list = declare_qp_solving_node_list(
-            qp_solving_post_start_list=qp_solving_post_start_list
+            controller_position_topic_name=controller_position_topic_name,
+            qp_solving_post_start_list=qp_solving_post_start_list,
         )
         event_handler_list.append(
             RegisterEventHandler(

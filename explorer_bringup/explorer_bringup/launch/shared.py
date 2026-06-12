@@ -61,7 +61,7 @@ def declare_node_robot_state_publisher() -> Node:
     )
 
 
-def declare_qp_solving_node_list(qp_solving_post_start_list: List[Action]):
+def declare_qp_solving_node_list(controller_position_topic_name: str, qp_solving_post_start_list: List[Action]):
     robot_description = {
         "robot_description": ParameterValue(
             get_parameter_robot_description(), value_type=str
@@ -99,7 +99,10 @@ def declare_qp_solving_node_list(qp_solving_post_start_list: List[Action]):
             config_POC1,
             robot_description,
             robot_description_semantic,
-            {"use_sim_time": get_parameter_use_sim_time()},
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "controller_position_topic_name": controller_position_topic_name,
+            },
         ],
         condition=UnlessCondition(get_parameter_use_poc2()),
     )
@@ -111,7 +114,10 @@ def declare_qp_solving_node_list(qp_solving_post_start_list: List[Action]):
             config_POC2,
             robot_description,
             robot_description_semantic,
-            {"use_sim_time": get_parameter_use_sim_time()},
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "controller_position_topic_name": controller_position_topic_name,
+            },
         ],
         condition=IfCondition(get_parameter_use_poc2()),
     )
@@ -180,22 +186,34 @@ def declare_input_integrator_node(output: str = "log") -> Node:
         package="explorer_controllers",
         executable="input_integrator",
         name="input_integrator",
-        output = output,
+        output=output,
         parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
     )
 
 
-def declare_output_integrator_node(output: str = "log") -> Node:
+def declare_output_integrator_node(
+    controller_position_topic_name: str, output: str = "log"
+) -> Node:
     return Node(
         package="explorer_controllers",
         executable="output_integrator",
         name="output_integrator",
-        output = output,
-        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+        output=output,
+        parameters=[
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "controller_position_topic_name": controller_position_topic_name,
+            }
+        ],
     )
 
 
-def declare_commande_node(output: str = "screen", remappings: List = []) -> Node:
+def declare_command_node(
+    default_controller_name: str,
+    default_controller_position_topic_name: str,
+    output: str = "screen",
+    remappings: List = [],
+) -> Node:
     ## It was like this before refactor but it's weird mapping trajectory / force_deploy
     trajectory = LaunchConfiguration("force_deploy")
     pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
@@ -213,10 +231,13 @@ def declare_commande_node(output: str = "screen", remappings: List = []) -> Node
                 "mode_file": yaml_file_path,
                 "trajectory_file": trajectory_yaml_file_path,
                 "active_trajectory": trajectory,
+                "default_controller_name": default_controller_name,
+                "default_controller_position_topic_name": default_controller_position_topic_name,
             }
         ],
-        remappings=remappings
+        remappings=remappings,
     )
+
 
 def declare_web_gui_node(output: str = "screen") -> Node:
     return Node(

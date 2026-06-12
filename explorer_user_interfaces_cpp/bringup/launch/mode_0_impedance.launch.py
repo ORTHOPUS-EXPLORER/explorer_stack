@@ -24,7 +24,7 @@ from explorer_bringup.launch.optional_parameters import (
     declare_parameter_list_web_gui_settings,
 )
 from explorer_bringup.launch.shared import (
-    declare_commande_node,
+    declare_command_node,
     declare_input_integrator_node,
     declare_output_integrator_node,
     declare_web_gui_node,
@@ -64,6 +64,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 def generate_launch_description():
     # Use default robot controller config
     robot_controller_config = "custom_controller"
+    controller_position_topic_name = "/explorer_custom_controller/position/commands"
 
     # Initialize Arguments
     declared_arguments = _declare_arguments(
@@ -71,12 +72,16 @@ def generate_launch_description():
     )
 
     input_integrator_node = declare_input_integrator_node()
-    output_integrator_node = declare_output_integrator_node()
-    command_node = declare_commande_node(
+    output_integrator_node = declare_output_integrator_node(
+        controller_position_topic_name=controller_position_topic_name
+    )
+    command_node = declare_command_node(
+        default_controller_name="explorer_custom_controller",
+        default_controller_position_topic_name=controller_position_topic_name,
         remappings=[
             (
                 "/command_node/cartesian_velocity_command",
-                "/explorer_custom_controller/velocity_command",
+                "/explorer_custom_controller/velocity/command",
             ),
             ## TODO Hmmmmm, gripper is separated ?
             (
@@ -90,12 +95,13 @@ def generate_launch_description():
         *declare_custom_controller_spawner(
             robot_controller_config=robot_controller_config
         ),
-        declare_node_trajectory_controller_spawner()
+        declare_node_trajectory_controller_spawner(),
     ]
 
     robot_simulation = declare_simulation_node_group(
         robot_controller_list=robot_controller_list,
         launch_qp_solving=True,
+        controller_position_topic_name=controller_position_topic_name,
         qp_solving_post_start_list=[
             input_integrator_node,
             output_integrator_node,
@@ -106,12 +112,13 @@ def generate_launch_description():
     robot_hardware = declare_hardware_node_group(
         robot_controller_list=robot_controller_list,
         launch_qp_solving=True,
+        controller_position_topic_name=controller_position_topic_name,
         qp_solving_post_start_list=[
             input_integrator_node,
             output_integrator_node,
             command_node,
         ],
-        robot_controller_config_type=robot_controller_config
+        robot_controller_config_type=robot_controller_config,
     )
 
     joy_node = declare_joy_node()

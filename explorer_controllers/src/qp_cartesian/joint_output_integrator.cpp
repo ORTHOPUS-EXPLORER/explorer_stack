@@ -4,15 +4,19 @@ namespace space_control
 {
     JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     : n_(n)
-    , q_lower_limit_(7)
+    , sampling_period_(0.02), init(false), q_lower_limit_(7)
     , q_upper_limit_(7)
     , q_has_limit_(6)
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
-        //init settings
-        sampling_period_ = 0.02;
-        init = false;
 
+        // init node parameters
+        controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();
+        if (controller_position_topic_name_.empty()) {
+            throw std::runtime_error(
+                "Parameter 'controller_position_topic_name' is required");
+        }
+        //init settings
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -42,7 +46,7 @@ namespace space_control
         dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10, std::bind(&JointOutputIntegrator::callback_dq_output, this, std::placeholders::_1));
 
         //init publisher
-        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
+        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
 
         
         timer_ = n_->create_wall_timer(20ms, std::bind(&JointOutputIntegrator::timer_callback, this));
