@@ -399,6 +399,18 @@ controller_interface::CallbackReturn CustomController::on_activate(
 
 controller_interface::CallbackReturn CustomController::on_deactivate(const rclcpp_lifecycle::State&)
 {
+  for (auto& joint : joints_)
+  {
+    for (auto& joint_state_object : joint.joint_state_map)
+    {
+      joint_state_object.second.interface = nullptr;
+    }
+
+    for (auto& joint_command_object : joint.joint_command_map)
+    {
+      joint_command_object.second.interface = nullptr;
+    }
+  }
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
