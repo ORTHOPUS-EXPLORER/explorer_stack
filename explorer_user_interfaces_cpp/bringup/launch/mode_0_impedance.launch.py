@@ -81,9 +81,8 @@ def generate_launch_description():
         remappings=[
             (
                 "/command_node/cartesian_velocity_command",
-                "/explorer_custom_controller/velocity/command",
+                "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
             ),
-            ## TODO Hmmmmm, gripper is separated ?
             (
                 "/command_node/gripper_velocity_command",
                 "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity",
