@@ -1,7 +1,8 @@
 import rclpy
+from pynput import keyboard
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
-from pynput import keyboard
+
 
 class KeyboardToJoy(Node):
     def __init__(self):
@@ -53,7 +54,7 @@ def main(args=None):
     node = KeyboardToJoy()
     rclpy.spin(node)
     node.destroy_node()
-    rclpy.shutdown()
+    rclpy.try_shutdown()
 
 if __name__ == '__main__':
     main()

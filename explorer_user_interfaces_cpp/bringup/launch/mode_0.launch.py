@@ -12,297 +12,138 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
-from launch_ros.substitutions import FindPackageShare
-from ament_index_python.packages import get_package_share_directory
 import os
 
+from ament_index_python.packages import get_package_share_directory
+from explorer_bringup.launch.hardware import declare_hardware_node_group
+from explorer_bringup.launch.hardware_parameters import declare_hardware_argument_list
+from explorer_bringup.launch.optional import declare_joy_node
+from explorer_bringup.launch.optional_parameters import (
+    declare_parameter_input_device,
+    declare_parameter_list_web_gui_settings,
+    get_parameter_web_gui_host,
+    get_parameter_web_gui_mode_config_path,
+    get_parameter_web_gui_port,
+)
+from explorer_bringup.launch.shared_parameters import (
+    get_parameter_use_sim_time,
+)
+from explorer_bringup.launch.simulation import (
+    declare_simulation_node_group,
+)
+from explorer_bringup.launch.simulation_parameters import (
+    declare_simulation_argument_list,
+)
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
-def generate_launch_description():
-    # Initialize Arguments
-    gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    simulation = LaunchConfiguration('simulation')
-    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
-    can_port = LaunchConfiguration("can_port")
-    host_id = LaunchConfiguration("host_id")
-    poc2 = LaunchConfiguration("use_POC2")
-    robot_description_param = LaunchConfiguration("robot_description_param")
-    trajectory = LaunchConfiguration("force_deploy")
-    port_arg = LaunchConfiguration('port')
-    host_arg = LaunchConfiguration('host')
-    mode_config_path_arg = LaunchConfiguration('mode_config_path')
-    input_device = LaunchConfiguration('input_device')
-
-    # Declare arguments
-    declared_arguments = []
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gui",
-            default_value="true",
-            description="Start RViz2 automatically with this launch file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'simulation',
-            default_value='true',
-            description='If true, use simulation (Gazebo), if false use real hardware')
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='true',
-            description='If true, use simulated clock. Auto-set based on simulation mode if not specified')
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_actuator_interface",
-            default_value="true",
-            description="Use VESCInterface to control the robot. Set to false for simulation",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "can_port",
-            default_value="can0",
-            description="CAN Port for VESC Communication",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "host_id",
-            default_value="45",
-            description="Host CAN ID for VESC Communication",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_POC2",
-            default_value="true",
-            description="Use POC2 urdf",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "robot_description_param",
-            default_value=Command([
-                PathJoinSubstitution([FindExecutable(name="xacro")]),
-                " ",
-                PathJoinSubstitution([
-                    FindPackageShare("explorer_description"),
-                    "urdf",
-                    "explorer.urdf.xacro"
-                ]),
-                " ",
-                "use_ignition:=", simulation,
-                " ",
-                "use_actuator_interface:=", use_actuator_interface,
-                " can_port:=", can_port,
-                " host_id:=", host_id,
-                " use_POC2:=", poc2
-            ]),
-            description="Robot description (URDF) evaluated from xacro"
-        )
-    )
-    declared_arguments.append(
+def _declare_arguments():
+    return [
+        *declare_simulation_argument_list(),
+        *declare_hardware_argument_list(),
+        declare_parameter_input_device(),
+        # TODO unused ?
         DeclareLaunchArgument(
             "force_deploy",
             default_value="true",
             description="Force robot deployment to rest position before enabling any other control",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "port",
-            default_value="8080",
-            description="Port for the web GUI server"
-        )
-    )
-    
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "host",
-            default_value="0.0.0.0",
-            description="Host address for the web GUI server"
-        )
-    )
-    
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "mode_config_path",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("explorer_user_interfaces_cpp"),
-                "config",
-                "config_mode_0.yaml"
-            ]),
-            description="Path to the mode configuration YAML file"
-        )
-    )
-    
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "input_device",
-            default_value="movis",
-            description="Input device type: 'movis' or 'xbox'"
-        )
-    )
-    
-    
+        ),
+    *declare_parameter_list_web_gui_settings()
+    ]
 
-    # Include robot simulation (when simulation=true)
-    robot_simulation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/simulation_base.launch.py"
-        ]),
-        launch_arguments={
-            'use_POC2': poc2,
-            'gui': gui,
-            'use_sim_time': use_sim_time,
-            'rviz_delay': '0.0'
-        }.items(),
-        condition=IfCondition(simulation)
-    )
 
-    # Include robot hardware (when simulation=false)
-    robot_hardware = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/hardware_base.launch.py"
-        ]),
-        launch_arguments={
-            'gui': gui,
-            'use_sim_time': use_sim_time,
-            'use_actuator_interface': use_actuator_interface,
-            'can_port': can_port,
-            'host_id': host_id,
-            'use_POC2': poc2,
-            'rviz_delay': '5.0'
-        }.items(),
-        condition=UnlessCondition(simulation)
-    )
-
-    robot_description = {"robot_description": ParameterValue(robot_description_param, value_type=str)}
-
-    # Get SRDF via xacro
-    semantic_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("explorer_description"), "urdf", "explorer.srdf"]
-            ),
-            " ",
-        ]
-    )
-
-    robot_description_semantic = {"robot_description_semantic": ParameterValue(semantic_content, value_type=str)}
-
-    config_POC1 = PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "config", "settings_POC1.yaml"])
-
-    config_POC2 = PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "config", "settings_POC2.yaml"])
-
+def generate_launch_description():
+    # Initialize Arguments
+    trajectory = LaunchConfiguration("force_deploy")
+    declared_arguments = _declare_arguments()
 
     input_integrator_node = Node(
         package="explorer_controllers",
         executable="input_integrator",
         name="input_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
+        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
     )
 
     output_integrator_node = Node(
         package="explorer_controllers",
         executable="output_integrator",
         name="output_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
+        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
     )
 
-    qp_solving_POC1_node = Node(
-        package="explorer_controllers",
-        executable="qp_solving",
-        parameters=[config_POC1, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=UnlessCondition(poc2),
-    )
-
-    qp_solving_POC2_node = Node(
-        package="explorer_controllers",
-        executable="qp_solving",
-        parameters=[config_POC2, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=IfCondition(poc2),
-    )
-
-    pkg_share = get_package_share_directory('explorer_user_interfaces_cpp')
-    yaml_file_path = os.path.join(pkg_share, 'config', 'config_mode_0.yaml')
-    trajectory_yaml_file_path = os.path.join(pkg_share, 'config', 'config_trajectory.yaml')
-
-    # Select joystick config based on input_device parameter
-    joystick_yaml_file_path = PathJoinSubstitution([
-        FindPackageShare("explorer_input_devices"),
-        "config",
-        PythonExpression([
-            "'movis_joystick_settings.yaml' if '", input_device, "' == 'movis' else 'xbox_gamepad_settings.yaml'"
-        ])
-    ])
-
-    joy_node = Node(
-        package="joy",
-        executable="joy_node",
-        output="screen",
-        parameters=[joystick_yaml_file_path],
+    pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
+    yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
+    trajectory_yaml_file_path = os.path.join(
+        pkg_share, "config", "config_trajectory.yaml"
     )
 
     command_node = Node(
         package="explorer_user_interfaces_cpp",
         executable="command_node",
         output="screen",
-        parameters=[{
-            "mode_file": yaml_file_path,
-            "trajectory_file": trajectory_yaml_file_path,
-            "active_trajectory": trajectory,
-        }],
+        parameters=[
+            {
+                "mode_file": yaml_file_path,
+                "trajectory_file": trajectory_yaml_file_path,
+                "active_trajectory": trajectory,
+            }
+        ],
         remappings=[
-            ('/command_node/cartesian_velocity_command', '/explorer_user_interfaces/rqt_armcontrol/input_device_velocity'),
-            ('/command_node/gripper_velocity_command', '/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity'),
+            (
+                "/command_node/cartesian_velocity_command",
+                "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
+            ),
+            (
+                "/command_node/gripper_velocity_command",
+                "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity",
+            ),
         ],
     )
 
+    robot_simulation = declare_simulation_node_group(
+        launch_qp_solving=True,
+        qp_solving_post_start_list=[
+            input_integrator_node,
+            output_integrator_node,
+            command_node,
+        ],
+    )
+
+    robot_hardware = declare_hardware_node_group(
+        launch_qp_solving=True,
+        qp_solving_post_start_list=[
+            input_integrator_node,
+            output_integrator_node,
+            command_node,
+        ],
+    )
+
+    joy_node = declare_joy_node()
+
     web_gui_node = Node(
-        package='explorer_user_interfaces_web',
-        executable='web_gui_node',
-        name='web_gui_node',
-        parameters=[{
-            'port': LaunchConfiguration('port'),
-            'host': LaunchConfiguration('host'),
-            'mode_config_path': LaunchConfiguration('mode_config_path'),
-        }],
-        output='screen',
+        package="explorer_user_interfaces_web",
+        executable="web_gui_node",
+        name="web_gui_node",
+        parameters=[
+            {
+                "port": get_parameter_web_gui_port(),
+                "host": get_parameter_web_gui_host(),
+                "mode_config_path": get_parameter_web_gui_mode_config_path(),
+            }
+        ],
+        output="screen",
         emulate_tty=True,
     )
 
     nodes = [
         robot_simulation,
         robot_hardware,
-        input_integrator_node,
-        output_integrator_node,
-        qp_solving_POC1_node,
-        qp_solving_POC2_node,
         joy_node,
-        command_node,
         web_gui_node,
     ]
 
-    return LaunchDescription(declared_arguments + nodes)
+    return LaunchDescription([*declared_arguments, *nodes])
