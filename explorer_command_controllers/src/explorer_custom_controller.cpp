@@ -195,7 +195,17 @@ void CustomController::init_ros_subscribers_()
   auto is_command_size_supported =
     [this](const std::vector<double>& data, orthopus::JointVariableType command_type)
   {
-    if (data.size() < joints_.size())
+    size_t compatible_joint_number = 0;
+    // Compute number of joint that support this command type (usually end effector doesn't support all command types)
+    for (auto& joint : joints_)
+    {
+      if (joint.joint_command_map.find(command_type) != joint.joint_command_map.end())
+      {
+        compatible_joint_number++;
+      }
+    }
+
+    if (data.size() < compatible_joint_number)
     {
       RCLCPP_WARN_THROTTLE(
         get_node()->get_logger(), *clock_, 1000,
