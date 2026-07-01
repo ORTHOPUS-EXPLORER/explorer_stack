@@ -67,6 +67,7 @@ LABEL org.opencontainers.image.description="Development image for Orthopus Explo
 ARG ROS_WS
 ARG ROS_USER
 ENV ROS_USER=${ROS_USER}
+ENV ROS_WS=${ROS_WS}
 
 ## Install latest Mesa version
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
