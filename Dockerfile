@@ -67,6 +67,7 @@ LABEL org.opencontainers.image.description="Development image for Orthopus Explo
 ARG ROS_WS
 ARG ROS_USER
 ENV ROS_USER=${ROS_USER}
+ENV ROS_WS=${ROS_WS}
 
 ## Install latest Mesa version
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
@@ -107,24 +108,12 @@ RUN sed --in-place \
     # Source build (if exists) automatically
     -e '/^source .*/a [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash" --' \
     # Fix UID/GUID issue dynamically (issue about permissions when mounting folder)
-    -e 's|^exec "$@"|if [ -z "${USER_UID}" ]; then\n\
-    \techo "USER_UID env var not set, file permissions will occurs, please provides: -e USER_UID=\\$(id -u)"\n\
+    -e 's|^exec "$@"|if [ -z "${USER_UID}" ] \|\| [ -z "${GROUP_INPUT_UID}" ]; then\n\
+    echo "USER_UID or GROUP_INPUT_UID env var not set, file permissions will occurs, please provides proper variables."\n\
     else\n\
-    \tusermod -u ${USER_UID} ${ROS_USER}\n\
-    \tif [[ -d "/home/${ROS_USER}/.ccache" ]]; then\n\
-    \t\tchown -R ${ROS_USER}:${ROS_USER} /home/${ROS_USER}/.ccache\n\
-    \tfi\n\
-    \tif [[ -d "${PWD}/.cache" ]]; then\n\
-    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/.cache\n\
-    \tfi\n\
-    \tif [[ -d "${PWD}/build" ]]; then\n\
-    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/build\n\
-    \tfi\n\
-    \tif [[ -d "${PWD}/install" ]]; then\n\
-    \t\tchown -R ${ROS_USER}:${ROS_USER} ${PWD}/install\n\
-    \tfi\n\
+    sudo set_input_device_permissions.sh\n\
     fi\n\
-    exec gosu ${ROS_USER} "$@"|' \
+    exec gosu ${ROS_USER} "${@}"|' \
     /ros_entrypoint.sh
 
 COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/
@@ -157,7 +146,8 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
 # Install dev dependencies (ruff related)
 RUN pip install ruff
 
-RUN groupadd -r ${ROS_USER} && useradd -m --no-log-init -r -g ${ROS_USER} ${ROS_USER}
+RUN useradd -m --no-log-init -r ${ROS_USER}
+
 # Copy colcon config (no need to reinstall mixins)
 RUN cp -r /root/.colcon /home/${ROS_USER}
 WORKDIR ${ROS_WS}
@@ -166,9 +156,11 @@ WORKDIR ${ROS_WS}
 RUN mkdir /home/${ROS_USER}/.ccache
 VOLUME /home/${ROS_USER}/.ccache
 
-# Setup passwordless sudoers for apt related commands
-RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository" >> /etc/sudoers
+COPY --chmod=0755 .devcontainer/set_device_permissions.sh /usr/local/bin
 
+# Setup passwordless sudoers for apt related commands
+RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh" >> /etc/sudoers
+USER ${ROS_USER}
 
 ## ---------------- Runner part (prod) ----------------
 FROM explorer_dev AS explorer_prod
