@@ -1,0 +1,6 @@
+CompilationDatabase: build
+Diagnostics:
+  ClangTidy:
+    FastCheckFilter: Strict
+  SystemHeaders: false
+  UnusedIncludes: None

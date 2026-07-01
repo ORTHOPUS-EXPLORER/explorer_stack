@@ -1,0 +1,31 @@
+{{! Google style docstring }}
+{{summaryPlaceholder}}.
+
+{{#argsExist}}
+Args:
+{{#args}}
+    {{var}} ({{typePlaceholder}}): {{descriptionPlaceholder}}
+{{/args}}
+{{#kwargs}}
+    {{var}} ({{typePlaceholder}}, optional): {{descriptionPlaceholder}}. Defaults to {{&default}}.
+{{/kwargs}}
+
+{{/argsExist}}
+{{#returnsExist}}
+Returns:
+    {{typePlaceholder}}: {{descriptionPlaceholder}}
+
+{{/returnsExist}}
+
+{{#yieldsExist}}
+Yields:
+    {{typePlaceholder}}: {{descriptionPlaceholder}}
+
+{{/yieldsExist}}
+{{#exceptionsExist}}
+Raises:
+{{#exceptions}}
+    {{type}}: {{descriptionPlaceholder}}
+{{/exceptions}}
+
+{{/exceptionsExist}}

@@ -8,6 +8,8 @@
   <maintainer email="thomas.solatges@orthopus.com"></maintainer>
 
   <license>Apache-2.0</license>
+  
+  <build_depend>python3-pip</build_depend>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
@@ -19,9 +21,8 @@
   <!-- Available through rosdep/apt -->
   <exec_depend>python3-websockets</exec_depend>
   <exec_depend>python3-jinja2</exec_depend>  
-  <exec_depend>python3-yaml</exec_depend>
-  <exec_depend>python3-pip</exec_depend>
   <exec_depend>python3-pynput</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
