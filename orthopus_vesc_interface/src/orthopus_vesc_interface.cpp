@@ -473,9 +473,6 @@ CallbackReturn VESCInterface::on_activate(
       }
     }
   }
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully activated!", _name.c_str());
-  // FIXME: Do this somewhere else ffs
-  vesc_host_->start_streaming();
 
   // Apply default mode if specified (skip if "off" for backward compatibility)
   if (default_mode_ != "off")
@@ -589,7 +586,7 @@ return_type VESCInterface::read(
 return_type VESCInterface::write(
   [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // Async, Refs are sent in another Thread, managed by orthopus::VESCHost (started by start_streaming)
+  // Async, Refs are sent in another Thread, managed by orthopus::VESCHost
   // TODO: Sanity checks: Make sure the refs are not completely out of range, for instance
   return return_type::OK;
 }
