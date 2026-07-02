@@ -1,0 +1,4 @@
+builtin_interfaces/Time timestamp
+
+float32 impedance_control_damping
+float32 impedance_control_stiffness
