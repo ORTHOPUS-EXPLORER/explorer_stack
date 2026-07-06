@@ -211,7 +211,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 
   for (const auto& cfg_j : info.joints)
   {
-    auto j = vesc_dev_->get_joint(cfg_j.name);
+    auto j = vesc_dev_->get_joint_from_name(cfg_j.name);
     if (j == nullptr)
     {
       RCLCPP_FATAL(
@@ -324,7 +324,7 @@ CallbackReturn VESCInterface::on_configure(
       std::shared_ptr<orthopus_vesc_interfaces::srv::SetMode::Response> resp)
     {
       const auto& j_name = req->joint_name;
-      auto j = vesc_dev_->get_joint(j_name);
+      auto j = vesc_dev_->get_joint_from_name(j_name);
       if (j == nullptr)
       {
         RCLCPP_ERROR(
@@ -625,8 +625,8 @@ void VESCInterface::print_hardware_info_(const HardwareInfo& info)
 
 void VESCInterface::callback_config_(const orthopus_vesc_interfaces::msg::Config& msg)
 {
-  vesc_dev_->joint.impedance_control_damping = msg.impedance_control_damping;
-  vesc_dev_->joint.impedance_control_stiffness = msg.impedance_control_stiffness;
+  vesc_dev_->acquire_joint().impedance_control_damping = msg.impedance_control_damping;
+  vesc_dev_->acquire_joint().impedance_control_stiffness = msg.impedance_control_stiffness;
 }
 
 CallbackReturn VESCInterface::wait_can_data_()
@@ -654,7 +654,7 @@ CallbackReturn VESCInterface::wait_can_data_()
 void VESCInterface::init_refs_()
 {
   // FIXME: What do we do with servo, since it does not have any pos streaming ? Currently init at 0.5 from orthopus::VESCTarget
-  auto& j = vesc_dev_->joint;
+  auto& j = vesc_dev_->acquire_joint();
   for (auto& [ifn, if_v] : j.refs)
   {
     if_v.v = 0.0;         // 0.0 is the default
