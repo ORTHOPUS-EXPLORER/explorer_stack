@@ -6,7 +6,7 @@
     <!-- if Simulation-->
     <xacro:arg name="use_ignition" default="true" />
     <!-- else -->
-    <xacro:arg name="can_port" default="vxcan1" />
+    <xacro:arg name="can_port" default="can0" />
     <xacro:arg name="host_id" default="45" />
     <xacro:arg name="rt_stream_rate" default="250" />
     <xacro:arg name="aux_servo_stream_rate" default="10" />
