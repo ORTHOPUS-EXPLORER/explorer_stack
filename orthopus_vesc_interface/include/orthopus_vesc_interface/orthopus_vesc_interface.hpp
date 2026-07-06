@@ -81,6 +81,8 @@ private:
   void print_transmission_info_(const hardware_interface::TransmissionInfo& info, size_t i);
   void print_parameters_(const std::unordered_map<std::string, std::string>& params);
   void callback_config_(const orthopus_vesc_interfaces::msg::Config& msg);
+  CallbackReturn wait_can_data_();
+  void init_refs_();
 
   rclcpp::Time print_buf_start_{0};
   rclcpp::Duration print_buf_duration_ = rclcpp::Duration::from_seconds(0);
@@ -94,6 +96,8 @@ private:
   std::string default_mode_{
     "off"};  // Default mode to apply on activation (backward compatible: "off" if not specified)
   std::string name_;
+  bool is_virtual_can_used_ = false;
+
   std::shared_ptr<rclcpp::Node> node_;
   rclcpp::Service<orthopus_vesc_interfaces::srv::Dev>::SharedPtr dev_srv_;
   rclcpp::Service<orthopus_vesc_interfaces::srv::SetMode>::SharedPtr set_mode_srv_;

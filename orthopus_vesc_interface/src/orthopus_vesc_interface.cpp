@@ -31,24 +31,26 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 
   name_ = info.name;
   node_ = std::make_unique<rclcpp::Node>(name_);
+  // CAN Port
+  auto it = info.hardware_parameters.find("can_port");
+  if (it == info.hardware_parameters.end() || it->second.empty())
+  {
+    RCLCPP_FATAL(
+      rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, can_port is not defined");
+    exit(0);
+  }
+  auto can_port = it->second;
+  // Virtual can communication used if can port starts with letter 'v'
+  is_virtual_can_used_ = can_port.at(0) == 'v';
 
   if (!vesc_host_)
   {
     vesc_host_ = orthopus::VESCHost::get_instance();
-    //RCLCPP_DEBUG(rclcpp::get_logger("VESCInterface"),"VESCHost: %p", (void*)_vesc_host.get());
+
     if (!vesc_host_)
     {
       spdlog::cfg::load_env_levels();
       // Load parameters
-      // CAN Port
-      auto it = info.hardware_parameters.find("can_port");
-      if (it == info.hardware_parameters.end())
-      {
-        RCLCPP_FATAL(
-          rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, can_port is not defined");
-        exit(0);
-      }
-      auto can_port = it->second;
       // Host ID
       it = info.hardware_parameters.find("host_id");
       if (it == info.hardware_parameters.end())
@@ -139,15 +141,9 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     return CallbackReturn::ERROR;
   }
 
-  // Not quite necessary since we fetch the FwVersion when adding the Device just below
-  //if(!_vesc_host->pingCAN(board_id, 200ms))
-  //{
-  //  RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"Timeout waiting for CAN PONG from '%d'. Abort", board_id);
-  //  return CallbackReturn::ERROR;
-  //}
-
-  vesc_dev_ = vesc_host_->add_target(board_id);
-  if (!vesc_dev_ || !vesc_dev_->fw())
+  // Add target (check firmware version only when using real can communication)
+  vesc_dev_ = vesc_host_->add_target(board_id, !is_virtual_can_used_);
+  if (!vesc_dev_)
   {
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"), "Timeout waiting for VESC '%d'. Abort", board_id);
@@ -295,8 +291,7 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
     if (!j.in_use) continue;
     for (auto& [cif_name, cif_v] : j.refs)
     {
-      _command_interfaces.emplace_back(
-        hardware_interface::CommandInterface(j.name, cif_name, &cif_v.v));
+      _command_interfaces.emplace_back(j.name, cif_name, &cif_v.v);
     }
   }
   return _command_interfaces;
@@ -431,47 +426,16 @@ CallbackReturn VESCInterface::on_configure(
 CallbackReturn VESCInterface::on_activate(
   [[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Activating ...please wait...", _name.c_str());
-
-  // Wait for a a fresh meas from device
-  const auto now = vescpp::Time::now();
-  while (true)
+  // Wait can data ony when using real can connection / hardware
+  if (!is_virtual_can_used_)
   {
-    if ((now - vesc_dev_->_meas_last_tp) < 10ms)
+    auto can_data_received = wait_can_data_();
+    if (can_data_received != CallbackReturn::SUCCESS)
     {
-      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Got a fresh Meas! Marching on !",_name.c_str());
-      break;
+      return can_data_received;
     }
-    else if (vescpp::Time::now() - now >= 1000ms)
-    {
-      RCLCPP_ERROR(
-        rclcpp::get_logger("VESCInterface"),
-        "[on_activate][%s] Timeout waiting for a fresh Meas. Abort,", name_.c_str());
-      return CallbackReturn::ERROR;
-    }
-    std::this_thread::sleep_for(10us);
-  }
-
-  // Meas are a-okay. Init interfaces refs !
-  // FIXME: What do we do with servo, since it does not have any pos streaming ? Currently init at 0.5 from orthopus::VESCTarget
-  auto& j = vesc_dev_->joint;
-  for (auto& [ifn, if_v] : j.refs)
-  {
-    if_v.v = 0.0;         // 0.0 is the default
-    if_v.in_use = false;  // Free the interface
-    // FIXME: Keep this ?
-    if (ifn == "position")
-    {
-      // Set init value to measure only when a meas was received (if so, in_use is true)
-      if (auto it = j.meas.find(ifn); it != j.meas.end() && it->second.in_use)
-      {
-        if_v.v = it->second.v;  // Set ref to last/current position
-        RCLCPP_INFO(
-          rclcpp::get_logger("VESCInterface"),
-          "[on_activate][%s][%s] Init POS ref with value: % 7.4f", name_.c_str(), j.name.c_str(),
-          if_v.v);
-      }
-    }
+    // Meas are a-okay. Init interfaces refs !
+    init_refs_();
   }
 
   // Apply default mode if specified (skip if "off" for backward compatibility)
@@ -515,8 +479,8 @@ CallbackReturn VESCInterface::on_activate(
 CallbackReturn VESCInterface::on_deactivate(
   [[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Deactivating ...please wait...", _name.c_str());
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully deactivated!", _name.c_str());
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Deactivating ...please wait...", name_.c_str());
+  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully deactivated!", name_.c_str());
   return CallbackReturn::SUCCESS;
 }
 
@@ -525,10 +489,10 @@ return_type VESCInterface::prepare_command_mode_switch(
   [[maybe_unused]] const std::vector<std::string>& start_if,
   [[maybe_unused]] const std::vector<std::string>& stop_if)
 {
-  /*RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Preparing Command mode switch...", _name.c_str());
+  /*RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Preparing Command mode switch...", name_.c_str());
   RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "  Stopping Interfaces:");
   // FIXME: Check that we can actually perform the requested command mode switch
-  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch prepared!", _name.c_str());
+  RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Command mode switch prepared!", name_.c_str());
   */
   return return_type::OK;
 }
@@ -579,7 +543,7 @@ return_type VESCInterface::read(
   // Async, Measures are streamed by the devices, directly to orthopus::VESCTarget
   // TODO: Sanity checks (trigger error if delay since last meas reached a timeout for instance)
   // TODO: Make sure spin_some does not slow down the RT loop (event when processing srv/pub/sub/...)
-  if (node_) rclcpp::spin_some(node_->get_node_base_interface());
+  if (node_ && rclcpp::ok()) rclcpp::spin_some(node_->get_node_base_interface());
   return return_type::OK;
 }
 
@@ -594,11 +558,9 @@ return_type VESCInterface::write(
 void VESCInterface::print_parameters_(const std::unordered_map<std::string, std::string>& params)
 {
   const auto& log = rclcpp::get_logger("VESCInterface");
-  size_t j = 0;
   for (const auto& [name, v] : params)
   {
     RCLCPP_INFO(log, "        - '%s': '%s'", name.c_str(), v.c_str());
-    j++;
   }
 }
 
@@ -665,6 +627,52 @@ void VESCInterface::callback_config_(const orthopus_vesc_interfaces::msg::Config
 {
   vesc_dev_->joint.impedance_control_damping = msg.impedance_control_damping;
   vesc_dev_->joint.impedance_control_stiffness = msg.impedance_control_stiffness;
+}
+
+CallbackReturn VESCInterface::wait_can_data_()
+{
+  const auto now = vescpp::Time::now();
+  while (true)
+  {
+    if ((now - vesc_dev_->_meas_last_tp) < 10ms)
+    {
+      //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Got a fresh Meas! Marching on !",name_.c_str());
+      break;
+    }
+    else if (vescpp::Time::now() - now >= 1000ms)
+    {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("VESCInterface"),
+        "[on_activate][%s] Timeout waiting for a fresh Meas. Abort,", name_.c_str());
+      return CallbackReturn::ERROR;
+    }
+    std::this_thread::sleep_for(10us);
+  }
+  return CallbackReturn::SUCCESS;
+}
+
+void VESCInterface::init_refs_()
+{
+  // FIXME: What do we do with servo, since it does not have any pos streaming ? Currently init at 0.5 from orthopus::VESCTarget
+  auto& j = vesc_dev_->joint;
+  for (auto& [ifn, if_v] : j.refs)
+  {
+    if_v.v = 0.0;         // 0.0 is the default
+    if_v.in_use = false;  // Free the interface
+    // FIXME: Keep this ?
+    if (ifn == "position")
+    {
+      // Set init value to measure only when a meas was received (if so, in_use is true)
+      if (auto it = j.meas.find(ifn); it != j.meas.end() && it->second.in_use)
+      {
+        if_v.v = it->second.v;  // Set ref to last/current position
+        RCLCPP_INFO(
+          rclcpp::get_logger("VESCInterface"),
+          "[on_activate][%s][%s] Init POS ref with value: % 7.4f", name_.c_str(), j.name.c_str(),
+          if_v.v);
+      }
+    }
+  }
 }
 
 }  // namespace orthopus_ros
