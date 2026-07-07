@@ -1,0 +1,29 @@
+name: Build docker images (CI / dev / prod)
+on:
+    push:
+      tags:
+          - '**'
+
+jobs:
+  build-and-push-CI-docker-image:
+    ## Deploy new CI image only if master changes
+    if: ${{ github.ref == 'master' }}
+    uses: ./.github/workflows/workflow-docker-image.yml
+    with:
+      image_name: builder
+      target: explorer_builder
+    secrets: inherit
+
+  build-and-push-dev-docker-image:
+    uses: ./.github/workflows/workflow-docker-image.yml
+    with:
+      image_name: dev
+      target: explorer_dev
+    secrets: inherit
+
+  build-and-push-prod-docker-image:
+    uses: ./.github/workflows/workflow-docker-image.yml
+    with:
+      image_name: prod
+      target: explorer_prod
+    secrets: inherit

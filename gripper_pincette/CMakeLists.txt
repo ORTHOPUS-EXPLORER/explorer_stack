@@ -22,12 +22,8 @@ find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 
 install(
-  DIRECTORY description
-  DESTINATION share/gripper_pincette
-)
-install(
-  DIRECTORY bringup/launch bringup/config
-  DESTINATION share/gripper_pincette
+  DIRECTORY bringup/launch bringup/config description
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

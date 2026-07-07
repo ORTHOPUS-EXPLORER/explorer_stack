@@ -14,7 +14,7 @@ install(DIRECTORY gazebo
                   ros2_control
                   rviz
                   urdf
-  DESTINATION share/explorer_description
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 

@@ -1,0 +1,31 @@
+---
+Checks: "bugprone-*, cppcoreguidelines-*, clang-analyzer-*, misc-*, modernize-*,
+  performance-*, readability-identifier-naming, -modernize-use-trailing-return-type, -performance-avoid-endl"
+HeaderFilterRegex: ""
+WarningsAsErrors: ''
+FormatStyle: file
+CheckOptions:
+  # Require function to be in snake_case
+  - key: readability-identifier-naming.FunctionCase
+    value: "lower_case"
+  # Require class members to be in snake_case
+  - key: readability-identifier-naming.MemberCase
+    value: "lower_case"
+  # Require protected members to end with `_`
+  - key: readability-identifier-naming.StructCase
+    value: "CamelCase"
+  # Require protected members to end with `_`
+  - key: readability-identifier-naming.StructCase
+    value: "CamelCase"
+  # Require private members to end with `_`
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: "_"
+  # Require protected members to end with `_`
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: "_"
+  # Require private methods to end with `_`
+  - key: readability-identifier-naming.PrivateMethodSuffix
+    value: "_"
+  # Require protected method to end with `_`
+  - key: readability-identifier-naming.ProtectedMethodSuffix
+    value: "_"

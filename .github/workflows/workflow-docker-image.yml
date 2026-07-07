@@ -1,0 +1,55 @@
+name: "Workflow: build docker image"
+on:
+    workflow_call:
+      inputs:
+        image_name:
+          required: true
+          type: string
+        ros_distro:
+          default: iron
+          required: false
+          type: string
+        target:
+          required: true
+          type: string
+
+jobs:
+    build-and-deploy-docker-image:
+        runs-on: ubuntu-latest
+        permissions:
+          packages: write
+        steps:
+            - name: Checkout PR
+              uses: actions/checkout@v4
+              with:
+                submodules: recursive
+
+            - name: Docker meta
+              id: meta
+              uses: docker/metadata-action@v6
+              with:
+                flavor: latest=false
+                images: ghcr.io/orthopus-explorer/ros-${{ inputs.ros_distro }}-explorer/${{ inputs.image_name }}
+                tags: |
+                  # Tag as latest on tag on default branch
+                  type=raw,value=latest,enable={{is_default_branch}}
+                  # Use version only instead of raw git tag (in case of vX.Y.Z tag)
+                  type=semver,pattern={{version}}
+            
+            - name: Log in to the Container registry 
+              uses: docker/login-action@v4
+              with:
+                registry: ghcr.io
+                username: ${{ github.actor }}
+                password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup buildx
+              uses: docker/setup-buildx-action@v4
+
+            - name: Build and push
+              uses: docker/build-push-action@v7
+              with:
+                push: true
+                tags: ${{ steps.meta.outputs.tags }}
+                labels: ${{ steps.meta.outputs.labels }}
+                target: ${{ inputs.target }}

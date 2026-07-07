@@ -20,7 +20,10 @@
   <depend>realtime_tools</depend>
   <depend>std_msgs</depend>
 
+  <test_depend>ament_cmake_clang_format</test_depend>
+  <test_depend>ament_cmake_clang_tidy</test_depend>
   <test_depend>ament_cmake_gmock</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
   <test_depend>controller_manager</test_depend>
   <test_depend>hardware_interface_testing</test_depend>
   <test_depend>ros2_control_test_assets</test_depend>
