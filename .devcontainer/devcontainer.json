@@ -9,6 +9,7 @@
             "ROS_DISTRO": "iron"
         }
     },
+    "capAdd": ["SYS_NICE", "SYS_PTRACE"],
     "runArgs": [
         "--env-file", "${localWorkspaceFolder}/.devcontainer/.env",
         "--name=orthopus-explorer-devcontainer",
@@ -19,14 +20,10 @@
         // network access to host interfaces, e.g. eth0
         "--network=host",
         "--security-opt=seccomp=unconfined",
-        //
-        "--cap-add=sys_nice",
         "--ulimit", "rtprio=99",
         "--ulimit", "memlock=-1",
         "--device", "/dev/dri:/dev/dri",
-        "--device", "/dev/input:/dev/input"
-        // enable debugging, e.g. gdb
-        // "--cap-add=SYS_PTRACE",
+        "--device", "/dev/input:/dev/input",
         // "--pid=host", // DDS discovery with host, without --network=host
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],

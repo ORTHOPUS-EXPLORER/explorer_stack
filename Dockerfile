@@ -86,6 +86,8 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     bash-completion \
     can-utils \
     ccache \
+    dbus \
+    gdb \
     iproute2 \
     python3-pip \
     ros-${ROS_DISTRO}-plotjuggler \
@@ -158,8 +160,10 @@ VOLUME /home/${ROS_USER}/.ccache
 
 COPY --chmod=0755 .devcontainer/set_device_permissions.sh /usr/local/bin
 
+RUN echo "echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope" > /usr/local/bin/allow_ptrace_gdb.sh && chmod +x /usr/local/bin/allow_ptrace_gdb.sh
+
 # Setup passwordless sudoers for apt related commands
-RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh" >> /etc/sudoers
+RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh, /usr/local/bin/allow_ptrace_gdb.sh" >> /etc/sudoers
 USER ${ROS_USER}
 
 ## ---------------- Runner part (prod) ----------------
