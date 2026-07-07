@@ -62,6 +62,7 @@ setup(
         ('share/' + package_name + '/templates', [
             'explorer_user_interfaces_web/templates/index.html'
         ]),
+
     ],
     install_requires=['setuptools'] + pip_dependencies,
     zip_safe=True,

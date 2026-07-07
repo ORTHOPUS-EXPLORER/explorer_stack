@@ -1,0 +1,91 @@
+name: Build ROS2 package and c++ lint check
+on:
+  pull_request:
+    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', '**.cmake', '**package.xml']
+  # Allow manual trigger
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      image: ghcr.io/orthopus-explorer/ros-iron-explorer/builder:latest
+    permissions:
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src/
+          submodules: recursive
+
+      # Only exec when testing locally with Act (https://github.com/nektos/act/issues/973)
+      - name: Act Workaround
+        if: ${{ env.ACT }}
+        run: curl -fsSL https://deb.nodesource.com/setup_22.x | bash && apt install -y nodejs 
+
+      - name: Cache colcon build directories
+        uses: actions/cache@v4
+        with:
+          # Couldn't cache build/install folder: it keeps building cxx files everytimes so I tried to relied on ccache and it's better than nothing
+          path: |
+            .ccache
+            install
+          key: colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-${{ github.base_ref }}
+          restore-keys: |
+            colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-
+            colcon-
+
+      - name: "Build ROS package with support for linter (compile-commands)"
+        run: |
+            source /opt/ros/iron/setup.bash
+            CCACHE_COMPILERCHECK=content CCACHE_BASEDIR=$PWD CCACHE_DIR=$PWD/.ccache COLCON_HOME=/root/.colcon COLCON_MIXIN_PATH=/root/.colcon/mixins colcon build --symlink-install --continue-on-error --mixin ccache compile-commands --event-handlers console_direct+
+
+      - name: 'Upload build/install Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ros2-build
+          path: |
+            build/
+            install/
+          retention-days: 2
+
+
+  report-cpp-lint-and-format:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Download build folder from build job
+        uses: actions/download-artifact@v5
+        with:
+          name: ros2-build
+
+      - uses: cpp-linter/cpp-linter-action@v2
+        id: linter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          database: "./build"
+          tidy-review: true
+          # Use .clang-format config file
+          style: 'file'
+          # Use .clang-tidy config file
+          tidy-checks: ''
+          # only 'update' a single comment in a pull request thread.
+          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          step-summary: true
+
+      # Enable CI fails on error
+      # - name: Check if cpp lint failed
+      #   if: steps.linter.outputs.checks-failed > 0
+      #   run: exit 1

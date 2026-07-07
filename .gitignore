@@ -1,2 +1,8 @@
 *.pyc
-.vscode/*
+
+build/
+install/
+log/
+.cache
+.ccache
+.devcontainer/.env

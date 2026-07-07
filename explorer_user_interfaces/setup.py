@@ -8,10 +8,10 @@ setup(
     packages=['rqt_armcontrol'],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml"]),
         ("share/" + package_name + "/resource", ["resource/rqt_armcontrol.ui"]),
         ("share/" + package_name + "/resource", ["resource/rqt_jointcontrol.ui"]),
         ("share/" + package_name + "/resource", ["resource/rqt_actuatorcontrol.ui"]),
-        ("share/" + package_name, ["package.xml"]),
         ("share/" + package_name, ["plugin.xml"]),
     ],
     install_requires=['setuptools'],

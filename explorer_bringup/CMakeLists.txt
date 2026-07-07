@@ -11,7 +11,7 @@ find_package(ament_cmake REQUIRED)
 install(DIRECTORY 
                   launch
                   config
-  DESTINATION share/explorer_bringup
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 
