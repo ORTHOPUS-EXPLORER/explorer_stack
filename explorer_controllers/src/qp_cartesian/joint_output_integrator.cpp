@@ -114,7 +114,7 @@ void JointOutputIntegrator::callback_current_pos_(const sensor_msgs::msg::JointS
   current_pos_sub_.reset();
 }
 
-void JointOutputIntegrator::callback_dq_output(const std_msgs::msg::Float64MultiArray& msg)
+void JointOutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg)
 {
   dq_output_.data = msg.data;
 }

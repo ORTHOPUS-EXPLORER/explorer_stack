@@ -1,12 +1,12 @@
 {
-    "name": "Orthopus explorer stack (ROS2 - Iron)",
+    "name": "Orthopus explorer stack (ROS2 - Jazzy)",
     "build": {
         "context": "..",
         "dockerfile": "../Dockerfile",
         "target": "explorer_dev",
-        "cacheFrom": "ghcr.io/orthopus-explorer/ros-iron-explorer/dev:latest",
+        "cacheFrom": "ghcr.io/orthopus-explorer/ros-jazzy-explorer/dev:latest",
         "args": {
-            "ROS_DISTRO": "iron"
+            "ROS_DISTRO": "jazzy"
         }
     },
     "capAdd": ["SYS_NICE", "SYS_PTRACE"],
@@ -29,7 +29,7 @@
     "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
     "initializeCommand": "",
-    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder} && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc/lib/vescpp",
+    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
     "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding

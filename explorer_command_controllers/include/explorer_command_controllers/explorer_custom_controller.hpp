@@ -24,6 +24,7 @@
 #include <realtime_tools/realtime_buffer.hpp>
 #include <string>
 #include <vector>
+#include <orthopus_vesc_interfaces/srv/set_mode.hpp>
 
 #include "explorer_command_controllers/visibility_control.h"
 #include "orthopus_vesc/common.hpp"

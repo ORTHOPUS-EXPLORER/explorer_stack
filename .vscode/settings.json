@@ -1,5 +1,5 @@
 {
-  "ROS2.distro": "iron",
+  "ROS2.distro": "jazzy",
   "[cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.formatOnSave": false
@@ -26,11 +26,11 @@
   "python.analysis.ignore": ["*"],
   "python.analysis.autoImportCompletions": true,
   "python.autoComplete.extraPaths": [
-    "/opt/ros/iron/lib/python3.10/site-packages",
+    "/opt/ros/jazzy/lib/python3.10/site-packages",
     "install/lib/python3.10/site-packages/",
   ],
   "python.analysis.extraPaths": [
-    "/opt/ros/iron/lib/python3.10/site-packages",
+    "/opt/ros/jazzy/lib/python3.10/site-packages",
     "install/lib/python3.10/site-packages/",
   ],
   "git.blame.editorDecoration.enabled": true
