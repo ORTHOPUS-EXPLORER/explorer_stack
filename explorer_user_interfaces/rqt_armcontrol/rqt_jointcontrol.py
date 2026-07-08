@@ -8,22 +8,15 @@ import os
 import sys
 
 import yaml
-
 from ament_index_python import get_resource
-
-
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget
 
 # pylint: enable=no-name-in-module,import-error
-
 from rqt_gui.main import Main
-
 from rqt_gui_py.plugin import Plugin
-
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
-
 
 
 class RqtJointController(Plugin):
@@ -174,6 +167,7 @@ class RqtJointController(Plugin):
     # Qt methods
     def shutdown_plugin(self):
         """Shutdown plugin."""
+        self._context.node.destroy_node()
 
     def save_settings(self, plugin_settings, instance_settings):
         """Save settings."""
