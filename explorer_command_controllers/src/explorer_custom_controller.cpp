@@ -15,7 +15,7 @@
 #include <controller_interface/controller_interface_base.hpp>
 #include <explorer_command_controllers/explorer_custom_controller.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
-#include <orthopus_vesc_interfaces/srv/detail/cmd.hpp>
+#include <orthopus_vesc_interfaces/srv/cmd.hpp>
 
 #include "orthopus_vesc_interfaces/msg/config.hpp"
 

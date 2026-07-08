@@ -16,7 +16,7 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-      image: ghcr.io/orthopus-explorer/ros-iron-explorer/builder:latest
+      image: ghcr.io/orthopus-explorer/ros-jazzy-explorer/builder:latest
     permissions:
       packages: read
     steps:
@@ -45,7 +45,7 @@ jobs:
 
       - name: "Build ROS package with support for linter (compile-commands)"
         run: |
-            source /opt/ros/iron/setup.bash
+            source /opt/ros/${ROS_DISTRO}/setup.bash
             CCACHE_COMPILERCHECK=content CCACHE_BASEDIR=$PWD CCACHE_DIR=$PWD/.ccache COLCON_HOME=/root/.colcon COLCON_MIXIN_PATH=/root/.colcon/mixins colcon build --symlink-install --continue-on-error --mixin ccache compile-commands --event-handlers console_direct+
 
       - name: 'Upload build/install Artifact'

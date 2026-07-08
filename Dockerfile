@@ -1,5 +1,5 @@
 # Overridable ROS distro argument (generic)
-ARG ROS_DISTRO=iron
+ARG ROS_DISTRO=jazzy
 ## Only used for production-ready image
 ARG ROS_USER=orthopus
 ARG ROS_WS=/home/${ROS_USER}/src/
@@ -68,7 +68,7 @@ ENV ROS_WS=/root/explorer_ws
 RUN mkdir -p /root/explorer_ws
 WORKDIR ${ROS_WS}
 
-# Create volume to stores .ccache folderset_device_permissions
+# Create volume to stores .ccache folder
 RUN mkdir /root/.ccache
 VOLUME /root/.ccache
 

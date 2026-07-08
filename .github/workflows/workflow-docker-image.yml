@@ -6,7 +6,7 @@ on:
           required: true
           type: string
         ros_distro:
-          default: iron
+          default: jazzy
           required: false
           type: string
         target:
