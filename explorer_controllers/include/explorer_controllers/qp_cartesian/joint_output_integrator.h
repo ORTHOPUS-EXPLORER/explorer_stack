@@ -44,7 +44,7 @@ namespace space_control
         double sampling_period_;
         bool init;
         std::vector<std::string> joint_name;
-        int joint_order[7];
+        std::array<int, 7> joint_order_;
         std::string controller_position_topic_name_;
 
         JointPosition q_lower_limit_; /*!< Joint lower limit used in lower constraints bound vector lbA */

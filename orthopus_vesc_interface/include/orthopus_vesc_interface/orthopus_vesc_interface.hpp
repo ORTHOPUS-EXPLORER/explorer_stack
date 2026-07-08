@@ -1,6 +1,6 @@
 #pragma once
 
-#include <realtime_tools/realtime_publisher.h>
+#include <realtime_tools/realtime_publisher.hpp>
 
 #include <memory>
 
@@ -32,7 +32,7 @@ public:
   RCLCPP_SHARED_PTR_DEFINITIONS(VESCInterface)
 
   ORTHOPUS_ROS_PUBLIC
-  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& info) override;
+  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams& info) override;
 
   ORTHOPUS_ROS_PUBLIC
   hardware_interface::CallbackReturn on_configure(

@@ -25,15 +25,15 @@ T from_str(const std::string& str, const T& def_v)
 const auto qos_pub = rclcpp::SystemDefaultsQoS();
 
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
-CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
+CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& info)
 {
   if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS) return CallbackReturn::ERROR;
 
-  name_ = info.name;
+  name_ = info.hardware_info.name;
   node_ = std::make_unique<rclcpp::Node>(name_);
   // CAN Port
-  auto it = info.hardware_parameters.find("can_port");
-  if (it == info.hardware_parameters.end() || it->second.empty())
+  auto it = info.hardware_info.hardware_parameters.find("can_port");
+  if (it == info.hardware_info.hardware_parameters.end() || it->second.empty())
   {
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, can_port is not defined");
@@ -52,8 +52,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       spdlog::cfg::load_env_levels();
       // Load parameters
       // Host ID
-      it = info.hardware_parameters.find("host_id");
-      if (it == info.hardware_parameters.end())
+      it = info.hardware_info.hardware_parameters.find("host_id");
+      if (it == info.hardware_info.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, host_id is not defined");
@@ -68,8 +68,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
         return CallbackReturn::ERROR;
       }
       // Stream rate
-      it = info.hardware_parameters.find("rt_stream_rate");
-      if (it == info.hardware_parameters.end())
+      it = info.hardware_info.hardware_parameters.find("rt_stream_rate");
+      if (it == info.hardware_info.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -78,8 +78,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       }
       auto rt_stream_rate_hz = from_str<unsigned>(it->second, 250);
       // Aux servo rate
-      it = info.hardware_parameters.find("aux_servo_stream_rate");
-      if (it == info.hardware_parameters.end())
+      it = info.hardware_info.hardware_parameters.find("aux_servo_stream_rate");
+      if (it == info.hardware_info.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -88,8 +88,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
       }
       auto aux_servo_stream_rate_hz = from_str<unsigned>(it->second, 10);
       // Aux config rate
-      it = info.hardware_parameters.find("aux_config_stream_rate");
-      if (it == info.hardware_parameters.end())
+      it = info.hardware_info.hardware_parameters.find("aux_config_stream_rate");
+      if (it == info.hardware_info.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -113,8 +113,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 
   // Read default_mode parameter (optional, defaults to "off" for backward compatibility)
   {
-    auto it = info.hardware_parameters.find("default_mode");
-    if (it != info.hardware_parameters.end())
+    auto it = info.hardware_info.hardware_parameters.find("default_mode");
+    if (it != info.hardware_info.hardware_parameters.end())
     {
       default_mode_ = it->second;
       RCLCPP_INFO(
@@ -124,8 +124,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
 
   auto board_id = vescpp::VESC::InvalidBoardId;
   {
-    auto it = info.hardware_parameters.find("can_id");
-    if (it == info.hardware_parameters.end())
+    auto it = info.hardware_info.hardware_parameters.find("can_id");
+    if (it == info.hardware_info.hardware_parameters.end())
     {
       RCLCPP_FATAL(
         rclcpp::get_logger("VESCInterface"), "'can_id' not found in HardwareInfo, abort");
@@ -177,7 +177,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"),
       "Target '%d' doesn't have enough Joints. Expected '%ld', got '%ld'. Abort", board_id,
-      info.joints.size(), j_sz);
+      info.hardware_info.joints.size(), j_sz);
     return CallbackReturn::ERROR;
   }
   j_sz = std::min(j_sz, info_.joints.size());
@@ -196,7 +196,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     //    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());
     //}
     auto it = vesc_dev_->joints.begin();
-    for (const auto& cfg_j : info.joints)
+    for (const auto& cfg_j : info.hardware_info.joints)
     {
       it->name = cfg_j.name;
       if (++it == vesc_dev_->joints.end()) break;
@@ -209,7 +209,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
     //}
   }
 
-  for (const auto& cfg_j : info.joints)
+  for (const auto& cfg_j : info.hardware_info.joints)
   {
     auto j = vesc_dev_->get_joint_from_name(cfg_j.name);
     if (j == nullptr)

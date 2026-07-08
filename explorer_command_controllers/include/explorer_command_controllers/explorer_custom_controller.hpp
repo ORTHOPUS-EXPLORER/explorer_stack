@@ -15,18 +15,18 @@
 #ifndef EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
 #define EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
 
+#include <explorer_command_controllers/explorer_custom_controller_parameters.hpp>  // generated
 #include <map>
 #include <memory>
 #include <rclcpp/time.hpp>
+#include <realtime_tools/realtime_buffer.hpp>
 #include <string>
 #include <vector>
 
 #include "controller_interface/controller_interface.hpp"
 #include "explorer_command_controllers/visibility_control.h"
-#include "explorer_custom_controller_parameters.hpp"  // generated
 #include "orthopus_vesc/common.hpp"
 #include "orthopus_vesc/target.hpp"
-#include "realtime_tools/realtime_buffer.h"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_srvs/srv/empty.hpp"
 
@@ -137,8 +137,8 @@ private:
     std::map<orthopus::JointVariableType, ControllerJointState> joint_state_map;
   };
 
-  bool set_joint_mode_(const std::string&, const std::string&) const;
-  bool set_impedance_config_(const std::string& joint_name, double damping, double stiffness) const;
+  bool set_joint_mode_(const std::string&, const std::string&);
+  bool set_impedance_config_(const std::string& joint_name, double damping, double stiffness);
   void init_ros_subscribers_();
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,

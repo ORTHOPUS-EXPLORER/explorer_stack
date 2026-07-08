@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "explorer_command_controllers/explorer_custom_controller.hpp"
-
 #include <controller_interface/controller_interface_base.hpp>
+#include <explorer_command_controllers/explorer_custom_controller.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
 #include <orthopus_vesc_interfaces/srv/detail/cmd__struct.hpp>
+#include <source_location>
 
 #include "orthopus_vesc_interfaces/srv/set_mode.hpp"
 
@@ -43,8 +43,7 @@ std::string build_interface_name(
 }
 }  // namespace
 
-bool CustomController::set_joint_mode_(
-  const std::string& joint_name, const std::string& joint_mode) const
+bool CustomController::set_joint_mode_(const std::string& joint_name, const std::string& joint_mode)
 {
   auto service_name = "/explorer_" + joint_name + "/mode";
   auto joint_mode_client =
@@ -82,7 +81,7 @@ bool CustomController::set_joint_mode_(
 }
 
 bool CustomController::set_impedance_config_(
-  const std::string& joint_name, double damping, double stiffness) const
+  const std::string& joint_name, double damping, double stiffness)
 {
   auto service_name = "/explorer_" + joint_name + "/mode";
   auto send_cmd_client =
@@ -525,7 +524,14 @@ void CustomController::write_effort_(ControllerJoint& joint)
   if (!is_command_ready_to_be_written_(joint, command_type)) return;
   auto joint_effort_command_control = joint.joint_command_map[command_type];
 
-  joint_effort_command_control.interface->set_value(joint_effort_command_control.command);
+  if (!joint_effort_command_control.interface->set_value(joint_effort_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint effort interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_effort_command_control.previous_command = joint_effort_command_control.command;
 }
 
@@ -557,7 +563,14 @@ void CustomController::write_position_(ControllerJoint& joint)
     }
   }
 
-  joint_position_command_control.interface->set_value(joint_position_command_control.command);
+  if (!joint_position_command_control.interface->set_value(joint_position_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint position interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_position_command_control.previous_command = joint_position_command_control.command;
 }
 
@@ -567,7 +580,14 @@ void CustomController::write_velocity_(ControllerJoint& joint)
   if (!is_command_ready_to_be_written_(joint, command_type)) return;
   auto joint_velocity_command_control = joint.joint_command_map[command_type];
 
-  joint_velocity_command_control.interface->set_value(joint_velocity_command_control.command);
+  if (!joint_velocity_command_control.interface->set_value(joint_velocity_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint velocity interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_velocity_command_control.previous_command = joint_velocity_command_control.command;
 }
 
