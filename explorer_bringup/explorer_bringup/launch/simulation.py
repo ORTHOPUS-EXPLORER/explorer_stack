@@ -108,6 +108,7 @@ def _declare_gazebo_node_list(gazebo_on_exit_node_list: List) -> List[Action]:
                             get_parameter_world_file(),
                         ]
                     ),
+                    " --physics-engine gz-physics-bullet-featherstone-plugin"
                 ],
                 "on_exit_shutdown": "true",
             }.items(),
