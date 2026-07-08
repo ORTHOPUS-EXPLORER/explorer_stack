@@ -6,17 +6,16 @@
 #ifndef CARTESIAN_CONTROLLER_INVERSE_KINEMATIC_H
 #define CARTESIAN_CONTROLLER_INVERSE_KINEMATIC_H
 
-#include "rclcpp/rclcpp.hpp"
-
 #include "explorer_controllers/qp_cartesian/types/joint_position.h"
 #include "explorer_controllers/qp_cartesian/types/joint_velocity.h"
 #include "explorer_controllers/qp_cartesian/types/space_position.h"
 #include "explorer_controllers/qp_cartesian/types/space_velocity.h"
+#include "rclcpp/rclcpp.hpp"
 
 // MoveIt!
-#include "moveit/robot_model/robot_model.h"
-#include "moveit/robot_model_loader/robot_model_loader.h"
-#include "moveit/robot_state/robot_state.h"
+#include <moveit/robot_model/robot_model.hpp>
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 
 // QPOASES
 #include "qpOASES/qpOASES.hpp"
@@ -53,9 +52,9 @@ public:
   InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_number);
   void init(const std::string end_effector_link, const double sampling_period);
   void reset();
-  void resolveInverseKinematic(JointVelocity& dq_computed,
-                          const SpaceVelocity& dx_desired, const SpacePosition& x_desired,
-                          bool path_tracking_mode, bool wheelchair);
+  void resolveInverseKinematic(
+    JointVelocity& dq_computed, const SpaceVelocity& dx_desired, const SpacePosition& x_desired,
+    bool path_tracking_mode, bool wheelchair);
   void setQCurrent(const JointPosition& q_current);
   void setXCurrent(const SpacePosition& x_current);
   void setPositionControlFrame(const ControlFrame frame);
@@ -109,34 +108,46 @@ private:
   int joint_centering_multiplier;
   int joint_2_limit_multiplier;
 
-  MatrixXd alpha_weight_;   /*!< Diagonal matrix which contains weight for space velocity minimization */
-  MatrixXd beta_weight_;    /*!< Diagonal matrix which contains weight for joint velocity minimization */
-  MatrixXd gamma_pos_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
-  MatrixXd gamma_or_weight_;   /*!< Diagonal matrix which contains weight for space position minimization */
-  MatrixXd joint_centering_weight_;   /*!< Diagonal matrix which contains weight for joint centering (keeping redundant joints near zero) */
+  MatrixXd
+    alpha_weight_; /*!< Diagonal matrix which contains weight for space velocity minimization */
+  MatrixXd
+    beta_weight_; /*!< Diagonal matrix which contains weight for joint velocity minimization */
+  MatrixXd
+    gamma_pos_weight_; /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd
+    gamma_or_weight_; /*!< Diagonal matrix which contains weight for space position minimization */
+  MatrixXd
+    joint_centering_weight_; /*!< Diagonal matrix which contains weight for joint centering (keeping redundant joints near zero) */
   MatrixXd lambda_weight_;   /*!< TODO */
 
-  double j5_alignment_threshold_;  /*!< Threshold for J5 angle below which joint centering is active */
-  double movement_detection_threshold_centering_;  /*!< Velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering) */
-  
+  double
+    j5_alignment_threshold_; /*!< Threshold for J5 angle below which joint centering is active */
+  double
+    movement_detection_threshold_centering_; /*!< Velocity magnitude threshold to detect intentional robot movement (for J4-J6 centering) */
+
   // Adaptive snap for drift prevention
-  bool enable_adaptive_snap_;                  /*!< Enable automatic snap update when QP cannot achieve commanded velocity */
-  double adaptive_snap_threshold_pos_;         /*!< Position velocity error threshold for adaptive snap (m/s) */
-  double adaptive_snap_threshold_or_;          /*!< Orientation velocity error threshold for adaptive snap */
-  int adaptive_snap_cycles_required_;          /*!< Number of consecutive cycles before snap update */
-  int adaptive_snap_counter_pos_;              /*!< Counter for sustained position sacrifice */
-  int adaptive_snap_counter_or_;               /*!< Counter for sustained orientation sacrifice */
-  int gamma_suppression_cycles_;               /*!< Number of cycles to suppress gamma term after adaptive snap */
-  int gamma_suppression_counter_pos_;          /*!< Countdown for gamma suppression after position snap */
-  int gamma_suppression_counter_or_;           /*!< Countdown for gamma suppression after orientation snap */
-  bool adaptive_snap_triggered_pos_;           /*!< Flag: adaptive snap occurred during current forcing period (position) */
-  bool adaptive_snap_triggered_or_;            /*!< Flag: adaptive snap occurred during current forcing period (orientation) */
-  double snap_input_threshold_;                /*!< Velocity threshold to detect joystick input for snap mechanism (accounts for smoothing) */
+  bool
+    enable_adaptive_snap_; /*!< Enable automatic snap update when QP cannot achieve commanded velocity */
+  double
+    adaptive_snap_threshold_pos_; /*!< Position velocity error threshold for adaptive snap (m/s) */
+  double adaptive_snap_threshold_or_; /*!< Orientation velocity error threshold for adaptive snap */
+  int adaptive_snap_cycles_required_; /*!< Number of consecutive cycles before snap update */
+  int adaptive_snap_counter_pos_;     /*!< Counter for sustained position sacrifice */
+  int adaptive_snap_counter_or_;      /*!< Counter for sustained orientation sacrifice */
+  int gamma_suppression_cycles_; /*!< Number of cycles to suppress gamma term after adaptive snap */
+  int gamma_suppression_counter_pos_; /*!< Countdown for gamma suppression after position snap */
+  int gamma_suppression_counter_or_;  /*!< Countdown for gamma suppression after orientation snap */
+  bool
+    adaptive_snap_triggered_pos_; /*!< Flag: adaptive snap occurred during current forcing period (position) */
+  bool
+    adaptive_snap_triggered_or_; /*!< Flag: adaptive snap occurred during current forcing period (orientation) */
+  double
+    snap_input_threshold_; /*!< Velocity threshold to detect joystick input for snap mechanism (accounts for smoothing) */
 
   qpOASES::SQProblem* QP_; /*!< QP solver instance pointer */
 
   moveit::core::RobotModelPtr kinematic_model_;      /*!< MoveIt RobotModel pointer */
-  moveit::core::RobotStatePtr kinematic_state_;     /*!< MoveIt RobotState pointer */
+  moveit::core::RobotStatePtr kinematic_state_;      /*!< MoveIt RobotState pointer */
   moveit::core::JointModelGroup* joint_model_group_; /*!< MoveIt JointModelGroup pointer */
 
   Quaterniond quat_des;
@@ -148,14 +159,15 @@ private:
   Matrix4d Rs_conj_;
 
   // Define the quaternion conjugate matrix such as r_conj = conjugate_mat * r
-  const Matrix4d CONJ_MAT = (Matrix4d() << 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1).finished();
+  const Matrix4d CONJ_MAT =
+    (Matrix4d() << 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1).finished();
 
   const double eps_pos = 0.001;
   const double eps_orientation = 0.001;
   const double inf = 10.0;
-  
+
   std::shared_ptr<rclcpp::ParameterEventHandler> param_subscriber_;
-  
+
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_alpha_weight;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_alpha_multiplier;
   std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_beta_weight;
@@ -172,13 +184,16 @@ private:
   void setAlphaWeight_(const std::vector<double>& alpha_weight, const int alpha_multiplier);
   void setBetaWeight_(const std::vector<double>& beta_weight, const int beta_multiplier);
   void setGammaWeight_(const std::vector<double>& gamma_weight, const int gamma_multiplier);
-  void setJointCenteringWeight_(const std::vector<double>& joint_centering_weight, const int joint_centering_multiplier);
+  void setJointCenteringWeight_(
+    const std::vector<double>& joint_centering_weight, const int joint_centering_multiplier);
   void setLambdaWeight_(const std::vector<double>& lambda_weight);
   void setDqBounds_(const JointVelocity& dq_bound);
 
-  void checkConstraintsDebug_(std::vector<double>& ubA, std::vector<double>& lbA, const MatrixXdRowMaj& A);
+  void checkConstraintsDebug_(
+    std::vector<double>& ubA, std::vector<double>& lbA, const MatrixXdRowMaj& A);
 
-  void computeVelocityInFrame_(SpaceVelocity& dx_desired_in_frame, const SpaceVelocity& dx_desired, const Matrix3d& R_0to1);
+  void computeVelocityInFrame_(
+    SpaceVelocity& dx_desired_in_frame, const SpaceVelocity& dx_desired, const Matrix3d& R_0to1);
   /*
   void computeHessianMatrix(MatrixXd& hessian, const MatrixXd& jacobian);
   void computeGradientVector(VectorXd& g, const MatrixXd& jacobian,
@@ -187,22 +202,24 @@ private:
   void computeConstrainVectors(std::vector<double>& lbA, std::vector<double>& ubA,
                                                 const double (&x_min_limit)[7], const double (&x_max_limit)[7]);
   */
-  void computeObjectives_(MatrixXd& hessian, VectorXd& g,
-                                const SpaceVelocity& dx_des, const SpacePosition& x_des,
-                                const MatrixXd& jacobian, bool path_tracking);
-  void computeConstraints_(MatrixXdRowMaj& A, std::vector<double>& lbA,
-                          std::vector<double>& ubA, const MatrixXd& jacobian, bool wheelchair);
+  void computeObjectives_(
+    MatrixXd& hessian, VectorXd& g, const SpaceVelocity& dx_des, const SpacePosition& x_des,
+    const MatrixXd& jacobian, bool path_tracking);
+  void computeConstraints_(
+    MatrixXdRowMaj& A, std::vector<double>& lbA, std::vector<double>& ubA, const MatrixXd& jacobian,
+    bool wheelchair);
   /**
   * \brief Compute jacobian
   *
   * This is an updated version of MoveIt (RobotState class) implementation with quaternion discontinuity handling.
   */
-  bool getJacobian_(const moveit::core::RobotStatePtr kinematic_state, const moveit::core::JointModelGroup* group,
-                    const moveit::core::LinkModel* link, const Vector3d& reference_point_position,
-                    MatrixXd& jacobian, bool use_quaternion_representation);
+  bool getJacobian_(
+    const moveit::core::RobotStatePtr kinematic_state, const moveit::core::JointModelGroup* group,
+    const moveit::core::LinkModel* link, const Vector3d& reference_point_position,
+    MatrixXd& jacobian, bool use_quaternion_representation);
 
   Matrix4d xR_(Quaterniond& quat);
   Matrix4d Rx_(Quaterniond& quat);
 };
-}
+}  // namespace space_control
 #endif

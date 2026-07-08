@@ -9,17 +9,15 @@
 #include "rclcpp/rclcpp.hpp"
 
 // MoveIt!
-#include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/robot_model/robot_model.h>
-#include <moveit/robot_state/robot_state.h>
-
-#include "geometry_msgs/msg/pose.hpp"
-#include "sensor_msgs/msg/joint_state.hpp"
-
-#include "explorer_controllers/qp_cartesian/types/joint_position.h"
-#include "explorer_controllers/qp_cartesian/types/space_position.h"
+#include <moveit/robot_model/robot_model.hpp>
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 
 #include "Eigen/Dense"
+#include "explorer_controllers/qp_cartesian/types/joint_position.h"
+#include "explorer_controllers/qp_cartesian/types/space_position.h"
+#include "geometry_msgs/msg/pose.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 namespace space_control
 {
@@ -45,5 +43,5 @@ private:
   moveit::core::RobotModelPtr kinematic_model_;
   moveit::core::RobotStatePtr kinematic_state_;
 };
-}
+}  // namespace space_control
 #endif
