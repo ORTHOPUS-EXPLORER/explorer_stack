@@ -19,6 +19,7 @@ from explorer_bringup.launch.hardware import declare_hardware_node_group
 from explorer_bringup.launch.hardware_parameters import declare_hardware_argument_list
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_debug,
     get_parameter_use_sim_time,
 )
 from explorer_bringup.launch.simulation import declare_simulation_node_group
@@ -63,13 +64,16 @@ def generate_launch_description():
             ),
             {
                 "use_sim_time": get_parameter_use_sim_time(),
-                "controller_position_topic_name": "/explorer_custom_controller/position/commands"
+                "controller_position_topic_name": "/explorer_custom_controller/position/commands",
+                "debug": get_parameter_debug(),
             },
-        ]
+        ],
     )
 
     robot_controller_list = [
-        *declare_custom_controller_spawner(robot_controller_config=robot_controller_config)
+        *declare_custom_controller_spawner(
+            robot_controller_config=robot_controller_config
+        )
     ]
 
     robot_simulation = declare_simulation_node_group(

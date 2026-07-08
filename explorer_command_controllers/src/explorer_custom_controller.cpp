@@ -103,17 +103,6 @@ bool CustomController::set_impedance_config_(
 
 controller_interface::CallbackReturn CustomController::on_init()
 {
-  if (
-    rcutils_logging_set_logger_level(
-      get_node()->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG))
-    RCLCPP_DEBUG(get_node()->get_logger(), "Set LOG_LEVEL to Debug");
-
-  RCLCPP_DEBUG(get_node()->get_logger(), "on_init");
-  print_joint_srv_ = get_node()->create_service<std_srvs::srv::Empty>(
-    "~/printJoints", [this](
-                       const std::shared_ptr<std_srvs::srv::Empty::Request>,
-                       std::shared_ptr<std_srvs::srv::Empty::Response>) { this->print_joints_(); });
-
   try
   {
     param_listener_ = std::make_shared<ParamListener>(get_node());
@@ -122,6 +111,17 @@ controller_interface::CallbackReturn CustomController::on_init()
   {
     std::cerr << "Exception thrown during init stage with message: " << e.what() << std::endl;
     return controller_interface::CallbackReturn::ERROR;
+  }
+
+  // Enable debug
+  if (params_.debug)
+  {
+    if (
+      rcutils_logging_set_logger_level(
+        get_node()->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
   }
 
   // Config : check if joints are given
@@ -265,6 +265,11 @@ controller_interface::CallbackReturn CustomController::on_configure(const rclcpp
 {
   init_ros_subscribers_();
 
+  print_joint_srv_ = get_node()->create_service<std_srvs::srv::Empty>(
+    "~/printJoints", [this](
+                       const std::shared_ptr<std_srvs::srv::Empty::Request>,
+                       std::shared_ptr<std_srvs::srv::Empty::Response>) { this->print_joints_(); });
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -297,7 +302,7 @@ controller_interface::InterfaceConfiguration CustomController::command_interface
       auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
       auto interface_name = build_interface_name(joint_name, interface_joint_type);
       interface_config.names.emplace_back(interface_name);
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         get_node()->get_logger(), "command_interface_configuration: Will try to claim '%s'",
         interface_name.c_str());
     }
@@ -320,7 +325,7 @@ controller_interface::InterfaceConfiguration CustomController::state_interface_c
       auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
       auto interface_name = build_interface_name(joint_name, interface_joint_type);
       interface_config.names.emplace_back(interface_name);
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         get_node()->get_logger(), "state_interface_configuration: Will try to claim '%s'",
         interface_name.c_str());
     }
@@ -464,7 +469,7 @@ controller_interface::return_type CustomController::update(
     }
     index++;
   }
-  return controller_interface::return_type::ERROR;
+  return controller_interface::return_type::OK;
 }
 
 bool CustomController::apply_joint_input_command_(

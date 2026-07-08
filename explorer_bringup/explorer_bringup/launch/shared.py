@@ -38,6 +38,7 @@ from explorer_bringup.launch.optional_parameters import (
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_debug,
     get_parameter_gui,
     get_parameter_robot_description,
     get_parameter_use_poc2,
@@ -61,7 +62,9 @@ def declare_node_robot_state_publisher() -> Node:
     )
 
 
-def declare_qp_solving_node_list(controller_position_topic_name: str, qp_solving_post_start_list: List[Action]):
+def declare_qp_solving_node_list(
+    controller_position_topic_name: str, qp_solving_post_start_list: List[Action]
+):
     robot_description = {
         "robot_description": ParameterValue(
             get_parameter_robot_description(), value_type=str
@@ -102,6 +105,7 @@ def declare_qp_solving_node_list(controller_position_topic_name: str, qp_solving
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             },
         ],
         condition=UnlessCondition(get_parameter_use_poc2()),
@@ -117,6 +121,7 @@ def declare_qp_solving_node_list(controller_position_topic_name: str, qp_solving
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             },
         ],
         condition=IfCondition(get_parameter_use_poc2()),
@@ -187,7 +192,12 @@ def declare_input_integrator_node(output: str = "log") -> Node:
         executable="input_integrator",
         name="input_integrator",
         output=output,
-        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+        parameters=[
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "debug": get_parameter_debug(),
+            }
+        ],
     )
 
 
@@ -203,6 +213,7 @@ def declare_output_integrator_node(
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             }
         ],
     )
@@ -233,6 +244,7 @@ def declare_command_node(
                 "active_trajectory": trajectory,
                 "default_controller_name": default_controller_name,
                 "default_controller_position_topic_name": default_controller_position_topic_name,
+                "debug": get_parameter_debug(),
             }
         ],
         remappings=remappings,

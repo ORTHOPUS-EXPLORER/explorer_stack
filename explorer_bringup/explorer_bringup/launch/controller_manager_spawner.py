@@ -24,7 +24,10 @@ from launch.actions import ExecuteProcess, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
 
-from explorer_bringup.launch.shared_parameters import get_parameter_simulation
+from explorer_bringup.launch.shared_parameters import (
+    get_parameter_debug,
+    get_parameter_simulation,
+)
 
 
 def declare_node_joint_state_broadcaster_spawner(output: str = "log") -> Node:
@@ -84,6 +87,7 @@ def declare_custom_controller_spawner(
 
         # Modify simulation parameter
         config["explorer_custom_controller"]["ros__parameters"]["simulation"] = get_parameter_simulation().perform(context).lower() == "true"
+        config["explorer_custom_controller"]["ros__parameters"]["debug"] = get_parameter_debug().perform(context).lower() == "true"
 
         # Write temporary config
         tmp_file = tempfile.NamedTemporaryFile(
@@ -104,7 +108,7 @@ def declare_custom_controller_spawner(
                 "--controller-manager",
                 "/controller_manager",
                 "-p",
-                tmp_file.name,
+                tmp_file.name
             ],
         )
 

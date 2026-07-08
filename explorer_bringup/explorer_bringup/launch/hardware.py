@@ -33,6 +33,7 @@ from explorer_bringup.launch.shared import (
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_debug,
     get_parameter_simulation,
 )
 
@@ -50,7 +51,12 @@ def _declare_node_controller_manager_control_node(
     return Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[controller_config_path],
+        parameters=[
+            controller_config_path,
+            {
+                "debug": get_parameter_debug(),
+            },
+        ],
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),

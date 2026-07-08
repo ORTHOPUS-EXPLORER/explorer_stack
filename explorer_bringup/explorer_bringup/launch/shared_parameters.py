@@ -44,6 +44,11 @@ def declare_shared_argument_list(
             description="CAN Port for VESC Communication",
         ),
         DeclareLaunchArgument(
+            "debug",
+            default_value="false",
+            description="Enable / disable debug log",
+        ),
+        DeclareLaunchArgument(
             "gui",
             default_value="true",
             description="Start RVIZ2 and the Gazebo client automatically with this launch file.",
@@ -98,6 +103,8 @@ def declare_shared_argument_list(
                     get_parameter_use_poc2(),
                     " robot_controller_config:=",
                     robot_controller_config,
+                    " debug:=",
+                    get_parameter_debug()
                 ]
             ),
             description="Robot description (URDF) evaluated from xacro",
@@ -121,6 +128,15 @@ def get_parameter_can_port() -> LaunchConfiguration:
         LaunchConfiguration: can_port
     """
     return LaunchConfiguration("can_port")
+
+
+def get_parameter_debug() -> LaunchConfiguration:
+    """Get ros2 parameter "debug".
+
+    Returns:
+        LaunchConfiguration: debug
+    """
+    return LaunchConfiguration("debug")
 
 
 def get_parameter_gui() -> LaunchConfiguration:

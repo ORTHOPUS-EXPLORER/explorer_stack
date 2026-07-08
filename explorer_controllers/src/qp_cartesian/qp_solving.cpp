@@ -1,5 +1,7 @@
 
 #include "explorer_controllers/qp_cartesian/qp_solving.h"
+#include <stdexcept>
+#include <system_error>
 
 namespace space_control
 {
@@ -27,7 +29,13 @@ QPSolving::QPSolving(rclcpp::Node::SharedPtr n)
   go_J5_zero_(false),
   go_J6_zero_(false)
 {
-  rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
+  auto debug_enabled = n_->get_parameter("debug").as_bool();
+  if (debug_enabled) {
+    if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
+  }
 
   // init node parameters
   controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();

@@ -5,7 +5,14 @@ namespace space_control
 JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
 : n_(n), sampling_period_(0.02), init(false), q_lower_limit_(7), q_upper_limit_(7), q_has_limit_(6)
 {
-  rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
+  auto debug_enabled = n_->get_parameter("debug").as_bool();
+  if (debug_enabled)
+  {
+    if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
+  }
 
   // init node parameters
   controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();

@@ -30,7 +30,14 @@ InverseKinematic::InverseKinematic(rclcpp::Node::SharedPtr n, const int joint_nu
   q_has_limit_(joint_number),
   prev_dq_computed_(joint_number)
 {
-  //rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
+  auto debug_enabled = n_->get_parameter("debug").as_bool();
+  if (debug_enabled)
+  {
+    if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
+  }
   RCLCPP_DEBUG_STREAM(n_->get_logger(), "InverseKinematic constructor");
 
   n_->get_parameter("alpha_multiplier", alpha_multiplier);

@@ -16,20 +16,24 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+from explorer_bringup.explorer_bringup.launch.shared_parameters import (
+    get_parameter_debug,
+)
 
 
 def generate_launch_description():
     # Initialize Arguments
-        # Common
+    # Common
     gui = LaunchConfiguration("gui")
     poc2 = LaunchConfiguration("use_POC2")
-        # Simulation
-    simulation = LaunchConfiguration('simulation')
-    use_sim_time = LaunchConfiguration('use_sim_time')
-        # Real hardware
+    # Simulation
+    simulation = LaunchConfiguration("simulation")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    # Real hardware
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
 
@@ -52,15 +56,17 @@ def generate_launch_description():
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            'simulation',
-            default_value='true',
-            description='If true, use simulation (Gazebo), if false use real hardware')
+            "simulation",
+            default_value="true",
+            description="If true, use simulation (Gazebo), if false use real hardware",
+        )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='true',
-            description='If true, use simulated clock. Auto-set based on simulation mode if not specified')
+            "use_sim_time",
+            default_value="true",
+            description="If true, use simulated clock. Auto-set based on simulation mode if not specified",
+        )
     )
 
     declared_arguments.append(
@@ -78,36 +84,33 @@ def generate_launch_description():
         )
     )
 
-
     # Include robot simulation (when simulation=true)
     robot_simulation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/simulation_base.launch.py"
-        ]),
+        PythonLaunchDescriptionSource(
+            [FindPackageShare("explorer_bringup"), "/launch/simulation_base.launch.py"]
+        ),
         launch_arguments={
-            'use_POC2': poc2,
-            'gui': gui,
-            'rviz_delay': '5.0',
-            'use_sim_time': use_sim_time,
+            "use_POC2": poc2,
+            "gui": gui,
+            "rviz_delay": "5.0",
+            "use_sim_time": use_sim_time,
         }.items(),
-        condition=IfCondition(simulation)
+        condition=IfCondition(simulation),
     )
 
     # Include robot hardware (when simulation=false)
     robot_hardware = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/hardware_base.launch.py"
-        ]),
+        PythonLaunchDescriptionSource(
+            [FindPackageShare("explorer_bringup"), "/launch/hardware_base.launch.py"]
+        ),
         launch_arguments={
-            'use_POC2': poc2,
-            'gui': gui,
-            'rviz_delay': '5.0',
-            'can_port': can_port,
-            'host_id': host_id,
+            "use_POC2": poc2,
+            "gui": gui,
+            "rviz_delay": "5.0",
+            "can_port": can_port,
+            "host_id": host_id,
         }.items(),
-        condition=UnlessCondition(simulation)
+        condition=UnlessCondition(simulation),
     )
 
     config_POC1 = PathJoinSubstitution(
@@ -123,7 +126,7 @@ def generate_launch_description():
         executable="joint_output_integrator",
         parameters=[
             config_POC1,
-            {'use_sim_time': use_sim_time}
+            {"use_sim_time": use_sim_time, "debug": get_parameter_debug()},
         ],
         condition=UnlessCondition(poc2),
     )
@@ -133,25 +136,30 @@ def generate_launch_description():
         executable="joint_output_integrator",
         parameters=[
             config_POC2,
-            {'use_sim_time': use_sim_time}
+            {"use_sim_time": use_sim_time, "debug": get_parameter_debug()},
         ],
         condition=IfCondition(poc2),
     )
 
     # Declare GUI controller node
     gui_control_node = Node(
-        package='explorer_user_interfaces',
-        executable='rqt_jointcontrol',
+        package="explorer_user_interfaces",
+        executable="rqt_jointcontrol",
         remappings=[
-            ( '/explorer_user_interfaces/rqt_jointcontrol/dq_output', '/explorer_controllers/qp_solving/dq_output'),
-        ]
+            (
+                "/explorer_user_interfaces/rqt_jointcontrol/dq_output",
+                "/explorer_controllers/qp_solving/dq_output",
+            ),
+        ],
     )
 
-    joystick_yaml_file_path = PathJoinSubstitution([
-        FindPackageShare("explorer_input_devices"),
-        "config",
-        "xbox_gamepad_settings.yaml",
-    ])
+    joystick_yaml_file_path = PathJoinSubstitution(
+        [
+            FindPackageShare("explorer_input_devices"),
+            "config",
+            "xbox_gamepad_settings.yaml",
+        ]
+    )
 
     joy_node = Node(
         package="joy",
@@ -164,8 +172,11 @@ def generate_launch_description():
         package="explorer_input_devices",
         executable="xbox_gamepad_joint",
         remappings=[
-            ( '/explorer_input_devices/xbox_gamepad_joint/dq_output', '/explorer_controllers/qp_solving/dq_output'),
-        ]
+            (
+                "/explorer_input_devices/xbox_gamepad_joint/dq_output",
+                "/explorer_controllers/qp_solving/dq_output",
+            ),
+        ],
     )
 
     nodes = [
