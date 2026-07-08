@@ -1,22 +1,27 @@
-import os
-import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.actions import RegisterEventHandler, TimerAction
-from launch.event_handlers import OnProcessExit
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+    TimerAction,
+)
 from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import launch_ros.actions
 
 
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time', default=True)
+    use_sim_time = LaunchConfiguration("use_sim_time", default=True)
     # Declare arguments
     declared_arguments = []
     declared_arguments.append(
@@ -27,24 +32,31 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-    DeclareLaunchArgument(
-            'use_sim_time',
+        DeclareLaunchArgument(
+            "use_sim_time",
             default_value=use_sim_time,
-            description='If true, use simulated clock')
+            description="If true, use simulated clock",
+        )
     )
 
     ignition_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={'gz_args': ['-r -s -v4 empty.sdf'], 'on_exit_shutdown': 'true'}.items()
+        launch_arguments={
+            "gz_args": [
+                # Change physics engine plugin otherwise there is error while creating mimic constraint
+                "-r -s -v4 empty.sdf --physics-engine gz-physics-bullet-featherstone-plugin"
+            ],
+            "on_exit_shutdown": "true",
+        }.items(),
     )
 
     ignition_client = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [FindPackageShare("ros_gz_sim"), "/launch/gz_sim.launch.py"]
         ),
-        launch_arguments={'gz_args': '-g -v4 '}.items()
+        launch_arguments={"gz_args": "-g -v4 "}.items(),
     )
 
     # Get URDF via xacro
@@ -53,16 +65,24 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_actuator"), "description/urdf", "actuator.urdf.xacro"]
+                [
+                    FindPackageShare("ros2_control_actuator"),
+                    "description/urdf",
+                    "actuator.urdf.xacro",
+                ]
             ),
             " ",
             "use_ignition:=true",
         ]
     )
     robot_description = {"robot_description": robot_description_content}
-    
+
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ros2_control_actuator"), "description/rviz", "view_actuator.rviz"]
+        [
+            FindPackageShare("ros2_control_actuator"),
+            "description/rviz",
+            "view_actuator.rviz",
+        ]
     )
 
     node_robot_state_publisher = Node(
@@ -89,13 +109,21 @@ def generate_launch_description():
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager",
+            "/controller_manager",
+        ],
     )
 
     actuator_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        arguments=[
+            "forward_position_controller",
+            "--controller-manager",
+            "/controller_manager",
+        ],
     )
 
     joint_controller_node = Node(
@@ -121,43 +149,43 @@ def generate_launch_description():
 
     # Declare GUI controller node
     gui_control_node = Node(
-        package='explorer_user_interfaces',
-        executable='rqt_actuatorcontrol',
+        package="explorer_user_interfaces",
+        executable="rqt_actuatorcontrol",
     )
 
-    delayed_rviz = TimerAction(period=5.0,actions=[rviz_node])
+    delayed_rviz = TimerAction(period=5.0, actions=[rviz_node])
 
     register_event_handler = []
     register_event_handler.append(
         RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=gz_spawn_entity,
-                    on_exit=[joint_state_broadcaster_spawner],
-                )
+            event_handler=OnProcessExit(
+                target_action=gz_spawn_entity,
+                on_exit=[joint_state_broadcaster_spawner],
+            )
         )
     )
     register_event_handler.append(
         RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=joint_state_broadcaster_spawner,
-                    on_exit=[actuator_controller_spawner],
-                )
+            event_handler=OnProcessExit(
+                target_action=joint_state_broadcaster_spawner,
+                on_exit=[actuator_controller_spawner],
+            )
         )
     )
     register_event_handler.append(
         RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=actuator_controller_spawner,
-                    on_exit=[joint_controller_node],
-                )
+            event_handler=OnProcessExit(
+                target_action=actuator_controller_spawner,
+                on_exit=[joint_controller_node],
+            )
         )
     )
     register_event_handler.append(
         RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=actuator_controller_spawner,
-                    on_exit=[delayed_rviz],
-                )
+            event_handler=OnProcessExit(
+                target_action=actuator_controller_spawner,
+                on_exit=[delayed_rviz],
+            )
         )
     )
 

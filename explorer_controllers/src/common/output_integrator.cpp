@@ -2,450 +2,583 @@
 
 namespace space_control
 {
-    OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
-    : n_(n), sampling_period_(0.02), error_(false), call_service_attempt_(0), init_attempt_(0), success_init_(false), go_home_(false), go_zero_(false), go_J1_zero_(false), go_J2_zero_(false), go_J3_zero_(false), go_J4_zero_(false), go_J5_zero_(false), go_J6_zero_(false), reset_(false)
+OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
+: n_(n),
+  sampling_period_(0.02),
+  error_(false),
+  call_service_attempt_(0),
+  init_attempt_(0),
+  success_init_(false),
+  go_home_(false),
+  go_zero_(false),
+  go_J1_zero_(false),
+  go_J2_zero_(false),
+  go_J3_zero_(false),
+  go_J4_zero_(false),
+  go_J5_zero_(false),
+  go_J6_zero_(false),
+  reset_(false)
+{
+  auto debug_enabled = n_->get_parameter("debug").as_bool();
+  if (debug_enabled)
+  {
+    if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
     {
-        rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
-        //init settings
-        dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        gripper_vel_.data = 0.0;
-        q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        gripper_command_.data = {0.5};
-
-        q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-        // init node parameters
-        n_->declare_parameter<std::string>("controller_position_topic_name", "");
-
-        controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();
-        if (controller_position_topic_name_.empty()) {
-            throw std::runtime_error(
-                "Parameter 'controller_position_topic_name' is required");
-        }
-
-        //init suscriber
-        dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output_, this, std::placeholders::_1));
-        gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 10, std::bind(&OutputIntegrator::callback_gripper_vel_, this, std::placeholders::_1));
-        home_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10, std::bind(&OutputIntegrator::callback_home_, this, std::placeholders::_1));
-        zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10, std::bind(&OutputIntegrator::callback_zero_, this, std::placeholders::_1));
-        J1_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J1_zero_, this, std::placeholders::_1));
-        J2_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J2_zero_, this, std::placeholders::_1));
-        J3_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J3_zero_, this, std::placeholders::_1));
-        J4_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J4_zero_, this, std::placeholders::_1));
-        J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero_, this, std::placeholders::_1));
-        J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero_, this, std::placeholders::_1));
-        reset_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10, std::bind(&OutputIntegrator::callback_reset_, this, std::placeholders::_1));
-
-        q_init_client_ = n_->create_client<explorer_msgs::srv::Float64>("/explorer_controllers/qp_solving/q_init");
-
-        //init publisher
-        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
-        gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
-
-        auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
-
-        while(init_attempt_< 100000 && call_service_attempt_< 100000 && success_init_ == false){
-        request->ready = true;
-        
-            while (!q_init_client_->wait_for_service(1s) && error_ == false && call_service_attempt_ < 100000) {
-                if (!rclcpp::ok()) {
-                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-                    error_ = true;
-
-                }
-                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-                call_service_attempt_ += 1;
-            }
-
-            if(call_service_attempt_ <= 100000){
-                RCLCPP_INFO_ONCE(rclcpp::get_logger("rclcpp"), "service available");
-                auto result = q_init_client_->async_send_request(request);
-                if (rclcpp::spin_until_future_complete(n_, result) ==
-                    rclcpp::FutureReturnCode::SUCCESS)
-                {
-                    auto copy_result = result.get();
-                    if(copy_result.get()->code_error == 0){
-                        q_init_ = copy_result.get()->data;
-                        success_init_ = true;
-                        RCLCPP_INFO(n_->get_logger(), "output_integrator_initialized");
-                    }
-                    else{
-                        init_attempt_ += 1;
-                        //RCLCPP_INFO_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
-                        //RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
-                    }
-                
-                } else {
-                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
-                }
-            }
-            else{
-                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
-            }
-        }
-        if( init_attempt_>= 100000){
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
-            exit(0);
-        }
-
-        for(int i=0; i< 6; i++){
-            q_command_.data[i] = q_init_[i];
-        }
-
-        timer_ = n_->create_wall_timer(20ms, std::bind(&OutputIntegrator::timer_callback_, this));
-
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
     }
+  }
+  //init settings
+  dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  gripper_vel_.data = 0.0;
+  q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
+  q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-    void OutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray & msg)
-    {   
-       dq_output_.data = msg.data;   
-    }
+  // init node parameters
+  n_->declare_parameter<std::string>("controller_position_topic_name", "");
 
-    void OutputIntegrator::callback_gripper_vel_(const std_msgs::msg::Float64 & msg)
-    {   
-        gripper_vel_.data = msg.data;
-    }
+  controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();
+  if (controller_position_topic_name_.empty())
+  {
+    throw std::runtime_error("Parameter 'controller_position_topic_name' is required");
+  }
 
-    void OutputIntegrator::callback_home_(const std_msgs::msg::Bool & msg)
-    {   
-        go_home_ = msg.data;
-    }
+  //init suscriber
+  dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>(
+    "/explorer_controllers/qp_solving/dq_output", 10,
+    std::bind(&OutputIntegrator::callback_dq_output_, this, std::placeholders::_1));
+  gripper_pos_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+    "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 10,
+    std::bind(&OutputIntegrator::callback_gripper_vel_, this, std::placeholders::_1));
+  home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10,
+    std::bind(&OutputIntegrator::callback_home_, this, std::placeholders::_1));
+  zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_zero_, this, std::placeholders::_1));
+  J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J1_zero_, this, std::placeholders::_1));
+  J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J2_zero_, this, std::placeholders::_1));
+  J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J3_zero_, this, std::placeholders::_1));
+  J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J4_zero_, this, std::placeholders::_1));
+  J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J5_zero_, this, std::placeholders::_1));
+  J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10,
+    std::bind(&OutputIntegrator::callback_J6_zero_, this, std::placeholders::_1));
+  reset_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
+    "/command_node/reset_qp_solving", 10,
+    std::bind(&OutputIntegrator::callback_reset_, this, std::placeholders::_1));
 
-    void OutputIntegrator::callback_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_zero_ = msg.data;
-    }
-    
-    void OutputIntegrator::callback_J1_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J1_zero_ = msg.data;
-    }
-    
-    void OutputIntegrator::callback_J2_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J2_zero_ = msg.data;
-    }
+  q_init_client_ =
+    n_->create_client<explorer_msgs::srv::Float64>("/explorer_controllers/qp_solving/q_init");
 
-    void OutputIntegrator::callback_J3_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J3_zero_ = msg.data;
-    }
-    
-    void OutputIntegrator::callback_J4_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J4_zero_ = msg.data;
-    }
+  //init publisher
+  command_pub_ =
+    n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
 
-    void OutputIntegrator::callback_J5_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J5_zero_ = msg.data;
-    }
-    
-    void OutputIntegrator::callback_J6_zero_(const std_msgs::msg::Bool & msg)
-    {   
-        go_J6_zero_ = msg.data;
-    }
+  auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
 
+  while (init_attempt_ < 100000 && call_service_attempt_ < 100000 && success_init_ == false)
+  {
+    request->ready = true;
 
-    void OutputIntegrator::timer_callback_()
+    while (!q_init_client_->wait_for_service(1s) && error_ == false &&
+           call_service_attempt_ < 100000)
     {
-        if(reset_){
-            return;
-        }
-
-        if(go_home_ == true){
-            home_(); 
-        }
-
-        if(go_zero_ == true){
-            zero_(); 
-        }
-
-        if(go_J1_zero_ == true){
-            if(q_command_.data[0] < -0.001){
-                if(q_command_.data[0] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[0] = 0.5;
-                }
-                else if (q_command_.data[0] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[0] =  q_command_.data[0]/sampling_period_;
-                }
-            }else if(q_command_.data[0] > 0.001){
-                if(q_command_.data[0] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[0] = - 0.5;
-                }
-                else if (q_command_.data[0] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[0] =  -q_command_.data[0]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[0] = 0.0;
-            } 
-        }
-
-        if(go_J2_zero_ == true){
-            if(q_command_.data[1] < -0.001){
-                if(q_command_.data[1] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[1] = 0.5;
-                }
-                else if (q_command_.data[1] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[1] =  q_command_.data[1]/sampling_period_;
-                }
-            }else if(q_command_.data[1] > 0.001){
-                if(q_command_.data[1] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[1] = - 0.5;
-                }
-                else if (q_command_.data[1] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[1] =  -q_command_.data[1]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[1] = 0.0;
-            } 
-        }
-        if(go_J3_zero_ == true){
-            if(q_command_.data[2] < -0.001){
-                if(q_command_.data[2] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[2] = 0.5;
-                }
-                else if (q_command_.data[2] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[2] =  q_command_.data[2]/sampling_period_;
-                }
-            }else if(q_command_.data[2] > 0.001){
-                if(q_command_.data[2] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[2] = - 0.5;
-                }
-                else if (q_command_.data[2] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[2] =  -q_command_.data[2]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[2] = 0.0;
-            } 
-        }
-
-        if(go_J4_zero_ == true){
-            if(q_command_.data[3] < -0.001){
-                if(q_command_.data[3] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[3] = 0.5;
-                }
-                else if (q_command_.data[3] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[3] =  q_command_.data[3]/sampling_period_;
-                }
-            }else if(q_command_.data[3] > 0.001){
-                if(q_command_.data[3] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[3] = - 0.5;
-                }
-                else if (q_command_.data[3] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[3] =  -q_command_.data[3]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[3] = 0.0;
-            } 
-        }
-        if(go_J5_zero_ == true){
-            if(q_command_.data[4] < -0.001){
-                if(q_command_.data[4] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[4] = 0.5;
-                }
-                else if (q_command_.data[4] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[4] =  q_command_.data[4]/sampling_period_;
-                }
-            }else if(q_command_.data[4] > 0.001){
-                if(q_command_.data[4] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[4] = - 0.5;
-                }
-                else if (q_command_.data[4] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[4] =  -q_command_.data[4]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[4] = 0.0;
-            } 
-        }
-
-        if(go_J6_zero_ == true){
-            if(q_command_.data[5] < -0.001){
-                if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
-                    dq_output_.data[5] = 0.5;
-                }
-                else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0) {
-                    dq_output_.data[5] =  q_command_.data[5]/sampling_period_;
-                }
-            }else if(q_command_.data[5] > 0.001){
-                if(q_command_.data[5] - 0.5 * sampling_period_ >= 0.0){
-                    dq_output_.data[5] = - 0.5;
-                }
-                else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0) {
-                    dq_output_.data[5] =  -q_command_.data[5]/sampling_period_;
-                }
-            }else{
-                dq_output_.data[5] = 0.0;
-            } 
-        }
-
-        for(int i=0; i< 6; i++){
-                q_command_.data[i] = q_command_.data[i] + dq_output_.data[i] * sampling_period_;
-                //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
-        }
-        
-        gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
-        if(gripper_command_.data[0]<= 0.0){
-            gripper_command_.data[0] = 0.0;
-        }
-        else if(gripper_command_.data[0]>= 1.0){
-            gripper_command_.data[0] = 1.0;
-        }
-
-        command_pub_->publish(q_command_);
-        gripper_command_pub_->publish(gripper_command_);
+      if (!rclcpp::ok())
+      {
+        RCLCPP_ERROR(
+          rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+        error_ = true;
+      }
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+      call_service_attempt_ += 1;
     }
 
-    void OutputIntegrator::home_()
+    if (call_service_attempt_ <= 100000)
     {
-        double x[6] = {0.0 , 0.436332, 1.48353, 0.0, -0.523599, 0.0};
-
-        if(q_command_.data[5] < (x[5] - 0.001)){
-            if(q_command_.data[5] + 0.5 * sampling_period_ <= x[5]){
-                dq_output_.data[5] = 0.5;
-            }
-            else if (q_command_.data[5] + 0.5 * sampling_period_ > x[5]) {
-                dq_output_.data[5] = (x[5] - q_command_.data[5])/sampling_period_;
-            }
-        }else if(q_command_.data[5] > (x[5] + 0.001)){
-            if(q_command_.data[5] - 0.5 * sampling_period_ >= x[5]){
-                dq_output_.data[5] = - 0.5;
-            }
-            else if (q_command_.data[5] - 0.5 * sampling_period_ < x[5]) {
-                dq_output_.data[5] = (x[5] - q_command_.data[5])/(sampling_period_);
-            }
-        }else{
-            dq_output_.data[5] = 0.0;
+      RCLCPP_INFO_ONCE(rclcpp::get_logger("rclcpp"), "service available");
+      auto result = q_init_client_->async_send_request(request);
+      if (rclcpp::spin_until_future_complete(n_, result) == rclcpp::FutureReturnCode::SUCCESS)
+      {
+        auto copy_result = result.get();
+        if (copy_result.get()->code_error == 0)
+        {
+          q_init_ = copy_result.get()->data;
+          success_init_ = true;
+          RCLCPP_INFO(n_->get_logger(), "output_integrator_initialized");
         }
-
-        for(int i=4; i >= 0; i--){
-            if(q_command_.data[i+1] <= (x[i+1] + 0.001) && q_command_.data[i+1] >= (x[i+1] - 0.001)){
-                if(q_command_.data[i] < (x[i] - 0.001)){
-                    if(q_command_.data[i] + 0.5 * sampling_period_ <= x[i]){
-                        dq_output_.data[i] = 0.5;
-                    }
-                    else if (q_command_.data[i] + 0.5 * sampling_period_ > x[i]) {
-                        dq_output_.data[i] =  (x[i] - q_command_.data[i])/sampling_period_;
-                    }
-                }else if(q_command_.data[i] > (x[i] + 0.001)){
-                    if(q_command_.data[i] - 0.5 * sampling_period_ >= x[i]){
-                        dq_output_.data[i] = - 0.5;
-                    }
-                    else if (q_command_.data[i] - 0.5 * sampling_period_ < x[i] ) {
-                        dq_output_.data[i] =  (x[i] - q_command_.data[i])/(sampling_period_);
-                    }
-                }else{
-                    dq_output_.data[i] = 0.0;
-                }
-            }
-            else{
-                dq_output_.data[i] = 0.0;
-            }
+        else
+        {
+          init_attempt_ += 1;
+          //RCLCPP_INFO_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
+          //RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
         }
+      }
+      else
+      {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
+      }
     }
-
-    void OutputIntegrator::zero_()
+    else
     {
-        if(q_command_.data[5] < -0.001){
-            if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
-                dq_output_.data[5] = 0.5;
-            }
-            else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0) {
-                dq_output_.data[5] = -q_command_.data[5]/sampling_period_;
-            }
-        }else if(q_command_.data[5] > 0.001){
-            if(q_command_.data[5] - 0.5 * sampling_period_ >= 0.0){
-                dq_output_.data[5] = - 0.5;
-            }
-            else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0) {
-                dq_output_.data[5] = -q_command_.data[5]/sampling_period_;
-            }
-        }else{
-            dq_output_.data[5] = 0.0;
-        }
-
-        for(int i=4; i >= 0; i--){
-            if(q_command_.data[i+1] <= 0.001 && q_command_.data[i+1] >= -0.001){
-                if(q_command_.data[i] < -0.001){
-                    if(q_command_.data[i] + 0.5 * sampling_period_ <= 0.0){
-                        dq_output_.data[i] = 0.5;
-                    }
-                    else if (q_command_.data[i] + 0.5 * sampling_period_ > 0.0) {
-                        dq_output_.data[i] = -q_command_.data[i]/sampling_period_;
-                    }
-                }else if(q_command_.data[i] > 0.001){
-                    if(q_command_.data[i] - 0.5 * sampling_period_ >= 0.0){
-                        dq_output_.data[i] = - 0.5;
-                    }
-                    else if (q_command_.data[i] - 0.5 * sampling_period_ < 0.0) {
-                        dq_output_.data[i] = -q_command_.data[i]/sampling_period_;
-                    }
-                }else{
-                    dq_output_.data[i] = 0.0;
-                }
-            }
-            else{
-                dq_output_.data[i] = 0.0;
-            }
-        }
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
     }
+  }
+  if (init_attempt_ >= 100000)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
+    exit(0);
+  }
 
-    void OutputIntegrator::callback_reset_(const std_msgs::msg::Bool & msg)
-    {
-        if (!msg.data || reset_) {
-            return;
-        }
+  for (int i = 0; i < 6; i++)
+  {
+    q_command_.data[i] = q_init_[i];
+  }
 
-        reset_ = true;
-
-        RCLCPP_INFO(n_->get_logger(), "Resetting output integrator...");
-
-        auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
-        request->ready = true;
-
-        q_init_client_->async_send_request(
-            request,
-            std::bind(
-                &OutputIntegrator::callback_reset_response_,
-                this,
-                std::placeholders::_1)
-        );
-    }
-
-    void OutputIntegrator::callback_reset_response_(
-        rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future)
-    {
-        auto result = future.get();
-    
-        if (result->code_error == 0) {
-            q_init_ = result->data;
-    
-            for (int i = 0; i < 6; i++) {
-                q_command_.data[i] = q_init_[i];
-            }
-    
-            RCLCPP_INFO(n_->get_logger(), "Output integrator reset successful");
-        } else {
-            RCLCPP_ERROR(n_->get_logger(), "Reset failed: code_error = %ld",
-                         result->code_error);
-        }
-    
-        reset_ = false;
-    }
-
+  timer_ = n_->create_wall_timer(20ms, std::bind(&OutputIntegrator::timer_callback_, this));
 }
 
-using namespace space_control;
-int main(int argc, char * argv[])
+void OutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg)
 {
-    rclcpp::init(argc, argv);
-    rclcpp::NodeOptions node_options;
-    
-    auto n = rclcpp::Node::make_shared("output_integrator", node_options);
+  dq_output_.data = msg.data;
+}
 
-    OutputIntegrator output_integrator(n);
+void OutputIntegrator::callback_gripper_vel_(const std_msgs::msg::Float64& msg)
+{
+  gripper_vel_.data = msg.data;
+}
 
-    rclcpp::spin(n);
-    rclcpp::shutdown();
-    return 0;
+void OutputIntegrator::callback_home_(const std_msgs::msg::Bool& msg) { go_home_ = msg.data; }
+
+void OutputIntegrator::callback_zero_(const std_msgs::msg::Bool& msg) { go_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J1_zero_(const std_msgs::msg::Bool& msg) { go_J1_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J2_zero_(const std_msgs::msg::Bool& msg) { go_J2_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J3_zero_(const std_msgs::msg::Bool& msg) { go_J3_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J4_zero_(const std_msgs::msg::Bool& msg) { go_J4_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J5_zero_(const std_msgs::msg::Bool& msg) { go_J5_zero_ = msg.data; }
+
+void OutputIntegrator::callback_J6_zero_(const std_msgs::msg::Bool& msg) { go_J6_zero_ = msg.data; }
+
+void OutputIntegrator::timer_callback_()
+{
+  if (reset_)
+  {
+    return;
+  }
+
+  if (go_home_ == true)
+  {
+    home_();
+  }
+
+  if (go_zero_ == true)
+  {
+    zero_();
+  }
+
+  if (go_J1_zero_ == true)
+  {
+    if (q_command_.data[0] < -0.001)
+    {
+      if (q_command_.data[0] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[0] = 0.5;
+      }
+      else if (q_command_.data[0] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[0] = q_command_.data[0] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[0] > 0.001)
+    {
+      if (q_command_.data[0] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[0] = -0.5;
+      }
+      else if (q_command_.data[0] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[0] = -q_command_.data[0] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[0] = 0.0;
+    }
+  }
+
+  if (go_J2_zero_ == true)
+  {
+    if (q_command_.data[1] < -0.001)
+    {
+      if (q_command_.data[1] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[1] = 0.5;
+      }
+      else if (q_command_.data[1] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[1] = q_command_.data[1] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[1] > 0.001)
+    {
+      if (q_command_.data[1] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[1] = -0.5;
+      }
+      else if (q_command_.data[1] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[1] = -q_command_.data[1] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[1] = 0.0;
+    }
+  }
+  if (go_J3_zero_ == true)
+  {
+    if (q_command_.data[2] < -0.001)
+    {
+      if (q_command_.data[2] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[2] = 0.5;
+      }
+      else if (q_command_.data[2] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[2] = q_command_.data[2] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[2] > 0.001)
+    {
+      if (q_command_.data[2] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[2] = -0.5;
+      }
+      else if (q_command_.data[2] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[2] = -q_command_.data[2] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[2] = 0.0;
+    }
+  }
+
+  if (go_J4_zero_ == true)
+  {
+    if (q_command_.data[3] < -0.001)
+    {
+      if (q_command_.data[3] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[3] = 0.5;
+      }
+      else if (q_command_.data[3] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[3] = q_command_.data[3] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[3] > 0.001)
+    {
+      if (q_command_.data[3] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[3] = -0.5;
+      }
+      else if (q_command_.data[3] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[3] = -q_command_.data[3] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[3] = 0.0;
+    }
+  }
+  if (go_J5_zero_ == true)
+  {
+    if (q_command_.data[4] < -0.001)
+    {
+      if (q_command_.data[4] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[4] = 0.5;
+      }
+      else if (q_command_.data[4] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[4] = q_command_.data[4] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[4] > 0.001)
+    {
+      if (q_command_.data[4] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[4] = -0.5;
+      }
+      else if (q_command_.data[4] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[4] = -q_command_.data[4] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[4] = 0.0;
+    }
+  }
+
+  if (go_J6_zero_ == true)
+  {
+    if (q_command_.data[5] < -0.001)
+    {
+      if (q_command_.data[5] + 0.5 * sampling_period_ <= 0.0)
+      {
+        dq_output_.data[5] = 0.5;
+      }
+      else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0)
+      {
+        dq_output_.data[5] = q_command_.data[5] / sampling_period_;
+      }
+    }
+    else if (q_command_.data[5] > 0.001)
+    {
+      if (q_command_.data[5] - 0.5 * sampling_period_ >= 0.0)
+      {
+        dq_output_.data[5] = -0.5;
+      }
+      else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0)
+      {
+        dq_output_.data[5] = -q_command_.data[5] / sampling_period_;
+      }
+    }
+    else
+    {
+      dq_output_.data[5] = 0.0;
+    }
+  }
+
+  for (int i = 0; i < 6; i++)
+  {
+    q_command_.data[i] = q_command_.data[i] + dq_output_.data[i] * sampling_period_;
+    //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
+  }
+
+  q_command_.data[6] = q_command_.data[6] + gripper_vel_.data * sampling_period_;
+  if (q_command_.data[6] <= 0.0)
+  {
+    q_command_.data[6] = 0.0;
+  }
+  else if (q_command_.data[6] >= 1.0)
+  {
+    q_command_.data[6] = 1.0;
+  }
+
+  command_pub_->publish(q_command_);
+}
+
+void OutputIntegrator::home_()
+{
+  double x[6] = {0.0, 0.436332, 1.48353, 0.0, -0.523599, 0.0};
+
+  if (q_command_.data[5] < (x[5] - 0.001))
+  {
+    if (q_command_.data[5] + 0.5 * sampling_period_ <= x[5])
+    {
+      dq_output_.data[5] = 0.5;
+    }
+    else if (q_command_.data[5] + 0.5 * sampling_period_ > x[5])
+    {
+      dq_output_.data[5] = (x[5] - q_command_.data[5]) / sampling_period_;
+    }
+  }
+  else if (q_command_.data[5] > (x[5] + 0.001))
+  {
+    if (q_command_.data[5] - 0.5 * sampling_period_ >= x[5])
+    {
+      dq_output_.data[5] = -0.5;
+    }
+    else if (q_command_.data[5] - 0.5 * sampling_period_ < x[5])
+    {
+      dq_output_.data[5] = (x[5] - q_command_.data[5]) / (sampling_period_);
+    }
+  }
+  else
+  {
+    dq_output_.data[5] = 0.0;
+  }
+
+  for (int i = 4; i >= 0; i--)
+  {
+    if (
+      q_command_.data[i + 1] <= (x[i + 1] + 0.001) && q_command_.data[i + 1] >= (x[i + 1] - 0.001))
+    {
+      if (q_command_.data[i] < (x[i] - 0.001))
+      {
+        if (q_command_.data[i] + 0.5 * sampling_period_ <= x[i])
+        {
+          dq_output_.data[i] = 0.5;
+        }
+        else if (q_command_.data[i] + 0.5 * sampling_period_ > x[i])
+        {
+          dq_output_.data[i] = (x[i] - q_command_.data[i]) / sampling_period_;
+        }
+      }
+      else if (q_command_.data[i] > (x[i] + 0.001))
+      {
+        if (q_command_.data[i] - 0.5 * sampling_period_ >= x[i])
+        {
+          dq_output_.data[i] = -0.5;
+        }
+        else if (q_command_.data[i] - 0.5 * sampling_period_ < x[i])
+        {
+          dq_output_.data[i] = (x[i] - q_command_.data[i]) / (sampling_period_);
+        }
+      }
+      else
+      {
+        dq_output_.data[i] = 0.0;
+      }
+    }
+    else
+    {
+      dq_output_.data[i] = 0.0;
+    }
+  }
+}
+
+void OutputIntegrator::zero_()
+{
+  if (q_command_.data[5] < -0.001)
+  {
+    if (q_command_.data[5] + 0.5 * sampling_period_ <= 0.0)
+    {
+      dq_output_.data[5] = 0.5;
+    }
+    else if (q_command_.data[5] + 0.5 * sampling_period_ > 0.0)
+    {
+      dq_output_.data[5] = -q_command_.data[5] / sampling_period_;
+    }
+  }
+  else if (q_command_.data[5] > 0.001)
+  {
+    if (q_command_.data[5] - 0.5 * sampling_period_ >= 0.0)
+    {
+      dq_output_.data[5] = -0.5;
+    }
+    else if (q_command_.data[5] - 0.5 * sampling_period_ < 0.0)
+    {
+      dq_output_.data[5] = -q_command_.data[5] / sampling_period_;
+    }
+  }
+  else
+  {
+    dq_output_.data[5] = 0.0;
+  }
+
+  for (int i = 4; i >= 0; i--)
+  {
+    if (q_command_.data[i + 1] <= 0.001 && q_command_.data[i + 1] >= -0.001)
+    {
+      if (q_command_.data[i] < -0.001)
+      {
+        if (q_command_.data[i] + 0.5 * sampling_period_ <= 0.0)
+        {
+          dq_output_.data[i] = 0.5;
+        }
+        else if (q_command_.data[i] + 0.5 * sampling_period_ > 0.0)
+        {
+          dq_output_.data[i] = -q_command_.data[i] / sampling_period_;
+        }
+      }
+      else if (q_command_.data[i] > 0.001)
+      {
+        if (q_command_.data[i] - 0.5 * sampling_period_ >= 0.0)
+        {
+          dq_output_.data[i] = -0.5;
+        }
+        else if (q_command_.data[i] - 0.5 * sampling_period_ < 0.0)
+        {
+          dq_output_.data[i] = -q_command_.data[i] / sampling_period_;
+        }
+      }
+      else
+      {
+        dq_output_.data[i] = 0.0;
+      }
+    }
+    else
+    {
+      dq_output_.data[i] = 0.0;
+    }
+  }
+}
+
+void OutputIntegrator::callback_reset_(const std_msgs::msg::Bool& msg)
+{
+  if (!msg.data || reset_)
+  {
+    return;
+  }
+
+  reset_ = true;
+
+  RCLCPP_INFO(n_->get_logger(), "Resetting output integrator...");
+
+  auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
+  request->ready = true;
+
+  q_init_client_->async_send_request(
+    request, std::bind(&OutputIntegrator::callback_reset_response_, this, std::placeholders::_1));
+}
+
+void OutputIntegrator::callback_reset_response_(
+  rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future)
+{
+  auto result = future.get();
+
+  if (result->code_error == 0)
+  {
+    q_init_ = result->data;
+
+    for (int i = 0; i < 6; i++)
+    {
+      q_command_.data[i] = q_init_[i];
+    }
+
+    RCLCPP_INFO(n_->get_logger(), "Output integrator reset successful");
+  }
+  else
+  {
+    RCLCPP_ERROR(n_->get_logger(), "Reset failed: code_error = %ld", result->code_error);
+  }
+
+  reset_ = false;
+}
+
+}  // namespace space_control
+
+using namespace space_control;
+int main(int argc, char* argv[])
+{
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+
+  auto n = rclcpp::Node::make_shared("output_integrator", node_options);
+
+  OutputIntegrator output_integrator(n);
+
+  rclcpp::spin(n);
+  rclcpp::shutdown();
+  return 0;
 }

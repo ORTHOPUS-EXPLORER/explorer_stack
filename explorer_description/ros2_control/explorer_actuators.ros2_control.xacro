@@ -3,7 +3,7 @@
 
   <xacro:include filename="$(find explorer_description)/urdf/explorer_joints.xacro" />
 
-  <xacro:macro name="explorer_ros2_control" params="name can_port:=^|can0  host_id:=^|45 rt_stream_rate aux_servo_stream_rate aux_config_stream_rate">
+  <xacro:macro name="explorer_ros2_control" params="name can_port:=^|can0  host_id:=^|45 rt_stream_rate aux_servo_stream_rate aux_config_stream_rate debug:=^|false">
 
     <xacro:macro name="hw_intf_params">
       <plugin>orthopus_vesc_interface/VESCInterface</plugin>
@@ -13,6 +13,7 @@
       <param name="aux_servo_stream_rate">${aux_servo_stream_rate}</param>
       <param name="aux_config_stream_rate">${aux_config_stream_rate}</param>
       <param name="default_mode">position</param>
+      <param name="debug">${debug}</param>
     </xacro:macro>
 
   <!-- ROS2 Control -->
