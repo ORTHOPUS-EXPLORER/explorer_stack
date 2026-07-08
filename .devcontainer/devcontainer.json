@@ -1,12 +1,12 @@
 {
-    "name": "Orthopus explorer stack (ROS2 - Iron)",
+    "name": "Orthopus explorer stack (ROS2 - Jazzy)",
     "build": {
         "context": "..",
         "dockerfile": "../Dockerfile",
         "target": "explorer_dev",
-        "cacheFrom": "ghcr.io/orthopus-explorer/ros-iron-explorer/dev:latest",
+        "cacheFrom": "ghcr.io/orthopus-explorer/ros-jazzy-explorer/dev:latest",
         "args": {
-            "ROS_DISTRO": "iron"
+            "ROS_DISTRO": "jazzy"
         }
     },
     "capAdd": ["SYS_NICE", "SYS_PTRACE"],
@@ -27,14 +27,14 @@
         // "--pid=host", // DDS discovery with host, without --network=host
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],
-    "workspaceFolder": "/home/orthopus/explorer_ws/explorer_stack",
+    "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
-    "initializeCommand": "printf \"USER_UID=$(id -u)\nGROUP_INPUT_UID=$(getent group input | cut -d: -f3)\" > ${localWorkspaceFolder}/.devcontainer/.env",
+    "initializeCommand": "",
     "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
-    "postStartCommand": "sudo set_device_permissions.sh",
+    "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
-        "XAUTHORITY": "/home/orthopus/.Xauthority", // Allow access to display through XServer
+        "XAUTHORITY": "/root/.Xauthority", // Allow access to display through XServer
         "SSH_AUTH_SOCK": "/ssh-agent"
     },
     "mounts": [
@@ -45,7 +45,7 @@
         },
         {
             "source": "${localEnv:XAUTHORITY}",
-            "target": "/home/orthopus/.Xauthority",
+            "target": "/root/.Xauthority",
             "type": "bind"
         }
     ],
