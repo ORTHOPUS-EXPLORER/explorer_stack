@@ -25,15 +25,15 @@ T from_str(const std::string& str, const T& def_v)
 const auto qos_pub = rclcpp::SystemDefaultsQoS();
 
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
-CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& info)
+CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& params)
 {
-  if (ActuatorInterface::on_init(info) != CallbackReturn::SUCCESS) return CallbackReturn::ERROR;
+  if (ActuatorInterface::on_init(params) != CallbackReturn::SUCCESS) return CallbackReturn::ERROR;
 
-  name_ = info.hardware_info.name;
-  node_ = std::make_unique<rclcpp::Node>(name_);
+  name_ = info_.name;
+
   // CAN Port
-  auto it = info.hardware_info.hardware_parameters.find("can_port");
-  if (it == info.hardware_info.hardware_parameters.end() || it->second.empty())
+  auto it = info_.hardware_parameters.find("can_port");
+  if (it == info_.hardware_parameters.end() || it->second.empty())
   {
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, can_port is not defined");
@@ -52,8 +52,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
       spdlog::cfg::load_env_levels();
       // Load parameters
       // Host ID
-      it = info.hardware_info.hardware_parameters.find("host_id");
-      if (it == info.hardware_info.hardware_parameters.end())
+      it = info_.hardware_parameters.find("host_id");
+      if (it == info_.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, host_id is not defined");
@@ -68,8 +68,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
         return CallbackReturn::ERROR;
       }
       // Stream rate
-      it = info.hardware_info.hardware_parameters.find("rt_stream_rate");
-      if (it == info.hardware_info.hardware_parameters.end())
+      it = info_.hardware_parameters.find("rt_stream_rate");
+      if (it == info_.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -78,8 +78,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
       }
       auto rt_stream_rate_hz = from_str<unsigned>(it->second, 250);
       // Aux servo rate
-      it = info.hardware_info.hardware_parameters.find("aux_servo_stream_rate");
-      if (it == info.hardware_info.hardware_parameters.end())
+      it = info_.hardware_parameters.find("aux_servo_stream_rate");
+      if (it == info_.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -88,8 +88,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
       }
       auto aux_servo_stream_rate_hz = from_str<unsigned>(it->second, 10);
       // Aux config rate
-      it = info.hardware_info.hardware_parameters.find("aux_config_stream_rate");
-      if (it == info.hardware_info.hardware_parameters.end())
+      it = info_.hardware_parameters.find("aux_config_stream_rate");
+      if (it == info_.hardware_parameters.end())
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
@@ -113,8 +113,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
 
   // Read default_mode parameter (optional, defaults to "off" for backward compatibility)
   {
-    auto it = info.hardware_info.hardware_parameters.find("default_mode");
-    if (it != info.hardware_info.hardware_parameters.end())
+    auto it = info_.hardware_parameters.find("default_mode");
+    if (it != info_.hardware_parameters.end())
     {
       default_mode_ = it->second;
       RCLCPP_INFO(
@@ -124,8 +124,8 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
 
   auto board_id = vescpp::VESC::InvalidBoardId;
   {
-    auto it = info.hardware_info.hardware_parameters.find("can_id");
-    if (it == info.hardware_info.hardware_parameters.end())
+    auto it = info_.hardware_parameters.find("can_id");
+    if (it == info_.hardware_parameters.end())
     {
       RCLCPP_FATAL(
         rclcpp::get_logger("VESCInterface"), "'can_id' not found in HardwareInfo, abort");
@@ -177,7 +177,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"),
       "Target '%d' doesn't have enough Joints. Expected '%ld', got '%ld'. Abort", board_id,
-      info.hardware_info.joints.size(), j_sz);
+      info_.joints.size(), j_sz);
     return CallbackReturn::ERROR;
   }
   j_sz = std::min(j_sz, info_.joints.size());
@@ -196,7 +196,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
     //    RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"),"  Ref: %s", r.c_str());
     //}
     auto it = vesc_dev_->joints.begin();
-    for (const auto& cfg_j : info.hardware_info.joints)
+    for (const auto& cfg_j : info_.joints)
     {
       it->name = cfg_j.name;
       if (++it == vesc_dev_->joints.end()) break;
@@ -209,7 +209,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
     //}
   }
 
-  for (const auto& cfg_j : info.hardware_info.joints)
+  for (const auto& cfg_j : info_.joints)
   {
     auto j = vesc_dev_->get_joint_from_name(cfg_j.name);
     if (j == nullptr)
@@ -271,8 +271,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& in
           j->name.c_str(), sif.name.c_str());
         return CallbackReturn::ERROR;
       }
-      state_interfaces_.emplace_back(
-        hardware_interface::StateInterface(j->name, sif.name, &it->second.v));
+      state_interfaces_.emplace_back(j->name, sif.name, &it->second.v);
     }
   }
   return CallbackReturn::SUCCESS;
@@ -300,11 +299,30 @@ std::vector<hardware_interface::CommandInterface> VESCInterface::export_command_
 CallbackReturn VESCInterface::on_configure(
   [[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
+  auto it = info_.hardware_parameters.find("debug");
+
+  if (it != info_.hardware_parameters.end())
+  {
+    auto debug_str = it->second;
+    // Apply lowercase to the whole string
+    std::transform(
+      debug_str.begin(), debug_str.end(), debug_str.begin(),
+      [](unsigned char c) { return std::tolower(c); });
+
+    if (
+      debug_str == "true" && rcutils_logging_set_logger_level(
+                               rclcpp::get_logger("VESCInterface").get_name(),
+                               RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
+  }
+
   RCLCPP_DEBUG(
     rclcpp::get_logger("VESCInterface"), "[on_configure][%s] Successfully configured!",
     name_.c_str());
 
-  dev_srv_ = node_->create_service<orthopus_vesc_interfaces::srv::Dev>(
+  dev_srv_ = get_node()->create_service<orthopus_vesc_interfaces::srv::Dev>(
     "~/dev",
     [this](
       const std::shared_ptr<orthopus_vesc_interfaces::srv::Dev::Request> req,
@@ -317,7 +335,7 @@ CallbackReturn VESCInterface::on_configure(
       resp->help = "Hello World";
     });
 
-  set_mode_srv_ = node_->create_service<orthopus_vesc_interfaces::srv::SetMode>(
+  set_mode_srv_ = get_node()->create_service<orthopus_vesc_interfaces::srv::SetMode>(
     "~/mode",
     [this](
       const std::shared_ptr<orthopus_vesc_interfaces::srv::SetMode::Request> req,
@@ -395,7 +413,7 @@ CallbackReturn VESCInterface::on_configure(
       }
     });
 
-  cmd_srv_ = node_->create_service<orthopus_vesc_interfaces::srv::Cmd>(
+  cmd_srv_ = get_node()->create_service<orthopus_vesc_interfaces::srv::Cmd>(
     "~/command",
     [this](
       const std::shared_ptr<orthopus_vesc_interfaces::srv::Cmd::Request> req,
@@ -412,10 +430,11 @@ CallbackReturn VESCInterface::on_configure(
       print_buf_.clear();
     });
 
-  config_sub_ = node_->create_subscription<orthopus_vesc_interfaces::msg::Config>(
+  config_sub_ = get_node()->create_subscription<orthopus_vesc_interfaces::msg::Config>(
     "~/config", 10, [this](orthopus_vesc_interfaces::msg::Config msg) { callback_config_(msg); });
 
-  state_pub_ = node_->create_publisher<orthopus_vesc_interfaces::msg::State>("~/state", qos_pub);
+  state_pub_ =
+    get_node()->create_publisher<orthopus_vesc_interfaces::msg::State>("~/state", qos_pub);
   state_rtpub_ =
     std::make_unique<realtime_tools::RealtimePublisher<orthopus_vesc_interfaces::msg::State>>(
       state_pub_);
@@ -540,10 +559,6 @@ return_type VESCInterface::perform_command_mode_switch(
 return_type VESCInterface::read(
   [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
-  // Async, Measures are streamed by the devices, directly to orthopus::VESCTarget
-  // TODO: Sanity checks (trigger error if delay since last meas reached a timeout for instance)
-  // TODO: Make sure spin_some does not slow down the RT loop (event when processing srv/pub/sub/...)
-  if (node_ && rclcpp::ok()) rclcpp::spin_some(node_->get_node_base_interface());
   return return_type::OK;
 }
 
