@@ -4,8 +4,8 @@ namespace space_control
 {
     InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
     : n_(n)
-    , x_init_()
     , x_desired_()
+    , x_init_()
     , dx_desired_()
     , x_current_()
     {

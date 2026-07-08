@@ -2,90 +2,87 @@
 #ifndef OUTPUT_INTEGRATOR_H
 #define OUTPUT_INTEGRATOR_H
 
-#include <rclcpp/rclcpp.hpp>
-
-#include "std_msgs/msg/float64_multi_array.hpp"
-#include "std_msgs/msg/float64.hpp"
-#include "std_msgs/msg/bool.hpp"
-
-#include "explorer_msgs/srv/float64.hpp"
-
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <rclcpp/rclcpp.hpp>
 
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include "explorer_msgs/srv/float64.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 using namespace std::chrono_literals;
 
 namespace space_control
 {
-    class OutputIntegrator
-    {
-        public:
-        OutputIntegrator(rclcpp::Node::SharedPtr n);
+class OutputIntegrator
+{
+public:
+  OutputIntegrator(rclcpp::Node::SharedPtr n);
 
-        private:
-        rclcpp::Node::SharedPtr n_;
-    
-        rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_sub_;
-        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_pos_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
+private:
+  rclcpp::Node::SharedPtr n_;
 
-        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
-        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_sub_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_pos_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J2_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J3_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J4_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J5_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J6_zero_pressed_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
 
-        rclcpp::Client<explorer_msgs::srv::Float64>::SharedPtr q_init_client_;
-    
-        rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
-        std_msgs::msg::Float64MultiArray q_command_;
-        std_msgs::msg::Float64MultiArray gripper_command_;
-        std_msgs::msg::Float64MultiArray dq_output_;
-        std_msgs::msg::Float64 gripper_vel_;
+  rclcpp::Client<explorer_msgs::srv::Float64>::SharedPtr q_init_client_;
 
-        std::vector<double> q_init_;
+  rclcpp::TimerBase::SharedPtr timer_;
 
-        double sampling_period_;
-        bool error_;
-        int call_service_attempt_;
-        int init_attempt_;
-        bool success_init_;
-        bool go_home_;
-        bool go_zero_;
-        bool go_J1_zero_;
-        bool go_J2_zero_;
-        bool go_J3_zero_;
-        bool go_J4_zero_;
-        bool go_J5_zero_;
-        bool go_J6_zero_;
-        bool reset_;
+  std_msgs::msg::Float64MultiArray q_command_;
+  std_msgs::msg::Float64MultiArray gripper_command_;
+  std_msgs::msg::Float64MultiArray dq_output_;
+  std_msgs::msg::Float64 gripper_vel_;
 
-        std::string controller_position_topic_name_;
+  std::vector<double> q_init_;
 
-        void callback_dq_output_(const std_msgs::msg::Float64MultiArray & msg);
-        void callback_gripper_vel_(const std_msgs::msg::Float64 & msg);
-        void callback_home_(const std_msgs::msg::Bool & msg);
-        void callback_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J1_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J2_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J3_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J4_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J5_zero_(const std_msgs::msg::Bool & msg);
-        void callback_J6_zero_(const std_msgs::msg::Bool & msg);
-        void timer_callback_();
-        void home_();
-        void zero_();
-        void callback_reset_(const std_msgs::msg::Bool & msg);
-        void callback_reset_response_(rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future);
-    };
-}
-#endif 
+  double sampling_period_;
+  bool error_;
+  int call_service_attempt_;
+  int init_attempt_;
+  bool success_init_;
+  bool go_home_;
+  bool go_zero_;
+  bool go_J1_zero_;
+  bool go_J2_zero_;
+  bool go_J3_zero_;
+  bool go_J4_zero_;
+  bool go_J5_zero_;
+  bool go_J6_zero_;
+  bool reset_;
+
+  std::string controller_position_topic_name_;
+
+  void callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg);
+  void callback_gripper_vel_(const std_msgs::msg::Float64& msg);
+  void callback_home_(const std_msgs::msg::Bool& msg);
+  void callback_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J1_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J2_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J3_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J4_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J5_zero_(const std_msgs::msg::Bool& msg);
+  void callback_J6_zero_(const std_msgs::msg::Bool& msg);
+  void timer_callback_();
+  void home_();
+  void zero_();
+  void callback_reset_(const std_msgs::msg::Bool& msg);
+  void callback_reset_response_(rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future);
+};
+}  // namespace space_control
+#endif

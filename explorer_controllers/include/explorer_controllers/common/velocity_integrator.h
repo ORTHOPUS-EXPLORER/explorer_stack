@@ -6,12 +6,10 @@
 #ifndef CARTESIAN_CONTROLLER_INTEGRATOR_H
 #define CARTESIAN_CONTROLLER_INTEGRATOR_H
 
-#include "rclcpp/rclcpp.hpp"
-
-#include "sensor_msgs/msg/joint_state.hpp"
-
 #include "explorer_controllers/qp_cartesian/types/joint_position.h"
 #include "explorer_controllers/qp_cartesian/types/joint_velocity.h"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 namespace space_control
 {
@@ -30,5 +28,5 @@ private:
   double sampling_period_;
   JointPosition q_current_;
 };
-}
+}  // namespace space_control
 #endif
