@@ -8,8 +8,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -30,8 +31,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -52,8 +54,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">{-pi}</param>
-          <param name="max">{pi}</param>
+          <!-- -pi / pi -->
+          <param name="min">-3.141592</param>
+          <param name="max">3.141592</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -74,8 +77,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -96,8 +100,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -118,8 +123,9 @@
           <param name="max">100</param>
         </command_interface>
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <command_interface name="velocity">
           <param name="min">-0.5</param>
@@ -136,8 +142,9 @@
     <xacro:macro name="explorer_gripper_servo_joint">
       <joint name="right_finger_joint">
         <command_interface name="position">
-          <param name="min">-2*{pi}</param>
-          <param name="max">2*{pi}</param>
+          <!-- -2pi / 2pi -->
+          <param name="min">-6.283185</param>
+          <param name="max">6.283185</param>
         </command_interface>
         <!--command_interface name="velocity">
           <param name="min">-0.5</param>
