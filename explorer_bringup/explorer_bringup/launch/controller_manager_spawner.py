@@ -24,6 +24,7 @@ from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
 
 from explorer_bringup.launch.shared_parameters import (
+    get_parameter_debug,
     get_parameter_simulation,
     get_parameter_use_qp_inria,
 )
@@ -88,6 +89,9 @@ def declare_custom_controller_spawner(
         # Modify simulation parameter
         config["explorer_custom_controller"]["ros__parameters"]["simulation"] = (
             get_parameter_simulation().perform(context).lower() == "true"
+        )
+        config["explorer_custom_controller"]["ros__parameters"]["debug"] = (
+            get_parameter_debug()
         )
 
         # Write temporary config

@@ -1,4 +1,9 @@
 explorer_custom_controller:
+  debug: {
+    type: bool,
+    description: "Debug logs enabled / disable",
+    default_value: false
+  }
   simulation: {
     type: bool,
     description: "Simulation enabled / disable (will be set automatically according to launch parameter 'simulation')",
