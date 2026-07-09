@@ -26,6 +26,7 @@
 #include "explorer_custom_controller_parameters.hpp"  // generated
 #include "orthopus_vesc/common.hpp"
 #include "orthopus_vesc/target.hpp"
+#include "orthopus_vesc_interfaces/srv/set_mode.hpp"
 #include "realtime_tools/realtime_buffer.h"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_srvs/srv/empty.hpp"
@@ -137,8 +138,8 @@ private:
     std::map<orthopus::JointVariableType, ControllerJointState> joint_state_map;
   };
 
-  bool set_joint_mode_(const std::string&, const std::string&) const;
-  bool set_impedance_config_(const std::string& joint_name, double damping, double stiffness) const;
+  bool set_joint_mode_(const std::string&, const std::string&);
+  bool set_impedance_config_(const std::string& joint_name, float damping, float stiffness) const;
   void init_ros_subscribers_();
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
@@ -148,6 +149,10 @@ private:
   void write_position_(ControllerJoint&);
   void write_velocity_(ControllerJoint&);
   bool is_command_ready_to_be_written_(const ControllerJoint&, orthopus::JointVariableType);
+  controller_interface::CallbackReturn apply_config_to_joint_(const std::string &joint_name, const explorer_custom_controller::Params::Settings::MapJoints &settings);
+  void assign_joint_state_interface_list_(ControllerJoint &joint);
+  void assign_joint_command_interface_list_(ControllerJoint& joint);
+
 
   std::shared_ptr<ParamListener> param_listener_;
   Params params_;
@@ -157,9 +162,12 @@ private:
   rclcpp::Subscription<SubscriptionMsg>::SharedPtr position_commands_subscriber_;
   rclcpp::Subscription<SubscriptionMsg>::SharedPtr velocity_commands_subscriber_;
 
+  // Publishers objects (only to retrieved response and prevent false warning)
+  std::vector<std::shared_ptr<rclcpp::Client<orthopus_vesc_interfaces::srv::SetMode>>> set_mode_client_list_;
+
   // Real time buffers : store data coming from topics
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>
-    effort_commands_buffer_rt_;
+      effort_commands_buffer_rt_;
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>
     position_commands_buffer_rt_;
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>

@@ -16,9 +16,8 @@
 
 #include <controller_interface/controller_interface_base.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
-#include <orthopus_vesc_interfaces/srv/detail/cmd__struct.hpp>
 
-#include "orthopus_vesc_interfaces/srv/set_mode.hpp"
+#include "orthopus_vesc_interfaces/msg/config.hpp"
 
 // https://control.ros.org/rolling/doc/ros2_control/controller_manager/doc/controller_chaining.html
 /* It goes:
@@ -43,8 +42,7 @@ std::string build_interface_name(
 }
 }  // namespace
 
-bool CustomController::set_joint_mode_(
-  const std::string& joint_name, const std::string& joint_mode) const
+bool CustomController::set_joint_mode_(const std::string& joint_name, const std::string& joint_mode)
 {
   auto service_name = "/explorer_" + joint_name + "/mode";
   auto joint_mode_client =
@@ -78,27 +76,22 @@ bool CustomController::set_joint_mode_(
           request->joint_name.c_str(), request->mode.c_str());
       }
     });
+  set_mode_client_list_.push_back(joint_mode_client);
   return true;
 }
 
 bool CustomController::set_impedance_config_(
-  const std::string& joint_name, double damping, double stiffness) const
+  const std::string& joint_name, float damping, float stiffness) const
 {
-  auto service_name = "/explorer_" + joint_name + "/mode";
-  auto send_cmd_client =
-    get_node()->create_client<orthopus_vesc_interfaces::srv::Cmd>(service_name);
-  if (!send_cmd_client->wait_for_service())
-  {
-    RCLCPP_ERROR(
-      get_node()->get_logger(), "Service %s is not ready and timeout occured, returning error.",
-      service_name.c_str());
-    return false;
-  }
-  auto request = std::make_shared<orthopus_vesc_interfaces::srv::Cmd::Request>();
-  request->cmd = "o_param set ctrl_damping " + std::to_string(damping);
-  send_cmd_client->async_send_request(request);
-  request->cmd = "o_param set ctrl_stiffness " + std::to_string(stiffness);
-  send_cmd_client->async_send_request(request);
+  auto service_name = "/explorer_" + joint_name + "/config";
+  auto config_publisher =
+    get_node()->create_publisher<orthopus_vesc_interfaces::msg::Config>(service_name, 10);
+  config_publisher->on_activate();
+  auto command = orthopus_vesc_interfaces::msg::Config();
+  command.impedance_control_damping = damping;
+  command.impedance_control_stiffness = stiffness;
+  config_publisher->publish(command);
+  config_publisher->wait_for_all_acked();
   return true;
 }
 
@@ -141,35 +134,6 @@ controller_interface::CallbackReturn CustomController::on_init()
   }
 
   clock_ = get_node()->get_clock();
-
-  for (const auto& [joint_name, settings] : params_.settings.joints_map)
-  {
-    auto joint_mode = orthopus::JointVariableType_from_string(settings.mode);
-
-    if (joint_mode == orthopus::JointVariableType::EFFORT)
-    {
-      if (params_.simulation)
-      {
-        RCLCPP_WARN(
-          get_node()->get_logger(),
-          "EFFORT MODE IS ENABLED FOR JOINT %s BUT IS NOT SUPPORTED IN SIMULATION,"
-          " DEFAULT TO POSITION MODE.",
-          joint_name.c_str());
-        joint_mode = orthopus::JointVariableType::POSITION;
-      }
-      // Set actuator mode only when using real hardware && for "real joint" actuators (excluding gripper)
-      else if (joint_name.substr(0, 6).find("joint_") != std::string::npos)
-      {
-        if (!set_joint_mode_(joint_name, settings.mode))
-        {
-          return controller_interface::CallbackReturn::ERROR;
-        }
-        set_impedance_config_(joint_name, settings.impedance_damping, settings.impedance_stiffness);
-      }
-    }
-
-    joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
-  }
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -265,7 +229,7 @@ void CustomController::init_ros_subscribers_()
 controller_interface::CallbackReturn CustomController::on_configure(const rclcpp_lifecycle::State&)
 {
   init_ros_subscribers_();
-
+  
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -348,55 +312,15 @@ controller_interface::InterfaceConfiguration CustomController::state_interface_c
 controller_interface::CallbackReturn CustomController::on_activate(
   const rclcpp_lifecycle::State& /*previous_state*/)
 {
-  for (auto& joint : joints_)
+  for (const auto& [joint_name, settings] : params_.settings.joints_map)
   {
-    for (auto& joint_state_object : joint.joint_state_map)
+    if (
+      apply_config_to_joint_(joint_name, settings) != controller_interface::CallbackReturn::SUCCESS)
     {
-      if (joint_state_object.second.interface == nullptr)
-      {
-        auto wanted_interface_name = build_interface_name(joint.name, joint_state_object.first);
-        // Assign corresponding interface if found
-        if (
-          auto interface = std::find_if(
-            state_interfaces_.begin(), state_interfaces_.end(),
-            [wanted_interface_name](const hardware_interface::LoanedStateInterface& interface)
-            { return interface.get_name() == wanted_interface_name; });
-          interface != state_interfaces_.end())
-        {
-          joint_state_object.second.interface = &(*interface);
-        }
-        else
-        {
-          RCLCPP_ERROR(
-            get_node()->get_logger(), "State interface '%s' not found for joint '%s'",
-            JointVariableType_to_string(joint_state_object.first), joint.name.c_str());
-        }
-      }
+      return controller_interface::CallbackReturn::ERROR;
     }
-
-    for (auto& joint_command_object : joint.joint_command_map)
-    {
-      if (joint_command_object.second.interface == nullptr)
-      {
-        auto wanted_interface_name = build_interface_name(joint.name, joint_command_object.first);
-        // Assign corresponding interface if found
-        if (
-          auto interface = std::find_if(
-            command_interfaces_.begin(), command_interfaces_.end(),
-            [wanted_interface_name](const hardware_interface::LoanedCommandInterface& interface)
-            { return interface.get_name() == wanted_interface_name; });
-          interface != command_interfaces_.end())
-        {
-          joint_command_object.second.interface = &(*interface);
-        }
-        else
-        {
-          RCLCPP_ERROR(
-            get_node()->get_logger(), "Command interface '%s' not found for joint '%s'",
-            JointVariableType_to_string(joint_command_object.first), joint.name.c_str());
-        }
-      }
-    }
+    assign_joint_state_interface_list_(joints_.back());
+    assign_joint_command_interface_list_(joints_.back());
   }
 
   // reset command buffers if a command came through callback when controller was inactive
@@ -405,6 +329,95 @@ controller_interface::CallbackReturn CustomController::on_activate(
   velocity_commands_buffer_rt_.reset();
 
   return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn CustomController::apply_config_to_joint_(
+  const std::string& joint_name,
+  const explorer_custom_controller::Params::Settings::MapJoints& settings)
+{
+  auto joint_mode = orthopus::JointVariableType_from_string(settings.mode);
+
+  if (
+    (joint_mode == orthopus::JointVariableType::EFFORT ||
+     joint_mode == orthopus::JointVariableType::IMPEDANCE) &&
+    params_.simulation)
+  {
+    RCLCPP_WARN(
+      get_node()->get_logger(),
+      "EFFORT MODE IS ENABLED FOR JOINT %s BUT IS NOT SUPPORTED IN SIMULATION,"
+      " DEFAULT TO POSITION MODE.",
+      joint_name.c_str());
+    joint_mode = orthopus::JointVariableType::POSITION;
+  }
+  // Set actuator mode only when using real hardware && for "real joint" actuators (excluding gripper)
+  if (
+    joint_mode != orthopus::JointVariableType::POSITION && !params_.simulation &&
+    joint_name.substr(0, 6).find("joint_") != std::string::npos)
+  {
+    if (!set_joint_mode_(joint_name, settings.mode))
+    {
+      return controller_interface::CallbackReturn::ERROR;
+    }
+    set_impedance_config_(
+      joint_name, (float)settings.impedance_damping, (float)settings.impedance_stiffness);
+  }
+
+  joints_.emplace_back(joint_name, settings, joint_mode, params_.simulation);
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+void CustomController::assign_joint_state_interface_list_(ControllerJoint& joint)
+{
+  for (auto& joint_state_object : joint.joint_state_map)
+  {
+    if (joint_state_object.second.interface == nullptr)
+    {
+      auto wanted_interface_name = build_interface_name(joint.name, joint_state_object.first);
+      // Assign corresponding interface if found
+      if (
+        auto interface = std::find_if(
+          state_interfaces_.begin(), state_interfaces_.end(),
+          [wanted_interface_name](const hardware_interface::LoanedStateInterface& interface)
+          { return interface.get_name() == wanted_interface_name; });
+        interface != state_interfaces_.end())
+      {
+        joint_state_object.second.interface = &(*interface);
+      }
+      else
+      {
+        RCLCPP_ERROR(
+          get_node()->get_logger(), "State interface '%s' not found for joint '%s'",
+          JointVariableType_to_string(joint_state_object.first), joint.name.c_str());
+      }
+    }
+  }
+}
+
+void CustomController::assign_joint_command_interface_list_(ControllerJoint& joint)
+{
+  for (auto& joint_command_object : joint.joint_command_map)
+  {
+    if (joint_command_object.second.interface == nullptr)
+    {
+      auto wanted_interface_name = build_interface_name(joint.name, joint_command_object.first);
+      // Assign corresponding interface if found
+      if (
+        auto interface = std::find_if(
+          command_interfaces_.begin(), command_interfaces_.end(),
+          [wanted_interface_name](const hardware_interface::LoanedCommandInterface& interface)
+          { return interface.get_name() == wanted_interface_name; });
+        interface != command_interfaces_.end())
+      {
+        joint_command_object.second.interface = &(*interface);
+      }
+      else
+      {
+        RCLCPP_ERROR(
+          get_node()->get_logger(), "Command interface '%s' not found for joint '%s'",
+          JointVariableType_to_string(joint_command_object.first), joint.name.c_str());
+      }
+    }
+  }
 }
 
 controller_interface::CallbackReturn CustomController::on_deactivate(const rclcpp_lifecycle::State&)
