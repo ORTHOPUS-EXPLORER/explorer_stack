@@ -18,9 +18,9 @@ explorer_custom_controller:
     __map_joints:
       mode: {
         type: string,
-        description: "Joint mode: effort / position / velocity",
+        description: "Joint mode: effort / impedance / position / velocity",
         validation: {
-          one_of<>: [["effort", "position", "velocity"]]
+          one_of<>: [["effort", "impedance", "position", "velocity"]]
         }
       }
       command_interface_names: {
