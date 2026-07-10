@@ -229,7 +229,7 @@ void CustomController::init_ros_subscribers_()
 controller_interface::CallbackReturn CustomController::on_configure(const rclcpp_lifecycle::State&)
 {
   init_ros_subscribers_();
-  
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -422,18 +422,7 @@ void CustomController::assign_joint_command_interface_list_(ControllerJoint& joi
 
 controller_interface::CallbackReturn CustomController::on_deactivate(const rclcpp_lifecycle::State&)
 {
-  for (auto& joint : joints_)
-  {
-    for (auto& joint_state_object : joint.joint_state_map)
-    {
-      joint_state_object.second.interface = nullptr;
-    }
-
-    for (auto& joint_command_object : joint.joint_command_map)
-    {
-      joint_command_object.second.interface = nullptr;
-    }
-  }
+  joints_.clear();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -458,21 +447,22 @@ controller_interface::return_type CustomController::update(
   {
     // Effort command
     if (
-      apply_joint_input_command_(joint, index, orthopus::JointVariableType::EFFORT, effort_command))
+      effort_command && apply_joint_input_command_(
+                          joint, index, orthopus::JointVariableType::EFFORT, *effort_command))
     {
       write_effort_(joint);
     };
     // Position command
     if (
-      apply_joint_input_command_(
-        joint, index, orthopus::JointVariableType::POSITION, position_command))
+      position_command && apply_joint_input_command_(
+                            joint, index, orthopus::JointVariableType::POSITION, *position_command))
     {
       write_position_(joint);
     }
     // Velocity command
     if (
-      apply_joint_input_command_(
-        joint, index, orthopus::JointVariableType::VELOCITY, velocity_command))
+      velocity_command && apply_joint_input_command_(
+                            joint, index, orthopus::JointVariableType::VELOCITY, *velocity_command))
     {
       write_velocity_(joint);
     }
@@ -483,17 +473,17 @@ controller_interface::return_type CustomController::update(
 
 bool CustomController::apply_joint_input_command_(
   ControllerJoint& joint, size_t joint_index, orthopus::JointVariableType command_type,
-  const std::shared_ptr<ControllerInputCommand>* input_command)
+  const std::shared_ptr<ControllerInputCommand>& input_command)
 {
   const std::shared_ptr<const rclcpp_lifecycle::LifecycleNode> node = get_node();
 
-  if (!input_command || !*input_command)
+  if (!input_command)
   {
     return false;
   }
   try
   {
-    joint.joint_command_map.at(command_type).command = (*input_command)->data[joint_index];
+    joint.joint_command_map.at(command_type).command = input_command->data[joint_index];
   }
   catch (const std::out_of_range& ex)
   {

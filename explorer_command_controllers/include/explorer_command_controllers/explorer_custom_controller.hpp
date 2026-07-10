@@ -143,7 +143,7 @@ private:
   void init_ros_subscribers_();
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
-    const std::shared_ptr<ControllerInputCommand>*);
+    const std::shared_ptr<ControllerInputCommand>&);
   std::string build_interface_name_(const std::string&, orthopus::JointVariableType) const;
   void write_effort_(ControllerJoint&);
   void write_position_(ControllerJoint&);
