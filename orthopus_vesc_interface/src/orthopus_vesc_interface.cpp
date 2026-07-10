@@ -86,7 +86,7 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
           " Can't spawn VESCHost, aux_servo_stream_rate is not defined");
         exit(0);
       }
-      auto aux_servo_stream_rate_hz = from_str<unsigned>(it->second, 10);
+      auto aux_servo_stream_rate_hz = from_str<unsigned>(it->second, 50);
       // Aux config rate
       it = info.hardware_parameters.find("aux_config_stream_rate");
       if (it == info.hardware_parameters.end())
