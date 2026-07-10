@@ -30,7 +30,7 @@
     "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
     "initializeCommand": "",
-    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
+    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder} && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc/lib/vescpp",
     "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
         "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
@@ -46,6 +46,16 @@
         {
             "source": "${localEnv:XAUTHORITY}",
             "target": "/root/.Xauthority",
+            "type": "bind"
+        },
+        {
+            "source": "/dev/input",
+            "target": "/dev/input",
+            "type": "bind"
+        },
+        {
+            "source": "/dev/dri",
+            "target": "/dev/dri",
             "type": "bind"
         }
     ],
