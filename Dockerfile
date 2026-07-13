@@ -1,5 +1,6 @@
 # Overridable ROS distro argument (generic)
 ARG ROS_DISTRO=iron
+## Only used for production-ready image
 ARG ROS_USER=orthopus
 ARG ROS_WS=/home/${ROS_USER}/src/
 
@@ -45,9 +46,6 @@ FROM amd64/ros:${ROS_DISTRO}-ros-base AS explorer_builder
 LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/explorer_stack"
 LABEL org.opencontainers.image.description="CI/CD image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
-ARG ROS_WS
-ARG ROS_USER
-ENV ROS_USER=${ROS_USER}
 
 COPY --from=explorer_cacher /tmp/build_dependencies.txt /tmp/build_dependencies.txt
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
@@ -64,10 +62,12 @@ FROM osrf/ros:${ROS_DISTRO}-desktop AS explorer_dev
 LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/explorer_stack"
 LABEL org.opencontainers.image.description="Development image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
-ARG ROS_WS
-ARG ROS_USER
-ENV ROS_USER=${ROS_USER}
-ENV ROS_WS=${ROS_WS}
+
+# Create volume to stores .ccache folderset_device_permissions
+RUN mkdir /root/.ccache
+VOLUME /root/.ccache
+
+COPY --chmod=0755 .devcontainer/set_device_permissions.sh /usr/local/bin
 
 ## Install latest Mesa version
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
@@ -86,6 +86,8 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     bash-completion \
     can-utils \
     ccache \
+    dbus \
+    gdb \
     iproute2 \
     python3-pip \
     ros-${ROS_DISTRO}-plotjuggler \
@@ -108,12 +110,8 @@ RUN sed --in-place \
     # Source build (if exists) automatically
     -e '/^source .*/a [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash" --' \
     # Fix UID/GUID issue dynamically (issue about permissions when mounting folder)
-    -e 's|^exec "$@"|if [ -z "${USER_UID}" ] \|\| [ -z "${GROUP_INPUT_UID}" ]; then\n\
-    echo "USER_UID or GROUP_INPUT_UID env var not set, file permissions will occurs, please provides proper variables."\n\
-    else\n\
-    sudo set_input_device_permissions.sh\n\
-    fi\n\
-    exec gosu ${ROS_USER} "${@}"|' \
+    -e 's|^exec "$@"|sudo set_device_permissions.sh\n\
+    "${@}"|' \
     /ros_entrypoint.sh
 
 COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/
@@ -144,7 +142,19 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-22 22
 
 # Install dev dependencies (ruff related)
-RUN pip install ruff
+RUN curl -LsSf https://astral.sh/ruff/install.sh | sh
+
+RUN echo "echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope" > /usr/local/bin/allow_ptrace_gdb.sh && chmod +x /usr/local/bin/allow_ptrace_gdb.sh
+
+
+## ---------------- Runner part (prod) ----------------
+FROM explorer_dev AS explorer_prod
+LABEL org.opencontainers.image.description="Ready to uses image for Orthopus Explorer project"
+
+ARG ROS_WS
+ARG ROS_USER
+ENV ROS_USER=${ROS_USER}
+ENV ROS_WS=${ROS_WS}
 
 RUN useradd -m --no-log-init -r ${ROS_USER}
 
@@ -152,20 +162,13 @@ RUN useradd -m --no-log-init -r ${ROS_USER}
 RUN cp -r /root/.colcon /home/${ROS_USER}
 WORKDIR ${ROS_WS}
 
-# Create volume to stores .ccache folder
-RUN mkdir /home/${ROS_USER}/.ccache
-VOLUME /home/${ROS_USER}/.ccache
-
-COPY --chmod=0755 .devcontainer/set_device_permissions.sh /usr/local/bin
-
 # Setup passwordless sudoers for apt related commands
 RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh" >> /etc/sudoers
-USER ${ROS_USER}
 
-## ---------------- Runner part (prod) ----------------
-FROM explorer_dev AS explorer_prod
-LABEL org.opencontainers.image.description="Ready to uses image for Orthopus Explorer project"
+COPY --chmod=0666 . ${ROS_WS}
 
-COPY . ${ROS_WS}
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
+    rm -rf build log install &&\
     colcon build --symlink-install --continue-on-error --mixin release
+
+USER ${ROS_USER}

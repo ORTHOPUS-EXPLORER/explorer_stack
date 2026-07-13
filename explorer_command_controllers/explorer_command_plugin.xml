@@ -1,10 +1,10 @@
 <library path="explorer_command_controllers">
-  <class  name="explorer_command_controllers/MultiIntfController"       
-          type="explorer_command_controllers::MultiIntfController" 
-          base_class_type="controller_interface::ChainableControllerInterface"
+  <class  name="explorer_command_controllers/CustomController"       
+          type="explorer_command_controllers::CustomController" 
+          base_class_type="controller_interface::ControllerInterface"
   >
     <description>
-      Multi interfaces controller, with control modes
+      Custom controller, manages joint_mode (impedance/position/velocity)
     </description>
   </class>
 </library>

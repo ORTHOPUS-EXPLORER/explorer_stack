@@ -14,4 +14,4 @@ source /opt/ros/${ROS_DISTRO}/setup.bash
 [[ -f "${ROS_WS}/install/setup.bash" ]] && source "${ROS_WS}/install/setup.bash"
 
 # Build workspace as non root user (prevent permission issues)
-CCACHE_DIR=/home/orthopus/.ccache colcon build --symlink-install --mixin debug ccache compile-commands
+CCACHE_DIR=/root/.ccache colcon build --symlink-install --mixin debug ccache compile-commands

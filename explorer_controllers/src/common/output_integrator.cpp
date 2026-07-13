@@ -3,51 +3,41 @@
 namespace space_control
 {
     OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
-    : n_(n)
+    : n_(n), sampling_period_(0.02), error_(false), call_service_attempt_(0), init_attempt_(0), success_init_(false), go_home_(false), go_zero_(false), go_J1_zero_(false), go_J2_zero_(false), go_J3_zero_(false), go_J4_zero_(false), go_J5_zero_(false), go_J6_zero_(false), reset_(false)
     {
         rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
         //init settings
-        sampling_period_ = 0.02;
-        error_ = false;
-        call_service_attempt_ = 0;
-        init_attempt_ = 0;
-        success_init_ = false;
-
-
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         gripper_vel_.data = 0.0;
         q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
-
         q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        
-        go_home = false;
-        go_zero = false;
-        go_J1_zero = false;
-        go_J2_zero = false;
-        go_J3_zero = false;
-        go_J4_zero = false;
-        go_J5_zero = false;
-        go_J6_zero = false;
 
-        reset = false;
+        // init node parameters
+        n_->declare_parameter<std::string>("controller_position_topic_name", "");
+
+        controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();
+        if (controller_position_topic_name_.empty()) {
+            throw std::runtime_error(
+                "Parameter 'controller_position_topic_name' is required");
+        }
 
         //init suscriber
-        dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output, this, std::placeholders::_1));
-        gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 10, std::bind(&OutputIntegrator::callback_gripper_vel, this, std::placeholders::_1));
-        home_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10, std::bind(&OutputIntegrator::callback_home, this, std::placeholders::_1));
-        zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10, std::bind(&OutputIntegrator::callback_zero, this, std::placeholders::_1));
-        J1_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J1_zero, this, std::placeholders::_1));
-        J2_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J2_zero, this, std::placeholders::_1));
-        J3_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J3_zero, this, std::placeholders::_1));
-        J4_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J4_zero, this, std::placeholders::_1));
-        J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero, this, std::placeholders::_1));
-        J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero, this, std::placeholders::_1));
-        reset_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10, std::bind(&OutputIntegrator::callback_reset, this, std::placeholders::_1));
+        dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>("/explorer_controllers/qp_solving/dq_output", 10, std::bind(&OutputIntegrator::callback_dq_output_, this, std::placeholders::_1));
+        gripper_pos_sub_ =  n_->create_subscription<std_msgs::msg::Float64>("/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 10, std::bind(&OutputIntegrator::callback_gripper_vel_, this, std::placeholders::_1));
+        home_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10, std::bind(&OutputIntegrator::callback_home_, this, std::placeholders::_1));
+        zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10, std::bind(&OutputIntegrator::callback_zero_, this, std::placeholders::_1));
+        J1_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J1_zero_, this, std::placeholders::_1));
+        J2_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J2_zero_, this, std::placeholders::_1));
+        J3_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J3_zero_, this, std::placeholders::_1));
+        J4_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J4_zero_, this, std::placeholders::_1));
+        J5_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J5_zero_, this, std::placeholders::_1));
+        J6_zero_pressed_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10, std::bind(&OutputIntegrator::callback_J6_zero_, this, std::placeholders::_1));
+        reset_sub_ =  n_->create_subscription<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10, std::bind(&OutputIntegrator::callback_reset_, this, std::placeholders::_1));
 
         q_init_client_ = n_->create_client<explorer_msgs::srv::Float64>("/explorer_controllers/qp_solving/q_init");
 
         //init publisher
-        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
+        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
 
         auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
 
@@ -99,76 +89,76 @@ namespace space_control
             q_command_.data[i] = q_init_[i];
         }
 
-        timer_ = n_->create_wall_timer(20ms, std::bind(&OutputIntegrator::timer_callback, this));
+        timer_ = n_->create_wall_timer(20ms, std::bind(&OutputIntegrator::timer_callback_, this));
 
     }
 
-    void OutputIntegrator::callback_dq_output(const std_msgs::msg::Float64MultiArray & msg)
+    void OutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray & msg)
     {   
        dq_output_.data = msg.data;   
     }
 
-    void OutputIntegrator::callback_gripper_vel(const std_msgs::msg::Float64 & msg)
+    void OutputIntegrator::callback_gripper_vel_(const std_msgs::msg::Float64 & msg)
     {   
         gripper_vel_.data = msg.data;
     }
 
-    void OutputIntegrator::callback_home(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_home_(const std_msgs::msg::Bool & msg)
     {   
-        go_home = msg.data;
+        go_home_ = msg.data;
     }
 
-    void OutputIntegrator::callback_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_zero = msg.data;
+        go_zero_ = msg.data;
     }
     
-    void OutputIntegrator::callback_J1_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J1_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J1_zero = msg.data;
+        go_J1_zero_ = msg.data;
     }
     
-    void OutputIntegrator::callback_J2_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J2_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J2_zero = msg.data;
+        go_J2_zero_ = msg.data;
     }
 
-    void OutputIntegrator::callback_J3_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J3_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J3_zero = msg.data;
+        go_J3_zero_ = msg.data;
     }
     
-    void OutputIntegrator::callback_J4_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J4_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J4_zero = msg.data;
+        go_J4_zero_ = msg.data;
     }
 
-    void OutputIntegrator::callback_J5_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J5_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J5_zero = msg.data;
+        go_J5_zero_ = msg.data;
     }
     
-    void OutputIntegrator::callback_J6_zero(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_J6_zero_(const std_msgs::msg::Bool & msg)
     {   
-        go_J6_zero = msg.data;
+        go_J6_zero_ = msg.data;
     }
 
 
-    void OutputIntegrator::timer_callback()
+    void OutputIntegrator::timer_callback_()
     {
-        if(reset){
+        if(reset_){
             return;
         }
 
-        if(go_home == true){
-            home(); 
+        if(go_home_ == true){
+            home_(); 
         }
 
-        if(go_zero == true){
-            zero(); 
+        if(go_zero_ == true){
+            zero_(); 
         }
 
-        if(go_J1_zero == true){
+        if(go_J1_zero_ == true){
             if(q_command_.data[0] < -0.001){
                 if(q_command_.data[0] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[0] = 0.5;
@@ -188,7 +178,7 @@ namespace space_control
             } 
         }
 
-        if(go_J2_zero == true){
+        if(go_J2_zero_ == true){
             if(q_command_.data[1] < -0.001){
                 if(q_command_.data[1] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[1] = 0.5;
@@ -207,7 +197,7 @@ namespace space_control
                 dq_output_.data[1] = 0.0;
             } 
         }
-        if(go_J3_zero == true){
+        if(go_J3_zero_ == true){
             if(q_command_.data[2] < -0.001){
                 if(q_command_.data[2] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[2] = 0.5;
@@ -227,7 +217,7 @@ namespace space_control
             } 
         }
 
-        if(go_J4_zero == true){
+        if(go_J4_zero_ == true){
             if(q_command_.data[3] < -0.001){
                 if(q_command_.data[3] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[3] = 0.5;
@@ -246,7 +236,7 @@ namespace space_control
                 dq_output_.data[3] = 0.0;
             } 
         }
-        if(go_J5_zero == true){
+        if(go_J5_zero_ == true){
             if(q_command_.data[4] < -0.001){
                 if(q_command_.data[4] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[4] = 0.5;
@@ -266,7 +256,7 @@ namespace space_control
             } 
         }
 
-        if(go_J6_zero == true){
+        if(go_J6_zero_ == true){
             if(q_command_.data[5] < -0.001){
                 if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
                     dq_output_.data[5] = 0.5;
@@ -302,7 +292,7 @@ namespace space_control
         command_pub_->publish(q_command_);
     }
 
-    void OutputIntegrator::home()
+    void OutputIntegrator::home_()
     {
         double x[6] = {0.0 , 0.436332, 1.48353, 0.0, -0.523599, 0.0};
 
@@ -350,7 +340,7 @@ namespace space_control
         }
     }
 
-    void OutputIntegrator::zero()
+    void OutputIntegrator::zero_()
     {
         if(q_command_.data[5] < -0.001){
             if(q_command_.data[5] + 0.5 * sampling_period_ <= 0.0){
@@ -396,13 +386,13 @@ namespace space_control
         }
     }
 
-    void OutputIntegrator::callback_reset(const std_msgs::msg::Bool & msg)
+    void OutputIntegrator::callback_reset_(const std_msgs::msg::Bool & msg)
     {
-        if (!msg.data || reset) {
+        if (!msg.data || reset_) {
             return;
         }
 
-        reset = true;
+        reset_ = true;
 
         RCLCPP_INFO(n_->get_logger(), "Resetting output integrator...");
 
@@ -412,13 +402,13 @@ namespace space_control
         q_init_client_->async_send_request(
             request,
             std::bind(
-                &OutputIntegrator::callback_reset_response,
+                &OutputIntegrator::callback_reset_response_,
                 this,
                 std::placeholders::_1)
         );
     }
 
-    void OutputIntegrator::callback_reset_response(
+    void OutputIntegrator::callback_reset_response_(
         rclcpp::Client<explorer_msgs::srv::Float64>::SharedFuture future)
     {
         auto result = future.get();
@@ -436,7 +426,7 @@ namespace space_control
                          result->code_error);
         }
     
-        reset = false;
+        reset_ = false;
     }
 
 }
