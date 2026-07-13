@@ -5,16 +5,22 @@ BasedOnStyle: Google
 
 AccessModifierOffset: -2
 AlignAfterOpenBracket: AlwaysBreak
-BraceWrapping:
-  AfterClass: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterEnum: true
-BreakBeforeBraces: Custom
 ColumnLimit: 100
 ConstructorInitializerIndentWidth: 0
 ContinuationIndentWidth: 2
 DerivePointerAlignment: false
-PointerAlignment: Middle
 ReflowComments: false
+
+# Ros style overriden
+# BraceWrapping:
+#   AfterClass: true
+#   AfterFunction: true
+#   AfterNamespace: true
+#   AfterStruct: true
+#   AfterEnum: true
+# PointerAlignment: Middle
+# BreakBeforeBraces: Custom
+
+# Custom
+BreakBeforeBraces: Allman
+PointerAlignment: Left
