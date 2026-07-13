@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|true">
+  <xacro:macro name="explorer_ros2_control" params="name use_ignition:=^|true robot_controller_config">
 
     <xacro:include filename="$(find explorer_description)/urdf/explorer_joints.xacro" />
 
@@ -27,7 +27,7 @@
 
     <!-- Import Gazebo definitions + plugin -->
       <xacro:include filename="$(find explorer_description)/gazebo/explorer.gazebo.xacro" />
-      <xacro:explorer_gazebo use_ignition="$(arg use_ignition)"/>
+      <xacro:explorer_gazebo use_ignition="$(arg use_ignition)" robot_controller_config="$(arg robot_controller_config)"/>
 
   </xacro:macro>
 
