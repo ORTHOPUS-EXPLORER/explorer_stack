@@ -1,0 +1,79 @@
+{
+    "name": "Orthopus explorer stack (ROS2 - Iron)",
+    "build": {
+        "context": "..",
+        "dockerfile": "../Dockerfile",
+        "target": "explorer_dev",
+        "cacheFrom": "ghcr.io/orthopus-explorer/ros-iron-explorer/dev:latest",
+        "args": {
+            "ROS_DISTRO": "iron"
+        }
+    },
+    "capAdd": ["SYS_NICE", "SYS_PTRACE"],
+    "runArgs": [
+        "--name=orthopus-explorer-devcontainer",
+        // shared memory transport with host, e.g. rviz GUIs
+        "--ipc=host",
+        // X11 socket for GUI applications
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+        // network access to host interfaces, e.g. eth0
+        "--network=host",
+        "--security-opt=seccomp=unconfined",
+        "--ulimit", "rtprio=99",
+        "--ulimit", "memlock=-1",
+        "--device", "/dev/dri:/dev/dri",
+        "--device", "/dev/input:/dev/input",
+        // "--pid=host", // DDS discovery with host, without --network=host
+        // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
+    ],
+    "workspaceFolder": "/root/explorer_ws/explorer_stack",
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
+    "initializeCommand": "",
+    "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder} && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc/lib/vescpp",
+    "postStartCommand": "set_device_permissions.sh",
+    "remoteEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}", // X11 forwarding
+        "XAUTHORITY": "/root/.Xauthority", // Allow access to display through XServer
+        "SSH_AUTH_SOCK": "/ssh-agent"
+    },
+    "mounts": [
+        {
+            "source": "${localEnv:SSH_AUTH_SOCK}",
+            "target": "/ssh-agent",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:XAUTHORITY}",
+            "target": "/root/.Xauthority",
+            "type": "bind"
+        },
+        {
+            "source": "/dev/input",
+            "target": "/dev/input",
+            "type": "bind"
+        },
+        {
+            "source": "/dev/dri",
+            "target": "/dev/dri",
+            "type": "bind"
+        }
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            },
+            "extensions": [
+                "llvm-vs-code-extensions.vscode-clangd",
+                "ranch-hand-robotics.rde-pack",
+                "ms-vscode.cmake-tools",
+                "charliermarsh.ruff",
+                "njpwerner.autodocstring",
+                "cschlosser.doxdocgen"
+            ]
+        }
+    }
+}

@@ -1,0 +1,26 @@
+---
+# Taken from ROS2 official tools (ament_clang_format)
+Language: Cpp
+BasedOnStyle: Google
+
+AccessModifierOffset: -2
+AlignAfterOpenBracket: AlwaysBreak
+ColumnLimit: 100
+ConstructorInitializerIndentWidth: 0
+ContinuationIndentWidth: 2
+DerivePointerAlignment: false
+ReflowComments: false
+
+# Ros style overriden
+# BraceWrapping:
+#   AfterClass: true
+#   AfterFunction: true
+#   AfterNamespace: true
+#   AfterStruct: true
+#   AfterEnum: true
+# PointerAlignment: Middle
+# BreakBeforeBraces: Custom
+
+# Custom
+BreakBeforeBraces: Allman
+PointerAlignment: Left

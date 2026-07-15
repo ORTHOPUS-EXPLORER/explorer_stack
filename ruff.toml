@@ -1,0 +1,39 @@
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+[lint]
+select = [
+    "I",      # enable isort
+    "D",      # docstring errors
+    "E",      # PEP8 errors
+    "E261",   # At least two spaces before inline comment
+    "E225",   # Missing whitespace around operator
+    "F",      # PEP8 warnings
+]
+ignore = [ "D200", "D204", "D205", "D400", "D401", "D413", "D415" ]

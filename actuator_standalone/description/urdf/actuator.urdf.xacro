@@ -6,7 +6,8 @@
   <xacro:arg name="can_id" default="17" />
   <xacro:arg name="host_id" default="45" />
   <xacro:arg name="rt_stream_rate" default="250" />
-  <xacro:arg name="aux_stream_rate" default="10" />
+  <xacro:arg name="aux_config_stream_rate" default="10" />
+  <xacro:arg name="aux_servo_stream_rate" default="50" />
   <!-- Import actuator macro -->
   <xacro:include filename="$(find ros2_control_actuator)/description/urdf/actuator_description.urdf.xacro"/>
 
@@ -31,7 +32,8 @@
     can_id="$(arg can_id)"
     host_id="$(arg host_id)"
     rt_stream_rate="$(arg rt_stream_rate)" 
-    aux_stream_rate="$(arg aux_stream_rate)" 
+    aux_config_stream_rate="$(arg aux_config_stream_rate)" 
+    aux_servo_stream_rate="$(arg aux_servo_stream_rate)" 
   />
 
   <xacro:if value="$(arg use_ignition)">

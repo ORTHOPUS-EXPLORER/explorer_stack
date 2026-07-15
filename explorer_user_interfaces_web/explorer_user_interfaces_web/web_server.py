@@ -246,11 +246,10 @@ def create_app(ros_node: Node) -> FastAPI:
         mode_config = load_mode_config(config_path)
         
         context = {
-            "request": request,
             "current_mode": ros_bridge.current_mode,
             "mode_config": mode_config
         }
-        return templates.TemplateResponse("index.html", context)
+        return templates.TemplateResponse(request=request, name="index.html", context=context)
     
     @app.get("/api/status")
     async def get_status():

@@ -8,7 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)
 find_package(yaml-cpp REQUIRED)
-
+find_package(backward_ros REQUIRED)
 
 set(INTERFACES_DEPENDENCIES
   rclcpp

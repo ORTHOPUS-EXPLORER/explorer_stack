@@ -9,7 +9,7 @@ find_package(ament_cmake REQUIRED)
 
 # INSTALL
 install(DIRECTORY worlds
-  DESTINATION share/explorer_gazebo
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 

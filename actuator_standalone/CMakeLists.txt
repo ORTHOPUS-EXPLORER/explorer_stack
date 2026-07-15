@@ -29,18 +29,8 @@ ament_target_dependencies(joint_controller
 )
 
 install(
-  DIRECTORY description
-  DESTINATION share/ros2_control_actuator
-)
-
-install(
-  DIRECTORY src
-  DESTINATION share/ros2_control_actuator
-)
-
-install(
-  DIRECTORY bringup/launch bringup/config
-  DESTINATION share/ros2_control_actuator
+  DIRECTORY bringup/launch bringup/config description src
+  DESTINATION share/${CMAKE_PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

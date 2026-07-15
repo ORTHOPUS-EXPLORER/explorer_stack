@@ -15,6 +15,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   realtime_tools
   std_msgs
   std_srvs
+  orthopus_vesc
+  orthopus_vesc_interfaces
 )
 
 find_package(ament_cmake REQUIRED)
@@ -24,12 +26,12 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
 endforeach()
 
 generate_parameter_library(
-  explorer_multi_intf_controller_parameters
-  src/explorer_multi_intf_controller_parameters.yaml
+  explorer_custom_controller_parameters
+  src/explorer_custom_controller_parameters.yaml
 )
 
 add_library(explorer_command_controllers SHARED
-  src/explorer_multi_intf_controller.cpp
+  src/explorer_custom_controller.cpp
 )
 
 target_compile_features(explorer_command_controllers 
@@ -45,7 +47,7 @@ PUBLIC
 
 target_link_libraries(explorer_command_controllers 
 PUBLIC
-  explorer_multi_intf_controller_parameters
+  explorer_custom_controller_parameters
 )
 
 ament_target_dependencies(explorer_command_controllers 
@@ -72,7 +74,7 @@ install(
 install(
   TARGETS
     explorer_command_controllers
-    explorer_multi_intf_controller_parameters
+    explorer_custom_controller_parameters
   EXPORT export_explorer_command_controllers
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
