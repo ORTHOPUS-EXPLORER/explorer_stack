@@ -21,9 +21,7 @@ from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch_ros.actions import Node
 
 from explorer_bringup.launch.controller_manager_spawner import (
-    declare_node_forward_position_controller_spawner,
     declare_node_joint_state_broadcaster_spawner,
-    declare_node_trajectory_controller_spawner,
 )
 from explorer_bringup.launch.shared import (
     declare_node_robot_state_publisher,
@@ -56,20 +54,6 @@ def _declare_node_controller_manager_control_node(
             ("~/robot_description", "/robot_description"),
         ],
     )
-
-
-def _declare_command_controller_list(
-    controller_type: CONTROLLER_CONFIG_TYPE,
-) -> List[Node]:
-    command_controller_generator_map: Dict[CONTROLLER_CONFIG_TYPE, Callable] = {
-        "controller": lambda: [
-            declare_node_trajectory_controller_spawner(),
-            declare_node_forward_position_controller_spawner(),
-        ],
-        "custom_controller": lambda: [],
-    }
-
-    return command_controller_generator_map[controller_type]()
 
 
 def declare_hardware_node_group(
