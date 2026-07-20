@@ -102,25 +102,15 @@ class RqtJointController(Plugin):
             timer_period, self.publisher_callback
         )
 
-        self.joint_sub_ = None
-        self.start_joint_state_subscriber()
-
+        ## TODO: joint state has 250hz and its frequency is way too high for Python GIL to handle => slider feels laggy even with empty callback
+        ## Note: destroying subscription via node.destroy_subscription cause InvalidHandle like 1/10 times so there's no quickfix available for now
+        ## Hint: Having a second throttled topic could solve the issue without any issue (topic_tools/topic_throttle)
+        self.joint_sub_ = self._context.node.create_subscription(
+            JointState, "/joint_states", self.joint_sub_callback, 2
+        )
         self._context.node.get_logger().info("RQT Init Finished")
 
         self.position_ratio_ = 180 / 3.141592
-
-    def start_joint_state_subscriber(self):
-        ## TODO: joint state has 250hz and its frequency is way too high for Python GIL to handle => slider feels laggy even with empty callback
-        ## Quickfix for now: subscriber is stopped when user is dragging slider
-        if self.joint_sub_ is None:
-            self.joint_sub_ = self._context.node.create_subscription(
-                JointState, "/joint_states", self.joint_sub_callback, 2
-            )
-
-    def stop_joint_state_subscriber(self):
-        if self.joint_sub_ is not None:
-            self._context.node.destroy_subscription(self.joint_sub_)
-            self.joint_sub_ = None
 
     def publisher_callback(self):
         if (not self.slider_released) or (not self.prev_slider_released):
@@ -148,7 +138,6 @@ class RqtJointController(Plugin):
         )
 
     def OnJointMove(self, index, value):
-        self.stop_joint_state_subscriber()
         self.joint_vel.data[index] = float(value) / self.scale
         self.slider_released = False
 
@@ -163,7 +152,6 @@ class RqtJointController(Plugin):
         self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.gripper_vel.data = [0.0]
         self.slider_released = True
-        self.start_joint_state_subscriber()
 
     def joint_sub_callback(self, msg):
         for i in range(0, 6):
@@ -181,6 +169,7 @@ class RqtJointController(Plugin):
     # Qt methods
     def shutdown_plugin(self):
         """Shutdown plugin."""
+        self._context.node.destroy_subscription(self.joint_sub_)
 
     def save_settings(self, plugin_settings, instance_settings):
         """Save settings."""

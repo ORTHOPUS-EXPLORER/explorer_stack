@@ -349,11 +349,12 @@ controller_interface::CallbackReturn CustomController::apply_config_to_joint_(
       joint_name.c_str());
     joint_mode = orthopus::JointVariableType::POSITION;
   }
-  // Set actuator mode / config only when using real hardware && for "real joint" actuators (excluding gripper)
-  if (!params_.simulation &&
-    joint_name.substr(0, 6).find("joint_") != std::string::npos)
+  // Set actuator mode / config only when using real hardware
+  if (!params_.simulation)
   {
-    if (joint_mode != orthopus::JointVariableType::POSITION && !set_joint_mode_(joint_name, settings.mode))
+    if (
+      joint_mode != orthopus::JointVariableType::POSITION &&
+      !set_joint_mode_(joint_name, settings.mode))
     {
       return controller_interface::CallbackReturn::ERROR;
     }

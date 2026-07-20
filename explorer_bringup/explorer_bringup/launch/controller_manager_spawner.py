@@ -83,7 +83,9 @@ def declare_custom_controller_spawner(
             config = yaml.safe_load(f)
 
         # Modify simulation parameter
-        config["explorer_custom_controller"]["ros__parameters"]["simulation"] = get_parameter_simulation().perform(context).lower() == "true"
+        config["explorer_custom_controller"]["ros__parameters"]["simulation"] = (
+            get_parameter_simulation().perform(context).lower() == "true"
+        )
 
         # Write temporary config
         tmp_file = tempfile.NamedTemporaryFile(
@@ -133,3 +135,11 @@ def declare_custom_controller_spawner(
             kwargs={"robot_controller_config": robot_controller_config},
         )
     ]
+
+
+def declare_node_gripper_controller_spawner(output: str = "log") -> Node:
+    return Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+    )
