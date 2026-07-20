@@ -15,7 +15,6 @@
 
 from typing import Literal
 
-from click.core import Group
 from launch.actions import GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import (
@@ -95,4 +94,17 @@ def declare_spacenav_node_group() -> GroupAction:
             ),
         ],
         condition=IfCondition(get_parameter_spacenav()),
+    )
+
+
+def declare_xbox_gamepad_joint_node():
+    return Node(
+        package="explorer_input_devices",
+        executable="xbox_gamepad_joint",
+        remappings=[
+            (
+                "/explorer_input_devices/xbox_gamepad_joint/dq_output",
+                "/explorer_controllers/qp_solving/dq_output",
+            ),
+        ],
     )
