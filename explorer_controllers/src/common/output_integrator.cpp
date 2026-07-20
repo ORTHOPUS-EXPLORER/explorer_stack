@@ -40,7 +40,6 @@ namespace space_control
 
         //init publisher
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
-        //ezaez todo gripper
         gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
         auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();

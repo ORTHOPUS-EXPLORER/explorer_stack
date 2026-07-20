@@ -1,29 +1,21 @@
-'''
- *  rqt_jointcontrol.py
- *  Copyright (C) 2022 Orthopus
- *  All rights reserved.
+"""
+*  rqt_jointcontrol.py
+*  Copyright (C) 2022 Orthopus
+*  All rights reserved.
 
-'''
+"""
+
 import os
 import sys
-
-import yaml
+from functools import partial
 
 from ament_index_python import get_resource
-
-
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget
-
-# pylint: enable=no-name-in-module,import-error
-
 from rqt_gui.main import Main
-
 from rqt_gui_py.plugin import Plugin
-
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
-
 
 
 class RqtJointController(Plugin):
@@ -45,7 +37,11 @@ class RqtJointController(Plugin):
 
         _, self.package_path = get_resource("packages", "explorer_user_interfaces")
         ui_file = os.path.join(
-            self.package_path, "share", "explorer_user_interfaces", "resource", "rqt_jointcontrol.ui"
+            self.package_path,
+            "share",
+            "explorer_user_interfaces",
+            "resource",
+            "rqt_jointcontrol.ui",
         )
 
         loadUi(ui_file, self._widget)
@@ -60,11 +56,13 @@ class RqtJointController(Plugin):
         if self._context.serial_number() < 1:
             self._widget.window().setWindowTitle(self.title)
 
-
-        self.scale = 1000.0 # Slider values between -scale and +scale
+        self.scale = 1000.0  # Slider values between -scale and +scale
 
         self.joint_vel = Float64MultiArray()
-        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        self.gripper_vel = Float64MultiArray()
+        self.gripper_vel.data = [0.0]
 
         self.slider_released = True
         self.prev_slider_released = True
@@ -79,97 +77,106 @@ class RqtJointController(Plugin):
         self._widget.J5_pos.setText("{:.2f} °".format(0.00))
         self._widget.J6_pos.setText("{:.2f} °".format(0.00))
 
-        #joint states
+        # joint states
         self.joint = JointState()
-        self.joint.name = ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"]
+        self.joint.name = [
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
+        ]
         self.joint.position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-        self.publisher_ = self._context.node.create_publisher(Float64MultiArray, "/explorer_user_interfaces/rqt_jointcontrol/dq_output", 1)
+        self.joints_publisher_ = self._context.node.create_publisher(
+            Float64MultiArray, "/explorer_user_interfaces/rqt_jointcontrol/dq_output", 1
+        )
+        self.gripper_publisher_ = self._context.node.create_publisher(
+            Float64MultiArray,
+            "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity",
+            1,
+        )
         timer_period = 0.02  # [sec] UI publishing rate
-        self.timer = self._context.node.create_timer(timer_period, self.publisher_callback)
+        self.timer = self._context.node.create_timer(
+            timer_period, self.publisher_callback
+        )
 
-        self.joint_sub_ = self._context.node.create_subscription(JointState, '/joint_states', self.joint_sub_callback, 1)
+        self.joint_sub_ = None
+        self.start_joint_state_subscriber()
 
         self._context.node.get_logger().info("RQT Init Finished")
 
+        self.position_ratio_ = 180 / 3.141592
+
+    def start_joint_state_subscriber(self):
+        ## TODO: joint state has 250hz and its frequency is way too high for Python GIL to handle => slider feels laggy even with empty callback
+        ## Quickfix for now: subscriber is stopped when user is dragging slider
+        if self.joint_sub_ is None:
+            self.joint_sub_ = self._context.node.create_subscription(
+                JointState, "/joint_states", self.joint_sub_callback, 2
+            )
+
+    def stop_joint_state_subscriber(self):
+        if self.joint_sub_ is not None:
+            self._context.node.destroy_subscription(self.joint_sub_)
+            self.joint_sub_ = None
 
     def publisher_callback(self):
-        if (not self.slider_released) or (not self.prev_slider_released) :
-            self.publisher_.publish(self.joint_vel)
+        if (not self.slider_released) or (not self.prev_slider_released):
+            self.joints_publisher_.publish(self.joint_vel)
+            self.gripper_publisher_.publish(self.gripper_vel)
         self.prev_slider_released = self.slider_released
 
     def setUpEventHandlers(self):
-        self._widget.J1.valueChanged.connect(self.OnJ1Move)
-        self._widget.J2.valueChanged.connect(self.OnJ2Move)
-        self._widget.J3.valueChanged.connect(self.OnJ3Move)
-        self._widget.J4.valueChanged.connect(self.OnJ4Move)
-        self._widget.J5.valueChanged.connect(self.OnJ5Move)
-        self._widget.J6.valueChanged.connect(self.OnJ6Move)
+        self._widget.J1.valueChanged.connect(partial(self.OnJointMove, 0))
+        self._widget.J2.valueChanged.connect(partial(self.OnJointMove, 1))
+        self._widget.J3.valueChanged.connect(partial(self.OnJointMove, 2))
+        self._widget.J4.valueChanged.connect(partial(self.OnJointMove, 3))
+        self._widget.J5.valueChanged.connect(partial(self.OnJointMove, 4))
+        self._widget.J6.valueChanged.connect(partial(self.OnJointMove, 5))
         self._widget.gripper.valueChanged.connect(self.onGripperMove)
 
-        self._widget.J1.sliderReleased.connect(self.onSliderReleased)
-        self._widget.J2.sliderReleased.connect(self.onSliderReleased)
-        self._widget.J3.sliderReleased.connect(self.onSliderReleased)
-        self._widget.J4.sliderReleased.connect(self.onSliderReleased)
-        self._widget.J5.sliderReleased.connect(self.onSliderReleased)
-        self._widget.J6.sliderReleased.connect(self.onSliderReleased)
-        self._widget.gripper.sliderReleased.connect(self.onSliderReleased)
+        self._widget.J1.sliderReleased.connect(partial(self.onSliderReleased, "J1"))
+        self._widget.J2.sliderReleased.connect(partial(self.onSliderReleased, "J2"))
+        self._widget.J3.sliderReleased.connect(partial(self.onSliderReleased, "J3"))
+        self._widget.J4.sliderReleased.connect(partial(self.onSliderReleased, "J4"))
+        self._widget.J5.sliderReleased.connect(partial(self.onSliderReleased, "J5"))
+        self._widget.J6.sliderReleased.connect(partial(self.onSliderReleased, "J6"))
+        self._widget.gripper.sliderReleased.connect(
+            partial(self.onSliderReleased, "gripper")
+        )
 
-
-    def OnJ1Move(self, value):
-        self.joint_vel.data[0] = float(value) / self.scale
-        self.slider_released = False
-
-    def OnJ2Move(self, value):
-        self.joint_vel.data[1]  = float(value) / self.scale
-        self.slider_released = False
-
-    def OnJ3Move(self, value):
-        self.joint_vel.data[2] = float(value) / self.scale
-        self.slider_released = False
-
-    def OnJ4Move(self, value):
-        self.joint_vel.data[3] = float(value) / self.scale
-        self.slider_released = False
-
-    def OnJ5Move(self, value):
-        self.joint_vel.data[4] = float(value) / self.scale
-        self.slider_released = False
-
-    def OnJ6Move(self, value):
-        self.joint_vel.data[5] = float(value) / self.scale
+    def OnJointMove(self, index, value):
+        self.stop_joint_state_subscriber()
+        self.joint_vel.data[index] = float(value) / self.scale
         self.slider_released = False
 
     def onGripperMove(self, value):
-        self.joint_vel.data[6] = float(value) / self.scale
+        self.gripper_vel.data[0] = float(value) / self.scale
         self.slider_released = False
-    
-    def onSliderReleased(self):
-        self._widget.J1.setSliderPosition(0)
-        self._widget.J2.setSliderPosition(0)
-        self._widget.J3.setSliderPosition(0)
-        self._widget.J4.setSliderPosition(0)
-        self._widget.J5.setSliderPosition(0)
-        self._widget.J6.setSliderPosition(0)
-        self._widget.gripper.setSliderPosition(0)
-        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    def onSliderReleased(self, widget_name: str):
+        target_widget = getattr(self._widget, widget_name)
+        target_widget.setSliderPosition(0)
+
+        self.joint_vel.data = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.gripper_vel.data = [0.0]
         self.slider_released = True
+        self.start_joint_state_subscriber()
 
     def joint_sub_callback(self, msg):
-        for i in range(0,6):
+        for i in range(0, 6):
+            target_widget = getattr(self._widget, "J" + str(i + 1) + "_pos")
             j = 0
-            while (self.joint.name[i]!= msg.name[j] and j<len(msg.name)):
+            while self.joint.name[i] != msg.name[j] and j < len(msg.name):
                 j += 1
-            if(self.joint.name[i] == msg.name[j]):    
+            if self.joint.name[i] == msg.name[j]:
                 self.joint.position[i] = msg.position[j]
+                self.modify_widget_text(target_widget, msg.position[j])
 
-        
-        self._widget.J1_pos.setText("{:.2f} °".format(self.joint.position[0]*(180/3.141592)))
-        self._widget.J2_pos.setText("{:.2f} °".format(self.joint.position[1]*(180/3.141592)))
-        self._widget.J3_pos.setText("{:.2f} °".format(self.joint.position[2]*(180/3.141592)))
-        self._widget.J4_pos.setText("{:.2f} °".format(self.joint.position[3]*(180/3.141592)))
-        self._widget.J5_pos.setText("{:.2f} °".format(self.joint.position[4]*(180/3.141592)))
-        self._widget.J6_pos.setText("{:.2f} °".format(self.joint.position[5]*(180/3.141592)))
+    def modify_widget_text(self, widget_target, position: float):
+        widget_target.setText("{:.2f} °".format(position * self.position_ratio_))
 
     # Qt methods
     def shutdown_plugin(self):
