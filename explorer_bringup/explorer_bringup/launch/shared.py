@@ -235,7 +235,7 @@ def declare_output_integrator_node(
 
 
 def declare_command_node(
-    default_controller_name: str,
+    default_controller_name_list: List [ str ],
     output: str = "screen",
     remappings: List = [],
 ) -> Node:
@@ -256,7 +256,7 @@ def declare_command_node(
                 "mode_file": yaml_file_path,
                 "trajectory_file": trajectory_yaml_file_path,
                 "active_trajectory": trajectory,
-                "default_controller_name": default_controller_name,
+                "default_controller_name_list": default_controller_name_list,
             }
         ],
         remappings=remappings,

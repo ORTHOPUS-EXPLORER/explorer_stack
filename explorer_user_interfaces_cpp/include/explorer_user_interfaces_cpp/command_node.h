@@ -188,7 +188,7 @@ namespace space_control
 
         bool limits_initialized_ = false;
 
-        std::string default_controller_name_;
+        std::vector<std::string> default_controller_name_list_;
 
         ModeData loadModeData_(const std::string& filename);
         bool validateModeData_(const ModeData& data);
