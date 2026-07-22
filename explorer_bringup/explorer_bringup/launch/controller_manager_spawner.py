@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import copy
 import os
 import tempfile
 from typing import List
 
 import yaml
 from ament_index_python.packages import get_package_share_directory
-from launch.actions import ExecuteProcess, OpaqueFunction, RegisterEventHandler
+from launch.actions import OpaqueFunction, RegisterEventHandler
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
 
-from explorer_bringup.launch.shared_parameters import get_parameter_simulation
+from explorer_bringup.launch.shared_parameters import (
+    get_parameter_simulation,
+    get_parameter_use_qp_inria,
+)
 
 
 def declare_node_joint_state_broadcaster_spawner(output: str = "log") -> Node:
@@ -64,6 +66,7 @@ def declare_node_forward_position_controller_spawner(output: str = "log") -> Nod
             "--controller-manager",
             "/controller_manager",
         ],
+        condition=UnlessCondition(get_parameter_use_qp_inria()),
     )
 
 
@@ -142,4 +145,13 @@ def declare_node_gripper_controller_spawner(output: str = "log") -> Node:
         package="controller_manager",
         executable="spawner",
         arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+    )
+
+
+def declare_node_qcontrol_controller_spawner(output: str = "log") -> Node:
+    return Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
+        condition=IfCondition(get_parameter_use_qp_inria()),
     )

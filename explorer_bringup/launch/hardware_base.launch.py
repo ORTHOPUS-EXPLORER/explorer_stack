@@ -13,14 +13,18 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, TimerAction
-from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.event_handlers import OnProcessExit
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -32,7 +36,7 @@ def generate_launch_description():
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
 
-    qp_inria = LaunchConfiguration('qp_inria', default='false')
+    use_qp_inria = LaunchConfiguration('use_qp_inria', default='false')
 
     # Declare arguments
     declared_arguments = []
@@ -73,7 +77,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "qp_inria",
+            "use_qp_inria",
             default_value="false",
             description="Use QP solver from Inria",
         )
@@ -146,7 +150,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
         output="log",
-        condition=UnlessCondition(qp_inria)
+        condition=UnlessCondition(use_qp_inria)
     )
 
     gripper_controller_spawner = Node(
@@ -159,7 +163,7 @@ def generate_launch_description():
         package="controller_manager",
         executable="spawner",
         arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
-        condition=IfCondition(qp_inria)
+        condition=IfCondition(use_qp_inria)
     )
 
     trajectory_controller_spawner = Node(

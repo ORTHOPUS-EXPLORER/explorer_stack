@@ -16,7 +16,13 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration, PythonExpression
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -33,7 +39,7 @@ def generate_launch_description():
     host_id = LaunchConfiguration("host_id")
     poc2 = LaunchConfiguration("use_POC2")
     robot_description_param = LaunchConfiguration("robot_description_param")
-    qp_inria = LaunchConfiguration('qp_inria')
+    use_qp_inria = LaunchConfiguration('use_qp_inria')
 
     # Declare arguments
     declared_arguments = []
@@ -114,7 +120,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "qp_inria",
+            "use_qp_inria",
             default_value="false",
             description="Use QP solver from Inria"
         )
@@ -131,7 +137,7 @@ def generate_launch_description():
             'gui': gui,
             'use_sim_time': use_sim_time,
             'rviz_delay': '0.0',
-            'qp_inria': qp_inria,
+            'use_qp_inria': use_qp_inria,
         }.items(),
         condition=IfCondition(simulation)
     )
@@ -150,7 +156,7 @@ def generate_launch_description():
             'host_id': host_id,
             'use_POC2': poc2,
             'rviz_delay': '5.0',
-            'qp_inria': qp_inria,
+            'use_qp_inria': use_qp_inria,
         }.items(),
         condition=UnlessCondition(simulation)
     )
@@ -211,7 +217,7 @@ def generate_launch_description():
         parameters=[
             {'use_sim_time': use_sim_time}
         ],
-        condition=UnlessCondition(qp_inria),
+        condition=UnlessCondition(use_qp_inria),
     )
 
     output_integrator_node = Node(
@@ -221,7 +227,7 @@ def generate_launch_description():
         parameters=[
             {'use_sim_time': use_sim_time}
         ],
-        condition=UnlessCondition(qp_inria),
+        condition=UnlessCondition(use_qp_inria),
     )
 
     qp_solving_POC1_node = Node(
@@ -230,7 +236,7 @@ def generate_launch_description():
         parameters=[config_POC1, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
         condition=IfCondition(
             PythonExpression([
-                "'", poc2, "' == 'false' and '", qp_inria, "' == 'false'"
+                "'", poc2, "' == 'false' and '", use_qp_inria, "' == 'false'"
             ])
         ),
     )
@@ -241,7 +247,7 @@ def generate_launch_description():
         parameters=[config_POC2, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
         condition=IfCondition(
             PythonExpression([
-                "'", poc2, "' == 'true' and '", qp_inria, "' == 'false'"
+                "'", poc2, "' == 'true' and '", use_qp_inria, "' == 'false'"
             ])
         ),
     )

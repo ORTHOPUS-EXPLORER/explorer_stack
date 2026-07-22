@@ -54,7 +54,7 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
   n_->declare_parameter<std::string>("mode_file", "");
   n_->declare_parameter<std::string>("trajectory_file", "");
   n_->declare_parameter<bool>("active_trajectory", true);
-  n_->declare_parameter<bool>("qp_inria", false);
+  n_->declare_parameter<bool>("use_qp_inria", false);
 
   // Get the value of the mode_file parameter
   std::string mode_file;
@@ -122,7 +122,7 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
     lock_ = false;
   }
 
-  n_->get_parameter("qp_inria", qp_inria_);
+  n_->get_parameter("use_qp_inria", use_qp_inria_);
 
   // Initialize subscribers and publishers
   joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>(
@@ -809,7 +809,7 @@ void CommandNode::getDoubleParameter_(const std::string& param_name, std::option
 
 void CommandNode::timer_callback_()
 {
-  if (!qp_inria_)
+  if (!use_qp_inria_)
   {
     if (!j2_max_cached_ || !j2_operational_max_cached_)
     {
@@ -920,7 +920,7 @@ void CommandNode::timer_callback_()
   retract_status_pub_->publish(
     std_msgs::msg::String().set__data(trajectory_manager_.getStatusString()));
 
-  if (!qp_inria_)
+  if (!use_qp_inria_)
   {
     if (trajectory_manager_.getStatusString() != "ready")
     {

@@ -13,15 +13,28 @@
 # limitations under the License.
 
 import os
+
 import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
+from ament_index_python.packages import (
+    get_package_share_directory,
+    get_package_share_path,
+)
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
-from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+    TimerAction,
+)
 from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -34,7 +47,7 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     rviz_delay = LaunchConfiguration("rviz_delay")
     world_file = LaunchConfiguration("world_file")
-    qp_inria = LaunchConfiguration('qp_inria', default='false') 
+    use_qp_inria = LaunchConfiguration('use_qp_inria', default='false') 
     
     # Declare arguments
     declared_arguments = []
@@ -74,7 +87,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "qp_inria",
+            "use_qp_inria",
             default_value="false",
             description="Use QP solver from Inria"
         )
@@ -127,14 +140,14 @@ def generate_launch_description():
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
-        condition=UnlessCondition(qp_inria)
+        condition=UnlessCondition(use_qp_inria)
     )
 
     qcontrol_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
-        condition=IfCondition(qp_inria)
+        condition=IfCondition(use_qp_inria)
     )
 
     gripper_controller_spawner = Node(

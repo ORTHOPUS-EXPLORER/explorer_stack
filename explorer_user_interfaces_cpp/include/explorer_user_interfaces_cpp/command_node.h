@@ -129,7 +129,7 @@ namespace space_control
 
         bool active_trajectory_;
 
-        bool qp_inria_;
+        bool use_qp_inria_;
 
         std::string active_controller_;
 

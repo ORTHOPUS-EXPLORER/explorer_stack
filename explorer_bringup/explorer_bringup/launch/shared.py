@@ -257,6 +257,7 @@ def declare_command_node(
                 "trajectory_file": trajectory_yaml_file_path,
                 "active_trajectory": trajectory,
                 "default_controller_name_list": default_controller_name_list,
+                "use_qp_inria": get_parameter_use_qp_inria()
             }
         ],
         remappings=remappings,
