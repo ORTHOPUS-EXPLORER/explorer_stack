@@ -5,7 +5,7 @@
 namespace space_control
 {
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
-: n_(n), button_handler_(), trajectory_manager_(), controller_switcher_(n)
+: n_(n), button_handler_(), trajectory_manager_(), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
@@ -662,8 +662,7 @@ void CommandNode::handle_controller_state_()
       if (!switch_in_progress_)
       {
         switch_in_progress_ = true;
-
-        auto future = controller_switcher_.switch_controller_async(
+        auto future = controller_manager_wrapper_.switch_controller_async(
           default_controller_name_list_, {"joint_trajectory_controller"});
 
         // Callback when the switch completes
@@ -713,7 +712,7 @@ void CommandNode::handle_controller_state_()
         trajectory_manager_.reset();
         reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(true));
 
-        auto future = controller_switcher_.switch_controller_async(
+        auto future = controller_manager_wrapper_.switch_controller_async(
           {"joint_trajectory_controller"}, default_controller_name_list_);
 
         std::thread(
