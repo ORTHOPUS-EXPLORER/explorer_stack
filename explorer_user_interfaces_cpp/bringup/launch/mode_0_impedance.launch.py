@@ -15,6 +15,7 @@
 from explorer_bringup.launch.controller_manager_spawner import (
     declare_custom_controller_spawner,
     declare_node_gripper_controller_spawner,
+    declare_node_qcontrol_controller_spawner,
     declare_node_trajectory_controller_spawner,
 )
 from explorer_bringup.launch.hardware import declare_hardware_node_group
@@ -77,7 +78,10 @@ def generate_launch_description():
         controller_position_topic_name=controller_position_topic_name
     )
     command_node = declare_command_node(
-        default_controller_name_list=["explorer_custom_controller", "gripper_controller"],
+        default_controller_name_list=[
+            "explorer_custom_controller",
+            "gripper_controller",
+        ],
         remappings=[
             (
                 "/command_node/cartesian_velocity_command",
@@ -95,7 +99,8 @@ def generate_launch_description():
             robot_controller_config=robot_controller_config
         ),
         declare_node_trajectory_controller_spawner(),
-        declare_node_gripper_controller_spawner()
+        declare_node_gripper_controller_spawner(),
+        declare_node_qcontrol_controller_spawner(),
     ]
 
     robot_simulation = declare_simulation_node_group(

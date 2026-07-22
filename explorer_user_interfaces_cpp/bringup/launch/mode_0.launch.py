@@ -15,6 +15,7 @@
 from explorer_bringup.launch.controller_manager_spawner import (
     declare_node_forward_position_controller_spawner,
     declare_node_gripper_controller_spawner,
+    declare_node_qcontrol_controller_spawner,
     declare_node_trajectory_controller_spawner,
 )
 from explorer_bringup.launch.hardware import declare_hardware_node_group
@@ -94,6 +95,7 @@ def generate_launch_description():
         declare_node_forward_position_controller_spawner(),
         declare_node_trajectory_controller_spawner(),
         declare_node_gripper_controller_spawner(),
+        declare_node_qcontrol_controller_spawner()
     ]
 
     robot_simulation = declare_simulation_node_group(
