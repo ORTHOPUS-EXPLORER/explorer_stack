@@ -18,7 +18,7 @@ from typing import List
 
 from ament_index_python.packages import get_package_share_directory
 from launch import Action
-from launch.actions import RegisterEventHandler
+from launch.actions import OpaqueFunction, RegisterEventHandler
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import (
@@ -235,32 +235,43 @@ def declare_output_integrator_node(
 
 
 def declare_command_node(
-    default_controller_name_list: List [ str ],
+    default_controller_name_list: List[str] | OpaqueFunction,
     output: str = "screen",
     remappings: List = [],
-) -> Node:
-    ## It was like this before refactor but it's weird mapping trajectory / force_deploy
-    trajectory = LaunchConfiguration("force_deploy")
-    pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
-    yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
-    trajectory_yaml_file_path = os.path.join(
-        pkg_share, "config", "config_trajectory.yaml"
-    )
+) -> List[Node]:
+    def inner_opaque_function(
+        context, default_controller_name_list: List[str] | OpaqueFunction
+    ) -> OpaqueFunction:
+        ## It was like this before refactor but it's weird mapping trajectory / force_deploy
+        trajectory = LaunchConfiguration("force_deploy")
+        pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
+        yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
+        trajectory_yaml_file_path = os.path.join(
+            pkg_share, "config", "config_trajectory.yaml"
+        )
+        if type(default_controller_name_list) is OpaqueFunction:
+            default_controller_name_list = default_controller_name_list.execute(context)
+        return [
+            Node(
+                package="explorer_user_interfaces_cpp",
+                executable="command_node",
+                output=output,
+                parameters=[
+                    {
+                        "mode_file": yaml_file_path,
+                        "trajectory_file": trajectory_yaml_file_path,
+                        "active_trajectory": trajectory,
+                        "default_controller_name_list": default_controller_name_list,
+                        "use_qp_inria": get_parameter_use_qp_inria(),
+                    }
+                ],
+                remappings=remappings,
+            )
+        ]
 
-    return Node(
-        package="explorer_user_interfaces_cpp",
-        executable="command_node",
-        output=output,
-        parameters=[
-            {
-                "mode_file": yaml_file_path,
-                "trajectory_file": trajectory_yaml_file_path,
-                "active_trajectory": trajectory,
-                "default_controller_name_list": default_controller_name_list,
-                "use_qp_inria": get_parameter_use_qp_inria()
-            }
-        ],
-        remappings=remappings,
+    return OpaqueFunction(
+        function=inner_opaque_function,
+        kwargs={"default_controller_name_list": default_controller_name_list},
     )
 
 

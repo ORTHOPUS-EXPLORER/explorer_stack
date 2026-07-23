@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
+
 from explorer_bringup.launch.controller_manager_spawner import (
     declare_node_forward_position_controller_spawner,
     declare_node_gripper_controller_spawner,
@@ -33,6 +35,7 @@ from explorer_bringup.launch.shared import (
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_use_qp_inria,
 )
 from explorer_bringup.launch.simulation import (
     declare_simulation_node_group,
@@ -41,7 +44,7 @@ from explorer_bringup.launch.simulation_parameters import (
     declare_simulation_argument_list,
 )
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 
 
 def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
@@ -77,8 +80,18 @@ def generate_launch_description():
     output_integrator_node = declare_output_integrator_node(
         controller_position_topic_name=controller_position_topic_name
     )
+
+    def opaque_function_default_controller_name_list(context) -> List[str]:
+        use_qp_inria = get_parameter_use_qp_inria().perform(context).lower() == "true"
+
+        if use_qp_inria:
+            return ["qontrol_explorer", "gripper_controller"]
+        return ["forward_position_controller", "gripper_controller"]
+
     command_node = declare_command_node(
-        default_controller_name_list = ["forward_position_controller", "gripper_controller"],
+        default_controller_name_list=OpaqueFunction(
+            function=opaque_function_default_controller_name_list,
+        ),
         remappings=[
             (
                 "/command_node/cartesian_velocity_command",
@@ -95,7 +108,7 @@ def generate_launch_description():
         declare_node_forward_position_controller_spawner(),
         declare_node_trajectory_controller_spawner(),
         declare_node_gripper_controller_spawner(),
-        declare_node_qcontrol_controller_spawner()
+        declare_node_qcontrol_controller_spawner(),
     ]
 
     robot_simulation = declare_simulation_node_group(
@@ -104,9 +117,8 @@ def generate_launch_description():
         qp_solving_post_start_list=[
             input_integrator_node,
             output_integrator_node,
-            command_node,
         ],
-        controller_position_topic_name=controller_position_topic_name
+        controller_position_topic_name=controller_position_topic_name,
     )
 
     robot_hardware = declare_hardware_node_group(
@@ -115,10 +127,9 @@ def generate_launch_description():
         qp_solving_post_start_list=[
             input_integrator_node,
             output_integrator_node,
-            command_node,
         ],
         robot_controller_config_type=robot_controller_config,
-        controller_position_topic_name=controller_position_topic_name
+        controller_position_topic_name=controller_position_topic_name,
     )
 
     joy_node = declare_joy_node()
@@ -128,6 +139,7 @@ def generate_launch_description():
         robot_simulation,
         robot_hardware,
         joy_node,
+        command_node,
         web_gui_node,
     ]
 
