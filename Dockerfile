@@ -63,6 +63,10 @@ LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/expl
 LABEL org.opencontainers.image.description="Development image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
 
+# Needed for build script
+ARG ROS_WS
+ENV ROS_WS=${ROS_WS}
+
 # Create volume to stores .ccache folderset_device_permissions
 RUN mkdir /root/.ccache
 VOLUME /root/.ccache
