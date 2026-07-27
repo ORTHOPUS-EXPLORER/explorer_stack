@@ -22,8 +22,6 @@ from launch.actions import OpaqueFunction, RegisterEventHandler
 from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessStart
 from launch.substitutions import (
-    Command,
-    FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
     PythonExpression,
@@ -41,6 +39,7 @@ from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_gui,
     get_parameter_robot_description,
+    get_parameter_robot_semantic_srdf,
     get_parameter_use_poc2,
     get_parameter_use_qp_inria,
     get_parameter_use_sim_time,
@@ -73,16 +72,7 @@ def declare_qp_solving_node_list(
     }
 
     # Get SRDF via xacro
-    semantic_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("explorer_description"), "urdf", "explorer.srdf"]
-            ),
-            " ",
-        ]
-    )
+    semantic_content = get_parameter_robot_semantic_srdf()
 
     robot_description_semantic = {
         "robot_description_semantic": ParameterValue(semantic_content, value_type=str)

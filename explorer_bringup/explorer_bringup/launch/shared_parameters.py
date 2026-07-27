@@ -107,6 +107,23 @@ def declare_shared_argument_list(
             ),
             description="Robot description (URDF) evaluated from xacro",
         ),
+        DeclareLaunchArgument(
+            "robot_semantic_srdf",
+            default_value=Command(
+                [
+                    PathJoinSubstitution([FindExecutable(name="xacro")]),
+                    " ",
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("explorer_description"),
+                            "urdf",
+                            "explorer.srdf",
+                        ]
+                    ),
+                ]
+            ),
+            description="Robot semantic (SRDF) evaluated from xacro",
+        ),
     ]
 
 
@@ -189,3 +206,12 @@ def get_parameter_use_qp_inria() -> LaunchConfiguration:
         LaunchConfiguration: use_qp_inria
     """
     return LaunchConfiguration("use_qp_inria")
+
+
+def get_parameter_robot_semantic_srdf() -> LaunchConfiguration:
+    """Get ros2 parameter "robot_semantic_srdf".
+
+    Returns:
+        LaunchConfiguration: robot_semantic_srdf
+    """
+    return LaunchConfiguration("robot_semantic_srdf")
