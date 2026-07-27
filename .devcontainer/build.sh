@@ -7,7 +7,7 @@ set -eo pipefail
 if [[ -f "install/.colcon_install_layout" && ! -z $(grep "isolated" "install/.colcon_install_layout") ]]; then rm -r install; fi
 
 # Source ROS / colcon install files automatically in bashrc
-echo 'source /opt/ros/${ROS_DISTRO}/setup.bash && source install/setup.bash' >> ~/.bashrc;
+if [[ -z $(grep "source /opt/ros/" ~/.bashrc) ]]; then echo 'source /opt/ros/${ROS_DISTRO}/setup.bash && source install/setup.bash' >> ~/.bashrc; fi
 
 # Source ROS for remaining commands
 source /opt/ros/${ROS_DISTRO}/setup.bash
