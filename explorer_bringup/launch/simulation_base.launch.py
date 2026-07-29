@@ -40,6 +40,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
+## LEGACY FILE: WILL BE DELETED IN THE FUTURE AND SHOULDN'T BE USED ANYMORE
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")

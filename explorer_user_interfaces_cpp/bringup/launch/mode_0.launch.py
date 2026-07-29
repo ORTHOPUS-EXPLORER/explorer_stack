@@ -69,6 +69,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 def generate_launch_description():
     # Use default robot controller config
     robot_controller_config = "controller"
+    # Used only if use_qp_inria=false
     controller_position_topic_name = "/forward_position_controller/commands"
 
     # Initialize Arguments
