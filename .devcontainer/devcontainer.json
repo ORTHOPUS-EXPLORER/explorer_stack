@@ -28,7 +28,7 @@
     ],
     "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
-    "initializeCommand": "",
+    "initializeCommand": "if [ -n \"${localEnv:XAUTHORITY}\" ] && [ -f \"${localEnv:XAUTHORITY}\" ]; then cp \"${localEnv:XAUTHORITY}\" ${localWorkspaceFolder}/.devcontainer/.xauthority; elif [ -f \"$HOME/.Xauthority\" ]; then cp \"$HOME/.Xauthority\" ${localWorkspaceFolder}/.devcontainer/.xauthority; else touch ${localWorkspaceFolder}/.devcontainer/.xauthority; fi && chmod 600 ${localWorkspaceFolder}/.devcontainer/.xauthority",
     "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder} && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc && git config --global --add safe.directory ${containerWorkspaceFolder}/libs/orthopus_vesc/lib/vescpp",
     "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
@@ -43,7 +43,7 @@
             "type": "bind"
         },
         {
-            "source": "${localEnv:XAUTHORITY}",
+            "source": "${localWorkspaceFolder}/.devcontainer/.xauthority",
             "target": "/root/.Xauthority",
             "type": "bind"
         },
