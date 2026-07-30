@@ -39,7 +39,7 @@
     ],
     "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
-    "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/ros_domain_id.sh",
+    "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/ros_domain_id.sh && bash ${localWorkspaceFolder}/.devcontainer/xauthority.sh",
     "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
     "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
@@ -54,7 +54,7 @@
             "type": "bind"
         },
         {
-            "source": "${localEnv:XAUTHORITY}",
+            "source": "${localWorkspaceFolder}/.devcontainer/.xauthority",
             "target": "/root/.Xauthority",
             "type": "bind"
         },
