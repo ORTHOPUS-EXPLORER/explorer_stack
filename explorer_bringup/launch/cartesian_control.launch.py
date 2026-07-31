@@ -12,38 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.controller_manager_spawner import (
+from explorer_bringup.launch.controller_manager_spawner import (
     declare_node_forward_position_controller_spawner,
     declare_node_gripper_controller_spawner,
     declare_node_qcontrol_controller_spawner,
     declare_node_trajectory_controller_spawner,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.hardware import (
+from explorer_bringup.launch.hardware import (
     declare_hardware_node_group,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.hardware_parameters import (
+from explorer_bringup.launch.hardware_parameters import (
     declare_hardware_argument_list,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.optional import (
+from explorer_bringup.launch.optional import (
     declare_spacenav_node_group,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.optional_parameters import (
+from explorer_bringup.launch.optional_parameters import (
     declare_parameter_spacenav,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.shared import (
+from explorer_bringup.launch.shared import (
     declare_input_integrator_node,
     declare_output_integrator_node,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.shared_parameters import (
+from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_gui,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.simulation import (
+from explorer_bringup.launch.simulation import (
     declare_simulation_node_group,
 )
-from build.explorer_bringup.ament_cmake_python.explorer_bringup.explorer_bringup.launch.simulation_parameters import (
+from explorer_bringup.launch.simulation_parameters import (
     declare_simulation_argument_list,
 )
 from launch import LaunchDescription
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 
@@ -98,6 +100,7 @@ def generate_launch_description():
     gui_control_node = Node(
         package="explorer_user_interfaces",
         executable="rqt_armcontrol",
+        condition=IfCondition(get_parameter_gui()),
     )
 
     nodes = [
