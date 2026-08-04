@@ -18,6 +18,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Int32
 from sensor_msgs.msg import Joy
+from ament_index_python.packages import get_package_share_directory
 
 
 class RosBridge:
@@ -221,14 +222,23 @@ def create_app(ros_node: Node) -> FastAPI:
     
     app = FastAPI(title="Explorer Robot Web GUI")
     
-    # Get the package directory for static files
-    package_dir = Path(__file__).parent
+    # Get the package share directory for static files
+    package_name = 'explorer_user_interfaces_web'
+    try:
+        share_dir = Path(get_package_share_directory(package_name))
+        static_dir = share_dir / 'static'
+        templates_dir = share_dir / 'templates'
+    except Exception:
+        # Fallback to source directory when running in development (not installed)
+        package_dir = Path(__file__).parent
+        static_dir = package_dir / 'static'
+        templates_dir = package_dir / 'templates'
     
     # Mount static files
-    app.mount("/static", StaticFiles(directory=str(package_dir / "static")), name="static")
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
     
     # Templates
-    templates = Jinja2Templates(directory=str(package_dir / "templates"))
+    templates = Jinja2Templates(directory=str(templates_dir))
     
     # Create ROS bridge
     ros_bridge = RosBridge(ros_node)
