@@ -227,10 +227,12 @@ def declare_output_integrator_node(
 def declare_command_node(
     default_controller_name_list: List[str] | OpaqueFunction,
     output: str = "screen",
-    remappings: List = [],
+    remappings: List | OpaqueFunction = [],
 ) -> List[Node]:
     def inner_opaque_function(
-        context, default_controller_name_list: List[str] | OpaqueFunction
+        context,
+        default_controller_name_list: List[str] | OpaqueFunction,
+        remappings: List | OpaqueFunction,
     ) -> OpaqueFunction:
         ## It was like this before refactor but it's weird mapping trajectory / force_deploy
         trajectory = LaunchConfiguration("force_deploy")
@@ -241,6 +243,8 @@ def declare_command_node(
         )
         if type(default_controller_name_list) is OpaqueFunction:
             default_controller_name_list = default_controller_name_list.execute(context)
+        if type(remappings) is OpaqueFunction:
+            remappings = remappings.execute(context)
         return [
             Node(
                 package="explorer_user_interfaces_cpp",
@@ -261,7 +265,10 @@ def declare_command_node(
 
     return OpaqueFunction(
         function=inner_opaque_function,
-        kwargs={"default_controller_name_list": default_controller_name_list},
+        kwargs={
+            "default_controller_name_list": default_controller_name_list,
+            "remappings": remappings,
+        },
     )
 
 

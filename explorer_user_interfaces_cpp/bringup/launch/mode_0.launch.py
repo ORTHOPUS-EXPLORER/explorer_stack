@@ -89,11 +89,25 @@ def generate_launch_description():
             return ["qontrol_explorer", "gripper_controller"]
         return ["forward_position_controller", "gripper_controller"]
 
-    command_node = declare_command_node(
-        default_controller_name_list=OpaqueFunction(
-            function=opaque_function_default_controller_name_list,
-        ),
-        remappings=[
+    def opaque_function_command_node_remappings(context) -> List[str]:
+        use_qp_inria = get_parameter_use_qp_inria().perform(context).lower() == "true"
+
+        if use_qp_inria:
+            return [
+                (
+                    "/command_node/cartesian_velocity_command",
+                    "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
+                ),
+                (
+                    "/command_node/gripper_velocity_command",
+                    "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity",
+                ),
+                (
+                    "/explorer_controllers/qp_solving/x_current",
+                    "/qontrol_controller/x_current",
+                ),
+            ]
+        return [
             (
                 "/command_node/cartesian_velocity_command",
                 "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
@@ -102,7 +116,15 @@ def generate_launch_description():
                 "/command_node/gripper_velocity_command",
                 "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity",
             ),
-        ],
+        ]
+
+    command_node = declare_command_node(
+        default_controller_name_list=OpaqueFunction(
+            function=opaque_function_default_controller_name_list,
+        ),
+        remappings=OpaqueFunction(
+            function=opaque_function_command_node_remappings,
+        ),
     )
 
     robot_controller_list = [
