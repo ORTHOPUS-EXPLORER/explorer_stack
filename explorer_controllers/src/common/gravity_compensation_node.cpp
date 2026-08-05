@@ -22,7 +22,7 @@ namespace
 std::string run_xacro(const std::string& xacro_path)
 {
   const std::string output_path = "/tmp/explorer_gravity_compensation.urdf";
-  const std::string command = std::string("xacro ") + xacro_path + " > " + output_path;
+  const std::string command = std::string("xacro ") + xacro_path + " use_POC2:=true" + " > " + output_path;
 
   const int status = std::system(command.c_str());
   if (status != 0) {
@@ -168,21 +168,19 @@ private:
 
     pinocchio::computeGeneralizedGravity(model_, data_, latest_q_);
 
-    const Eigen::Index joint_count = std::min<Eigen::Index>(6, data_.g.size());
-    std::vector<double> filtered_torques;
-    filtered_torques.reserve(static_cast<size_t>(joint_count));
-    for (Eigen::Index i = 0; i < joint_count; ++i) {
-      filtered_torques.push_back(data_.g[i]);
+    std::vector<double> torques;
+    torques.reserve(static_cast<size_t>(data_.g.size()));
+    for (Eigen::Index i = 0; i < data_.g.size(); ++i) {
+      torques.push_back(data_.g[i]);
     }
 
     std_msgs::msg::Float64MultiArray msg;
-    msg.data = filtered_torques;
+    msg.data = torques;
 
     torque_pub_->publish(msg);
 
     std::ostringstream joint_names_stream;
-    const std::size_t names_to_log = std::min<std::size_t>(6, model_.names.size());
-    for (std::size_t i = 0; i < names_to_log; ++i) {
+    for (std::size_t i = 0; i < model_.names.size(); ++i) {
       if (i > 0) {
         joint_names_stream << ", ";
       }
@@ -192,7 +190,7 @@ private:
     RCLCPP_INFO_STREAM_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
       "gravity torque for joints [" << joint_names_stream.str() << "]: "
-      << Eigen::Map<const Eigen::VectorXd>(filtered_torques.data(), static_cast<Eigen::Index>(filtered_torques.size())).transpose());
+      << Eigen::Map<const Eigen::VectorXd>(torques.data(), static_cast<Eigen::Index>(torques.size())).transpose());
   }
 
   pinocchio::Model model_;
