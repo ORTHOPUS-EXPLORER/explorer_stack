@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <functional>
 #include <memory>
@@ -12,6 +13,8 @@
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 
+#include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/multibody/data.hpp>
 #include <pinocchio/multibody/model.hpp>
@@ -19,6 +22,13 @@
 
 namespace
 {
+// Only these joints are actuated by the effort controller; every other joint found in the
+// URDF (gripper, tool frames, etc.) is locked out of the model so Pinocchio never computes
+// gravity terms for them.
+const std::vector<std::string> kControlledJointNames = {
+  "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"
+};
+
 std::string run_xacro(const std::string& xacro_path)
 {
   const std::string output_path = "/tmp/explorer_gravity_compensation.urdf";
@@ -52,7 +62,7 @@ public:
   : Node("gravity_compensation_node")
   {
     this->declare_parameter("urdf_path", std::string("/root/explorer_ws/explorer_stack/explorer_description/urdf/explorer.urdf.xacro"));
-    this->declare_parameter("publish_topic", std::string("/explorer_controllers/gravity_compensation/torque"));
+    this->declare_parameter("publish_topic", std::string("/explorer_custom_controller/effort/commands"));
     this->declare_parameter("joint_state_topic", std::string("/joint_states"));
 
     std::string urdf_path;
@@ -75,12 +85,12 @@ public:
       std::bind(&GravityCompensationNode::joint_state_callback, this, std::placeholders::_1));
 
     timer_ = this->create_wall_timer(
-      std::chrono::seconds(1), std::bind(&GravityCompensationNode::publish_gravity_torque, this));
+      std::chrono::milliseconds(100), std::bind(&GravityCompensationNode::publish_gravity_torque, this));
 
-    RCLCPP_INFO(
+    /* RCLCPP_INFO(
       this->get_logger(),
       "Gravity compensation node ready. Loaded model with %d joints and %d positions.",
-      model_.njoints, model_.nq);
+      model_.njoints, model_.nq); */
   }
 
 private:
@@ -109,7 +119,26 @@ private:
 
   void load_model_from_urdf(const std::string& urdf_path)
   {
-    pinocchio::urdf::buildModel(urdf_path, model_, false);
+    pinocchio::Model full_model;
+    pinocchio::urdf::buildModel(urdf_path, full_model, false);
+
+    // Lock every joint that is not one of joint_1..joint_6 (e.g. the gripper) so Pinocchio
+    // only keeps and computes gravity terms for the 6 controlled joints.
+    std::vector<pinocchio::JointIndex> joints_to_lock;
+    for (pinocchio::JointIndex joint_id = 1; joint_id < static_cast<pinocchio::JointIndex>(full_model.njoints); ++joint_id) {
+      const bool is_controlled = std::find(
+        kControlledJointNames.begin(), kControlledJointNames.end(), full_model.names[joint_id]) != kControlledJointNames.end();
+      if (!is_controlled) {
+        joints_to_lock.push_back(joint_id);
+      }
+    }
+
+    pinocchio::buildReducedModel(full_model, joints_to_lock, pinocchio::neutral(full_model), model_);
+
+    if (static_cast<std::size_t>(model_.njoints - 1) != kControlledJointNames.size()) {
+      throw std::runtime_error("Expected joint_1..joint_6 in the URDF, found a different set of controlled joints.");
+    }
+
     data_ = pinocchio::Data(model_);
   }
 
@@ -179,9 +208,11 @@ private:
 
     torque_pub_->publish(msg);
 
+    // model_.names[0] is the implicit "universe" root joint (no torque associated with it);
+    // skip it so the printed names line up 1:1 with the published torques.
     std::ostringstream joint_names_stream;
-    for (std::size_t i = 0; i < model_.names.size(); ++i) {
-      if (i > 0) {
+    for (std::size_t i = 1; i < model_.names.size(); ++i) {
+      if (i > 1) {
         joint_names_stream << ", ";
       }
       joint_names_stream << model_.names[i];
