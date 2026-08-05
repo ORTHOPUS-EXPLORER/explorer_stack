@@ -110,3 +110,17 @@ In impedance control mode, effort interface can be used to send torque commands 
 ```
 ros2 topic pub /explorer_custom_controller/effort/commands std_msgs/msg/Float64MultiArray "{data: [0.0,0.0,0.0,0.0,0.0,0.0]}"
 ```
+
+gravity compensation node:
+```
+ros2 run explorer_controllers gravity_compensation_node
+```
+
+add payload/external force to gravity compensation:
+```
+ros2 topic pub --once /explorer_controllers/gravity_compensation/external_wrench geometry_msgs/msg/WrenchStamped "{header: {frame_id: 'tool0'}, wrench: {force: {x: 1.0, y: 2.0, z: -9.81}, torque: {x: 0.1, y: 0.0, z: -0.5}}}"
+```
+
+```
+ros2 topic pub --once /explorer_controllers/gravity_compensation/external_wrench geometry_msgs/msg/WrenchStamped   "{header: {frame_id: 'tool0'}, wrench: {force: {z: -9.81}}}"
+```

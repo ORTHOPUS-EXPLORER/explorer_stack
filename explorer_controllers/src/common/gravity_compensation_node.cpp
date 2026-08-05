@@ -9,10 +9,12 @@
 #include <sstream>
 
 #include <Eigen/Dense>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 
+#include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
 #include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
@@ -64,11 +66,14 @@ public:
     this->declare_parameter("urdf_path", std::string("/root/explorer_ws/explorer_stack/explorer_description/urdf/explorer.urdf.xacro"));
     this->declare_parameter("publish_topic", std::string("/explorer_custom_controller/effort/commands"));
     this->declare_parameter("joint_state_topic", std::string("/joint_states"));
+    this->declare_parameter("external_wrench_topic", std::string("/explorer_controllers/gravity_compensation/external_wrench"));
+    this->declare_parameter("default_external_wrench_frame", std::string("tool0"));
 
     std::string urdf_path;
     std::string joint_state_topic;
     this->get_parameter("urdf_path", urdf_path);
     this->get_parameter("joint_state_topic", joint_state_topic);
+    this->get_parameter("default_external_wrench_frame", default_external_wrench_frame_);
 
     if (!initialize_model(urdf_path)) {
       return;
@@ -76,13 +81,21 @@ public:
 
     latest_q_ = Eigen::VectorXd::Zero(model_.nq);
     has_received_joint_state_ = false;
+    latest_wrench_.setZero();
+    has_external_wrench_ = false;
+    latest_wrench_frame_ = default_external_wrench_frame_;
 
     std::string publish_topic;
+    std::string external_wrench_topic;
     this->get_parameter("publish_topic", publish_topic);
+    this->get_parameter("external_wrench_topic", external_wrench_topic);
     torque_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(publish_topic, 10);
     joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
       joint_state_topic, 10,
       std::bind(&GravityCompensationNode::joint_state_callback, this, std::placeholders::_1));
+    external_wrench_sub_ = this->create_subscription<geometry_msgs::msg::WrenchStamped>(
+      external_wrench_topic, 10,
+      std::bind(&GravityCompensationNode::external_wrench_callback, this, std::placeholders::_1));
 
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(100), std::bind(&GravityCompensationNode::publish_gravity_torque, this));
@@ -185,6 +198,19 @@ private:
     }
   }
 
+  // A WrenchStamped's header.frame_id names the frame the wrench is applied at (defaulting to
+  // "tool0" when left empty); force/torque are expressed in that frame with axes aligned to the
+  // world (LOCAL_WORLD_ALIGNED), so e.g. a hanging payload of mass m is simply force.z = -m*9.81.
+  // The wrench is the force exerted ON the robot by the environment, so it works equally for a
+  // payload weight or any other virtual Cartesian force.
+  void external_wrench_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
+  {
+    latest_wrench_frame_ = msg->header.frame_id.empty() ? default_external_wrench_frame_ : msg->header.frame_id;
+    latest_wrench_ << msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z,
+      msg->wrench.torque.x, msg->wrench.torque.y, msg->wrench.torque.z;
+    has_external_wrench_ = true;
+  }
+
   void publish_gravity_torque()
   {
     if (latest_q_.size() != model_.nq) {
@@ -196,11 +222,27 @@ private:
     }
 
     pinocchio::computeGeneralizedGravity(model_, data_, latest_q_);
+    Eigen::VectorXd tau = data_.g;
+
+    if (has_external_wrench_) {
+      if (model_.existFrame(latest_wrench_frame_)) {
+        pinocchio::Data::Matrix6x J(6, model_.nv);
+        J.setZero();
+        pinocchio::computeFrameJacobian(
+          model_, data_, latest_q_, model_.getFrameId(latest_wrench_frame_),
+          pinocchio::LOCAL_WORLD_ALIGNED, J);
+        tau.noalias() -= J.transpose() * latest_wrench_;
+      } else {
+        RCLCPP_WARN_THROTTLE(
+          this->get_logger(), *this->get_clock(), 1000,
+          "Unknown external wrench frame '%s'; ignoring external wrench.", latest_wrench_frame_.c_str());
+      }
+    }
 
     std::vector<double> torques;
-    torques.reserve(static_cast<size_t>(data_.g.size()));
-    for (Eigen::Index i = 0; i < data_.g.size(); ++i) {
-      torques.push_back(data_.g[i]);
+    torques.reserve(static_cast<size_t>(tau.size()));
+    for (Eigen::Index i = 0; i < tau.size(); ++i) {
+      torques.push_back(tau[i]);
     }
 
     std_msgs::msg::Float64MultiArray msg;
@@ -228,8 +270,13 @@ private:
   pinocchio::Data data_;
   Eigen::VectorXd latest_q_;
   bool has_received_joint_state_;
+  Eigen::Matrix<double, 6, 1> latest_wrench_;
+  std::string latest_wrench_frame_;
+  std::string default_external_wrench_frame_;
+  bool has_external_wrench_;
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr external_wrench_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr torque_pub_;
 };
 
