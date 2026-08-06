@@ -32,11 +32,43 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     throw std::runtime_error("Parameter 'controller_gripper_position_topic_name' is required");
   }
 
+  // Position error saturation: disabled by default so behaviour is unchanged unless explicitly enabled.
+  // Params may already be auto-declared from overrides (see automatically_declare_parameters_from_overrides
+  // in main()), so only declare them here (with their default) if that didn't happen.
+  if (!n_->has_parameter("position_error_saturation_enable"))
+  {
+    n_->declare_parameter<bool>("position_error_saturation_enable", false);
+  }
+  position_error_saturation_enable_ =
+    n_->get_parameter("position_error_saturation_enable").as_bool();
+
+  // Default threshold: 15 degrees, expressed in rad since joint values are in rad.
+  if (!n_->has_parameter("position_error_saturation_threshold"))
+  {
+    n_->declare_parameter<double>("position_error_saturation_threshold", 15.0 * M_PI / 180.0);
+  }
+  position_error_saturation_threshold_ =
+    n_->get_parameter("position_error_saturation_threshold").as_double();
+
+  // Persistent mode: off by default (i.e. "spring back" to the original setpoint once the
+  // error goes back under the threshold), matching the behaviour before this param existed.
+  if (!n_->has_parameter("position_error_saturation_persistent"))
+  {
+    n_->declare_parameter<bool>("position_error_saturation_persistent", false);
+  }
+  position_error_saturation_persistent_ =
+    n_->get_parameter("position_error_saturation_persistent").as_bool();
+
+  // Allow all three params above to be changed live (e.g. `ros2 param set`) without restarting the node.
+  on_set_parameters_callback_handle_ = n_->add_on_set_parameters_callback(
+    std::bind(&JointOutputIntegrator::on_parameter_change_, this, std::placeholders::_1));
+
   //init settings
   dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   gripper_dq_output_.data = {0.0};
   q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   gripper_q_command_.data = {0.0};
+  q_measured_.fill(0.0);
 
   joint_name = {"joint_1", "joint_2", "joint_3",           "joint_4",
                 "joint_5", "joint_6", "right_finger_joint"};
@@ -83,9 +115,13 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
 
 void JointOutputIntegrator::callback_current_pos_(const sensor_msgs::msg::JointState& msg)
 {
-  // Nothing to do if already init
+  // Once init, only keep track of the measured position (used by the position error saturation)
   if (init)
   {
+    for (int i = 0; i < 7; i++)
+    {
+      q_measured_[i] = msg.position[joint_order_[i]];
+    }
     return;
   }
 
@@ -105,13 +141,16 @@ void JointOutputIntegrator::callback_current_pos_(const sensor_msgs::msg::JointS
     }
   }
 
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < 6; i++)
   {
     q_command_.data[i] = msg.position[joint_order_[i]];
   }
+  gripper_q_command_.data[0] = msg.position[joint_order_[6]];
+  for (int i = 0; i < 7; i++)
+  {
+    q_measured_[i] = msg.position[joint_order_[i]];
+  }
   init = true;
-  // Prevent any further subscribe update (unused afterward)
-  current_pos_sub_.reset();
 }
 
 void JointOutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg)
@@ -122,6 +161,36 @@ void JointOutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64Mult
 void JointOutputIntegrator::callback_gripper_dq_output_(const std_msgs::msg::Float64MultiArray& msg)
 {
   gripper_dq_output_.data = msg.data;
+}
+
+rcl_interfaces::msg::SetParametersResult JointOutputIntegrator::on_parameter_change_(
+  const std::vector<rclcpp::Parameter>& parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  for (const auto& param : parameters)
+  {
+    if (param.get_name() == "position_error_saturation_enable")
+    {
+      position_error_saturation_enable_ = param.as_bool();
+    }
+    else if (param.get_name() == "position_error_saturation_threshold")
+    {
+      double threshold = param.as_double();
+      if (threshold < 0.0)
+      {
+        result.successful = false;
+        result.reason = "position_error_saturation_threshold must be >= 0";
+        continue;
+      }
+      position_error_saturation_threshold_ = threshold;
+    }
+    else if (param.get_name() == "position_error_saturation_persistent")
+    {
+      position_error_saturation_persistent_ = param.as_bool();
+    }
+  }
+  return result;
 }
 
 void JointOutputIntegrator::timer_callback()
@@ -142,7 +211,30 @@ void JointOutputIntegrator::timer_callback()
   gripper_q_command_.data[0] =
     std::clamp(gripper_q_command_.data[0], q_lower_limit_[6], q_upper_limit_[6]);
 
-  joints_command_pub_->publish(q_command_);
+  // By default q_command_ itself is left untouched above (unchanged behaviour): only the
+  // published command is offset, and only on joints/cycles where the error actually
+  // exceeds the threshold, so the desired position never gets farther than the threshold
+  // away from the measured one. If position_error_saturation_persistent_ is set, the
+  // clamped value is also written back into q_command_ so the offset "sticks" instead of
+  // springing back once the error goes back under the threshold.
+  // The gripper is published separately and is not concerned by this saturation.
+  std_msgs::msg::Float64MultiArray q_command_out = q_command_;
+  if (position_error_saturation_enable_)
+  {
+    for (int i = 0; i < 6; i++)
+    {
+      double clamped = std::clamp(
+        q_command_.data[i], q_measured_[i] - position_error_saturation_threshold_,
+        q_measured_[i] + position_error_saturation_threshold_);
+      q_command_out.data[i] = clamped;
+      if (position_error_saturation_persistent_)
+      {
+        q_command_.data[i] = clamped;
+      }
+    }
+  }
+
+  joints_command_pub_->publish(q_command_out);
   gripper_command_pub_->publish(gripper_q_command_);
 }
 }  // namespace space_control
