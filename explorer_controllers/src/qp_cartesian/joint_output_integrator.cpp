@@ -16,9 +16,36 @@ namespace space_control
             throw std::runtime_error(
                 "Parameter 'controller_position_topic_name' is required");
         }
+
+        // Position error saturation: disabled by default so behaviour is unchanged unless explicitly enabled.
+        // Params may already be auto-declared from overrides (see automatically_declare_parameters_from_overrides
+        // in main()), so only declare them here (with their default) if that didn't happen.
+        if (!n_->has_parameter("position_error_saturation_enable")) {
+            n_->declare_parameter<bool>("position_error_saturation_enable", false);
+        }
+        position_error_saturation_enable_ = n_->get_parameter("position_error_saturation_enable").as_bool();
+
+        // Default threshold: 15 degrees, expressed in rad since joint values are in rad.
+        if (!n_->has_parameter("position_error_saturation_threshold")) {
+            n_->declare_parameter<double>("position_error_saturation_threshold", 15.0 * M_PI / 180.0);
+        }
+        position_error_saturation_threshold_ = n_->get_parameter("position_error_saturation_threshold").as_double();
+
+        // Persistent mode: off by default (i.e. "spring back" to the original setpoint once the
+        // error goes back under the threshold), matching the behaviour before this param existed.
+        if (!n_->has_parameter("position_error_saturation_persistent")) {
+            n_->declare_parameter<bool>("position_error_saturation_persistent", false);
+        }
+        position_error_saturation_persistent_ = n_->get_parameter("position_error_saturation_persistent").as_bool();
+
+        // Allow all three params above to be changed live (e.g. `ros2 param set`) without restarting the node.
+        on_set_parameters_callback_handle_ = n_->add_on_set_parameters_callback(
+            std::bind(&JointOutputIntegrator::on_parameter_change_, this, std::placeholders::_1));
+
         //init settings
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        q_measured_.fill(0.0);
 
         RCLCPP_DEBUG_STREAM(n_->get_logger(),"init joint_name");
         joint_name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint"};
@@ -76,11 +103,45 @@ namespace space_control
             }
             init = true;
         }
+
+        for(int i=0; i< 7; i++){
+            q_measured_[i] = msg.position[joint_order[i]];
+        }
     }
 
     void JointOutputIntegrator::callback_dq_output(const std_msgs::msg::Float64MultiArray & msg)
-    {   
-        dq_output_.data = msg.data;   
+    {
+        dq_output_.data = msg.data;
+    }
+
+    rcl_interfaces::msg::SetParametersResult JointOutputIntegrator::on_parameter_change_(
+        const std::vector<rclcpp::Parameter> & parameters)
+    {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        for (const auto & param : parameters)
+        {
+            if (param.get_name() == "position_error_saturation_enable")
+            {
+                position_error_saturation_enable_ = param.as_bool();
+            }
+            else if (param.get_name() == "position_error_saturation_threshold")
+            {
+                double threshold = param.as_double();
+                if (threshold < 0.0)
+                {
+                    result.successful = false;
+                    result.reason = "position_error_saturation_threshold must be >= 0";
+                    continue;
+                }
+                position_error_saturation_threshold_ = threshold;
+            }
+            else if (param.get_name() == "position_error_saturation_persistent")
+            {
+                position_error_saturation_persistent_ = param.as_bool();
+            }
+        }
+        return result;
     }
 
     void JointOutputIntegrator::timer_callback()
@@ -97,7 +158,33 @@ namespace space_control
                 }
             }
 
-            command_pub_->publish(q_command_);
+            // By default q_command_ itself is left untouched above (unchanged behaviour): only the
+            // published command is offset, and only on joints/cycles where the error actually
+            // exceeds the threshold, so the desired position never gets farther than the threshold
+            // away from the measured one. If position_error_saturation_persistent_ is set, the
+            // clamped value is also written back into q_command_ so the offset "sticks" instead of
+            // springing back once the error goes back under the threshold.
+            std_msgs::msg::Float64MultiArray q_command_out = q_command_;
+            if(position_error_saturation_enable_){
+                // Only the 6 arm joints are expressed in rad; the gripper (index 6) uses a
+                // different unit and is not concerned by this position error saturation.
+                for(int i=0; i< 6; i++){
+                    double error = q_command_.data[i] - q_measured_[i];
+                    double clamped = q_command_.data[i];
+                    if(error > position_error_saturation_threshold_){
+                        clamped = q_measured_[i] + position_error_saturation_threshold_;
+                    }
+                    else if(error < -position_error_saturation_threshold_){
+                        clamped = q_measured_[i] - position_error_saturation_threshold_;
+                    }
+                    q_command_out.data[i] = clamped;
+                    if(position_error_saturation_persistent_){
+                        q_command_.data[i] = clamped;
+                    }
+                }
+            }
+
+            command_pub_->publish(q_command_out);
         }
     }
 }
