@@ -4,6 +4,11 @@ explorer_custom_controller:
     description: "Simulation enabled / disable (will be set automatically according to launch parameter 'simulation')",
     default_value: false
   }
+  qp_interface_name: {
+    type: string,
+    description: "State interface name to listen for each joint QP position computed",
+    default_value: "qp_position"
+  }
   joints: {
     type: string_array,
     default_value: [],

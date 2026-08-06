@@ -5,6 +5,9 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    qontrol_explorer:
+      type: qontrol_controller/QontrolVelocityController
+
     explorer_custom_controller:
       type: explorer_command_controllers/CustomController
 
@@ -132,3 +135,23 @@ joint_trajectory_controller:
       joint1:
         trajectory: 0.05
         goal: 0.03
+
+qontrol_explorer:
+  ros__parameters:
+    # Base parameters
+    robot_description_origin: robot_state_publisher
+    tip_frame: tool0
+    root_frame: base_link
+    state_interface:
+      - position
+      - velocity
+      - effort
+
+    robot_command: qp_position
+    chainable_controller_name: explorer_custom_controller
+
+    # Velocity parameters
+    command_max_linear_velocity: 0.03
+    command_max_angular_velocity: 0.5
+    input_topic_name: /explorer_user_interfaces/rqt_armcontrol/input_device_velocity
+    regularisation_weight: 1e-3

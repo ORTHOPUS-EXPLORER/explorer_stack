@@ -135,6 +135,8 @@ controller_interface::CallbackReturn CustomController::on_init()
 
   clock_ = get_node()->get_clock();
 
+  reference_interfaces_.resize(params_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -200,6 +202,8 @@ void CustomController::init_ros_subscribers_()
     "~/position/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
+      if (!is_chained_.load()) return;
+
       auto command_type = orthopus::JointVariableType::POSITION;
       if (
         !is_command_finite(msg->data, command_type) ||
@@ -426,20 +430,45 @@ controller_interface::CallbackReturn CustomController::on_deactivate(const rclcp
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-// controller_interface::return_type CustomController::update_reference_from_subscribers(
-//   const rclcpp::Time&, const rclcpp::Duration&)
-// {
-//   return controller_interface::return_type::OK;
-// }
+controller_interface::return_type CustomController::update_reference_from_subscribers(
+  const rclcpp::Time&, const rclcpp::Duration&)
+{
+  auto current_position = *position_commands_buffer_rt_.readFromRT();
+  if (current_position)
+  {
+    auto reference_interface_current = reference_interfaces_.begin();
+    for (auto value : current_position->data)
+    {
+      *reference_interface_current = value;
+      reference_interface_current++;
+    }
+  }
 
-controller_interface::return_type CustomController::update(
+  return controller_interface::return_type::OK;
+}
+
+std::vector<hardware_interface::CommandInterface> CustomController::on_export_reference_interfaces()
+{
+  std::vector<hardware_interface::CommandInterface> exported_interfaces;
+
+  size_t i = 0;
+  for (const auto& [joint_name, settings] : params_.settings.joints_map)
+  {
+    auto current_interface_name = joint_name + "/" + params_.qp_interface_name;
+    exported_interfaces.emplace_back(
+      get_node()->get_name(), current_interface_name, &reference_interfaces_[i++]);
+  }
+
+  return exported_interfaces;
+}
+
+controller_interface::return_type CustomController::update_and_write_commands(
   const rclcpp::Time&, const rclcpp::Duration&)
 {
   const auto clock = *(get_node()->get_clock());
 
   // Read input commands
   auto effort_command = effort_commands_buffer_rt_.readFromRT();
-  auto position_command = position_commands_buffer_rt_.readFromRT();
   auto velocity_command = velocity_commands_buffer_rt_.readFromRT();
 
   size_t index = 0;
@@ -454,8 +483,9 @@ controller_interface::return_type CustomController::update(
     };
     // Position command
     if (
-      position_command && apply_joint_input_command_(
-                            joint, index, orthopus::JointVariableType::POSITION, *position_command))
+      !std::isnan(reference_interfaces_[index]) &&
+      apply_joint_input_value_(
+        joint, index, orthopus::JointVariableType::POSITION, reference_interfaces_[index]))
     {
       write_position_(joint);
     }
@@ -471,19 +501,30 @@ controller_interface::return_type CustomController::update(
   return controller_interface::return_type::ERROR;
 }
 
-bool CustomController::apply_joint_input_command_(
-  ControllerJoint& joint, size_t joint_index, orthopus::JointVariableType command_type,
-  const std::shared_ptr<ControllerInputCommand>& input_command)
+bool CustomController::on_set_chained_mode(bool chained_mode)
 {
-  const std::shared_ptr<const rclcpp_lifecycle::LifecycleNode> node = get_node();
+  is_chained_.store(chained_mode);
 
-  if (!input_command)
+  // Reset reference interfaces previous values
+  std::fill(
+    reference_interfaces_.begin(), reference_interfaces_.end(),
+    std::numeric_limits<double>::quiet_NaN());
+
+  // Reset position command buffer for topic to ignore previously assigned value
+  if (!chained_mode)
   {
-    return false;
+    position_commands_buffer_rt_.reset();
   }
+  return true;
+}
+
+bool CustomController::apply_joint_input_value_(
+  ControllerJoint& joint, size_t joint_index, orthopus::JointVariableType command_type,
+  double value)
+{
   try
   {
-    joint.joint_command_map.at(command_type).command = input_command->data[joint_index];
+    joint.joint_command_map.at(command_type).command = value;
   }
   catch (const std::out_of_range& ex)
   {
@@ -494,6 +535,20 @@ bool CustomController::apply_joint_input_command_(
     return false;
   }
   return true;
+}
+
+bool CustomController::apply_joint_input_command_(
+  ControllerJoint& joint, size_t joint_index, orthopus::JointVariableType command_type,
+  const std::shared_ptr<ControllerInputCommand>& input_command)
+{
+  const std::shared_ptr<const rclcpp_lifecycle::LifecycleNode> node = get_node();
+
+  if (!input_command)
+  {
+    return false;
+  }
+  return apply_joint_input_value_(
+    joint, joint_index, command_type, input_command->data[joint_index]);
 }
 
 bool CustomController::is_command_ready_to_be_written_(
@@ -602,4 +657,5 @@ void CustomController::print_joints_() const
 #include "pluginlib/class_list_macros.hpp"
 
 PLUGINLIB_EXPORT_CLASS(
-  explorer_command_controllers::CustomController, controller_interface::ControllerInterface)
+  explorer_command_controllers::CustomController,
+  controller_interface::ChainableControllerInterface)
