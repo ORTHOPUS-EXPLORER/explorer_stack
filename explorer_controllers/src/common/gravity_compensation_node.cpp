@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <functional>
+#include <iomanip>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -11,15 +12,19 @@
 #include <sstream>
 
 #include <Eigen/Dense>
+#include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <orthopus_vesc_interfaces/msg/config.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/algorithm/rnea.hpp>
 #include <pinocchio/multibody/data.hpp>
@@ -59,6 +64,25 @@ std::string resolve_input_path(const std::string& input_path)
   }
   return input_path;
 }
+
+geometry_msgs::msg::Point point_from(const Eigen::Vector3d& v)
+{
+  geometry_msgs::msg::Point p;
+  p.x = v.x();
+  p.y = v.y();
+  p.z = v.z();
+  return p;
+}
+
+std_msgs::msg::ColorRGBA make_color(float r, float g, float b, float a)
+{
+  std_msgs::msg::ColorRGBA color;
+  color.r = r;
+  color.g = g;
+  color.b = b;
+  color.a = a;
+  return color;
+}
 }  // namespace
 
 class GravityCompensationNode : public rclcpp::Node
@@ -89,8 +113,19 @@ public:
     // reconfigurable at runtime (only read once here).
     this->declare_parameter("cartesian_impedance_end_effector_frame", std::string("tool0"));
 
+    // --- Visualization (see publish_visualization_markers_()) ---------------------------------
+    // TF frame the markers are expressed/drawn in; must match the root of the URDF used to build
+    // the Pinocchio model (explorer.urdf.xacro's root link is "world").
+    this->declare_parameter("cartesian_impedance_marker_frame_id", std::string("world"));
+    this->declare_parameter("cartesian_impedance_marker_topic", std::string("/explorer_controllers/gravity_compensation/cartesian_impedance_markers"));
+    // This is a real force estimate in Newtons (see publish_visualization_markers_()'s comment),
+    // so a smaller default scale (5cm/N) is more likely to fit the arm's workspace for typical
+    // light-payload forces; tune by eye in rviz.
+    this->declare_parameter("cartesian_impedance_external_force_marker_scale", 0.05);
+
     std::string urdf_path;
     std::string joint_state_topic;
+    std::string marker_topic;
     this->get_parameter("urdf_path", urdf_path);
     this->get_parameter("joint_state_topic", joint_state_topic);
     this->get_parameter("default_external_wrench_frame", default_external_wrench_frame_);
@@ -98,6 +133,9 @@ public:
     this->get_parameter("cartesian_impedance_damping_ratio", cartesian_impedance_damping_ratio_);
     this->get_parameter("cartesian_impedance_stiffness", cartesian_impedance_stiffness_);
     this->get_parameter("cartesian_impedance_end_effector_frame", cartesian_impedance_end_effector_frame_);
+    this->get_parameter("cartesian_impedance_marker_frame_id", marker_frame_id_);
+    this->get_parameter("cartesian_impedance_marker_topic", marker_topic);
+    this->get_parameter("cartesian_impedance_external_force_marker_scale", cartesian_impedance_external_force_marker_scale_);
     cartesian_impedance_reference_captured_ = false;
     cartesian_impedance_reference_mean_lever_arm_sq_ = 0.0;
 
@@ -113,7 +151,9 @@ public:
     }
 
     latest_q_ = Eigen::VectorXd::Zero(model_.nq);
+    latest_effort_ = Eigen::VectorXd::Zero(model_.nq);
     has_received_joint_state_ = false;
+    has_received_effort_ = false;
     latest_wrench_.setZero();
     has_external_wrench_ = false;
     latest_wrench_frame_ = default_external_wrench_frame_;
@@ -134,6 +174,8 @@ public:
       const std::string topic = "/explorer_joint_" + std::to_string(i + 1) + "/config";
       cartesian_impedance_config_pub_[i] = this->create_publisher<orthopus_vesc_interfaces::msg::Config>(topic, 10);
     }
+
+    marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic, 10);
 
     // Allow the three cartesian impedance params above to be changed live (e.g. `ros2 param set`)
     // without restarting the node.
@@ -212,10 +254,17 @@ private:
       for (Eigen::Index i = 0; i < count; ++i) {
         latest_q_[i] = msg->position[static_cast<std::size_t>(i)];
       }
+      // No names to match effort against either; fall back the same way, if present.
+      const Eigen::Index effort_count = std::min<Eigen::Index>(model_.nq, static_cast<Eigen::Index>(msg->effort.size()));
+      for (Eigen::Index i = 0; i < effort_count; ++i) {
+        latest_effort_[i] = msg->effort[static_cast<std::size_t>(i)];
+      }
+      has_received_effort_ = effort_count > 0;
       return;
     }
 
     bool mapped_any_joint = false;
+    bool mapped_any_effort = false;
     std::size_t q_index = 0;
     for (const auto & joint_name : model_.names) {
       if (q_index >= static_cast<std::size_t>(model_.nq)) {
@@ -224,14 +273,21 @@ private:
 
       const auto it = std::find(msg->name.begin(), msg->name.end(), joint_name);
       if (it != msg->name.end()) {
-        const std::size_t position_index = std::distance(msg->name.begin(), it);
-        if (position_index < msg->position.size()) {
-          latest_q_[static_cast<Eigen::Index>(q_index)] = msg->position[position_index];
-          ++q_index;
+        // position/velocity/effort share the same index as name for a given joint, per the
+        // sensor_msgs/JointState convention.
+        const std::size_t index = std::distance(msg->name.begin(), it);
+        if (index < msg->position.size()) {
+          latest_q_[static_cast<Eigen::Index>(q_index)] = msg->position[index];
           mapped_any_joint = true;
         }
+        if (index < msg->effort.size()) {
+          latest_effort_[static_cast<Eigen::Index>(q_index)] = msg->effort[index];
+          mapped_any_effort = true;
+        }
+        ++q_index;
       }
     }
+    has_received_effort_ = mapped_any_effort;
 
     if (!mapped_any_joint) {
       const Eigen::Index count = std::min<Eigen::Index>(model_.nq, static_cast<Eigen::Index>(msg->position.size()));
@@ -266,6 +322,10 @@ private:
 
     pinocchio::computeGeneralizedGravity(model_, data_, latest_q_);
     Eigen::VectorXd tau = data_.g;
+    // Pristine copy, taken before the (optional, known) external_wrench_topic adjustment below --
+    // publish_visualization_markers_() needs pure gravity torque to estimate an *unknown* external
+    // force from the residual against the measured effort, see its comment.
+    const Eigen::VectorXd gravity_torque = tau;
 
     if (has_external_wrench_) {
       if (model_.existFrame(latest_wrench_frame_)) {
@@ -296,6 +356,8 @@ private:
     if (cartesian_impedance_enable_) {
       publish_cartesian_impedance_();
     }
+
+    publish_visualization_markers_(tau, gravity_torque);
 
     // model_.names[0] is the implicit "universe" root joint (no torque associated with it);
     // skip it so the printed names line up 1:1 with the published torques.
@@ -387,6 +449,142 @@ private:
     }
   }
 
+  // --- RViz visualization: measured external force, per-joint effort ---------------------------
+  //
+  // - "measured external force" (magenta arrow, real Newtons): assuming, quasi-statically, that
+  //   the only unmodeled torque is a wrench applied at cartesian_impedance_end_effector_frame_,
+  //   tau_measured = gravity_torque - J^T * F_ext, so F_ext = pinv(J^T) * (gravity_torque -
+  //   tau_measured), solved at the actual tool position. Requires real measured effort (see
+  //   joint_state_callback()); does nothing if only the "(cmd)" fallback is available, since the
+  //   residual would then trivially be ~0 (or just re-derive the known external_wrench_topic input,
+  //   if any -- this estimates an *unknown* wrench, independent of that topic).
+  // - per-joint effort: one sphere (sized by |effort_i|, blue = positive / orange = negative, text
+  //   always shows the sign too) and one text label per joint, placed at that joint's origin.
+  //   Prefers the *measured* effort from /joint_states (msg->effort) when the driver populates it;
+  //   otherwise falls back to the gravity(+external wrench) compensation torque this node commands
+  //   (labelled "(cmd)" so the two aren't confused), computed above in publish_gravity_torque().
+  //
+  // Note: the "controlled point" (where the tool should be given the last position command) is
+  // published directly by joint_output_integrator.cpp instead of from here, since it already has
+  // that command and doesn't need to depend on another node guessing the right topic to read it
+  // back from; see its publish_controlled_point_marker_().
+  void publish_visualization_markers_(const Eigen::VectorXd& tau, const Eigen::VectorXd& gravity_torque)
+  {
+    if (!has_received_joint_state_ || !model_.existFrame(cartesian_impedance_end_effector_frame_)) {
+      return;
+    }
+    const auto ee_frame_id = model_.getFrameId(cartesian_impedance_end_effector_frame_);
+
+    // Re-run FK explicitly so this doesn't depend on what publish_cartesian_impedance_() did (or
+    // didn't do, if disabled) earlier this cycle.
+    pinocchio::forwardKinematics(model_, data_, latest_q_);
+    pinocchio::updateFramePlacements(model_, data_);
+    const Eigen::Vector3d x_actual = data_.oMf[ee_frame_id].translation();
+
+    visualization_msgs::msg::MarkerArray markers;
+    const rclcpp::Time stamp = this->now();
+
+    if (has_received_effort_) {
+      pinocchio::Data::Matrix6x jacobian(6, model_.nv);
+      jacobian.setZero();
+      pinocchio::computeFrameJacobian(
+        model_, data_, latest_q_, ee_frame_id, pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
+
+      // J is square here (6 cartesian dof x 6 joints), so this is normally an exact solve;
+      // completeOrthogonalDecomposition degrades gracefully to a least-norm solution instead of
+      // blowing up near singular configurations (rather than e.g. a plain 6x6 inverse).
+      const Eigen::VectorXd residual = gravity_torque - latest_effort_;
+      const Eigen::VectorXd f_ext = jacobian.transpose().completeOrthogonalDecomposition().solve(residual);
+      const Eigen::Vector3d f_ext_force = f_ext.head<3>();
+
+      visualization_msgs::msg::Marker ext_force_arrow;
+      ext_force_arrow.header.frame_id = marker_frame_id_;
+      ext_force_arrow.header.stamp = stamp;
+      ext_force_arrow.ns = "external_force_estimate";
+      ext_force_arrow.id = 0;
+      ext_force_arrow.type = visualization_msgs::msg::Marker::ARROW;
+      ext_force_arrow.action = visualization_msgs::msg::Marker::ADD;
+      ext_force_arrow.points.push_back(point_from(x_actual));
+      ext_force_arrow.points.push_back(
+        point_from(x_actual + cartesian_impedance_external_force_marker_scale_ * f_ext_force));
+      ext_force_arrow.scale.x = 0.015;  // shaft diameter
+      ext_force_arrow.scale.y = 0.03;   // head diameter
+      ext_force_arrow.scale.z = 0.0;    // head length: 0 -> rviz picks a default
+      ext_force_arrow.color = make_color(1.0f, 0.0f, 1.0f, 1.0f);  // magenta
+      markers.markers.push_back(ext_force_arrow);
+
+      visualization_msgs::msg::Marker ext_force_text;
+      ext_force_text.header.frame_id = marker_frame_id_;
+      ext_force_text.header.stamp = stamp;
+      ext_force_text.ns = "external_force_estimate_text";
+      ext_force_text.id = 0;
+      ext_force_text.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+      ext_force_text.action = visualization_msgs::msg::Marker::ADD;
+      ext_force_text.pose.position = point_from(x_actual + Eigen::Vector3d(0.0, 0.0, 0.06));
+      ext_force_text.pose.orientation.w = 1.0;
+      ext_force_text.scale.z = 0.04;
+      ext_force_text.color = make_color(1.0f, 0.0f, 1.0f, 1.0f);
+      std::ostringstream ext_force_text_stream;
+      ext_force_text_stream << "F_ext: " << std::fixed << std::setprecision(2) << f_ext_force.norm() << " N";
+      ext_force_text.text = ext_force_text_stream.str();
+      markers.markers.push_back(ext_force_text);
+    }
+
+    for (int i = 0; i < 6; ++i) {
+      // data_.oMi is indexed by pinocchio joint id: 0 is the implicit "universe" root, so joint_i
+      // (0-based i here) is at index i+1, consistent with model_.names used elsewhere.
+      const Eigen::Vector3d joint_origin = data_.oMi[static_cast<std::size_t>(i + 1)].translation();
+      const double effort = has_received_effort_ ? latest_effort_[i] : tau[i];
+
+      visualization_msgs::msg::Marker effort_sphere;
+      effort_sphere.header.frame_id = marker_frame_id_;
+      effort_sphere.header.stamp = stamp;
+      effort_sphere.ns = "joint_effort";
+      effort_sphere.id = i;
+      effort_sphere.type = visualization_msgs::msg::Marker::SPHERE;
+      effort_sphere.action = visualization_msgs::msg::Marker::ADD;
+      effort_sphere.pose.position = point_from(joint_origin);
+      effort_sphere.pose.orientation.w = 1.0;
+      const double diameter = std::clamp(0.03 + 0.02 * std::abs(effort), 0.03, 0.15);
+      effort_sphere.scale.x = effort_sphere.scale.y = effort_sphere.scale.z = diameter;
+      effort_sphere.color = effort >= 0.0 ? make_color(0.1f, 0.4f, 1.0f, 0.8f) : make_color(1.0f, 0.5f, 0.0f, 0.8f);
+      markers.markers.push_back(effort_sphere);
+
+      visualization_msgs::msg::Marker effort_text;
+      effort_text.header.frame_id = marker_frame_id_;
+      effort_text.header.stamp = stamp;
+      effort_text.ns = "joint_effort_text";
+      effort_text.id = i;
+      effort_text.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+      effort_text.action = visualization_msgs::msg::Marker::ADD;
+      effort_text.pose.position = point_from(joint_origin + Eigen::Vector3d(0.0, 0.0, 0.08));
+      effort_text.pose.orientation.w = 1.0;
+      effort_text.scale.z = 0.04;
+      effort_text.color = make_color(1.0f, 1.0f, 1.0f, 1.0f);
+      std::ostringstream text_stream;
+      // showpos: always print the sign so it's readable without cross-referencing the sphere
+      // color (blue/orange, set above from the same sign).
+      text_stream << model_.names[static_cast<std::size_t>(i + 1)] << ": " << std::fixed
+                  << std::showpos << std::setprecision(2) << effort;
+      if (!has_received_effort_) {
+        text_stream << " (cmd)";
+      }
+      effort_text.text = text_stream.str();
+      markers.markers.push_back(effort_text);
+    }
+
+    if (!has_received_effort_) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 5000,
+        "Cartesian impedance markers: '%s' never carried a populated 'effort' field -- per-joint "
+        "effort markers show the commanded gravity(+wrench) compensation torque instead (tagged "
+        "'(cmd)' in rviz), not a hardware measurement.",
+        joint_state_sub_->get_topic_name());
+    }
+
+    marker_pub_->publish(markers);
+  }
+
   rcl_interfaces::msg::SetParametersResult on_parameter_change_(const std::vector<rclcpp::Parameter> & parameters)
   {
     rcl_interfaces::msg::SetParametersResult result;
@@ -410,6 +608,14 @@ private:
           continue;
         }
         cartesian_impedance_stiffness_ = stiffness;
+      } else if (param.get_name() == "cartesian_impedance_external_force_marker_scale") {
+        const double scale = param.as_double();
+        if (scale <= 0.0) {
+          result.successful = false;
+          result.reason = "cartesian_impedance_external_force_marker_scale must be > 0";
+          continue;
+        }
+        cartesian_impedance_external_force_marker_scale_ = scale;
       }
     }
     return result;
@@ -419,6 +625,12 @@ private:
   pinocchio::Data data_;
   Eigen::VectorXd latest_q_;
   bool has_received_joint_state_;
+  /*!< Measured effort from /joint_states (msg->effort), aligned to model_.names/latest_q_ the same
+       way latest_q_ is. Used for the per-joint effort markers when available (see
+       publish_visualization_markers_()); some hardware/sim interfaces never populate this field,
+       hence has_received_effort_. */
+  Eigen::VectorXd latest_effort_;
+  bool has_received_effort_;
   Eigen::Matrix<double, 6, 1> latest_wrench_;
   std::string latest_wrench_frame_;
   std::string default_external_wrench_frame_;
@@ -448,10 +660,15 @@ private:
   static constexpr double kJointStiffnessMin_ = 0.5;
   static constexpr double kJointStiffnessMax_ = 10.0;
   std::array<rclcpp::Publisher<orthopus_vesc_interfaces::msg::Config>::SharedPtr, 6> cartesian_impedance_config_pub_;
-  /*!< Handle for the dynamic parameter callback (must be kept alive) allowing the three
+  /*!< Handle for the dynamic parameter callback (must be kept alive) allowing the reconfigurable
        cartesian_impedance_* params above to be changed at runtime, e.g. via `ros2 param set`,
        without restarting the node. */
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_handle_;
+
+  // --- Visualization (see publish_visualization_markers_()) -------------------------------------
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
+  std::string marker_frame_id_;
+  double cartesian_impedance_external_force_marker_scale_;
 };
 
 int main(int argc, char** argv)

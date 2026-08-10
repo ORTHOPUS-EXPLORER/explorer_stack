@@ -54,6 +54,7 @@ set(CONTROLLERS_DEPENDENCIES
   qpoases_ros2
   pinocchio
   orthopus_vesc_interfaces
+  visualization_msgs
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)

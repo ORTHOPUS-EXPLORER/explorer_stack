@@ -1,7 +1,52 @@
 #include "explorer_controllers/qp_cartesian/joint_output_integrator.h"
 
+#include <algorithm>
+#include <cstdlib>
+#include <stdexcept>
+
+#include <Eigen/Dense>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/algorithm/joint-configuration.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/model.hpp>
+#include <pinocchio/parsers/urdf.hpp>
+
 namespace space_control
 {
+namespace
+{
+// Only these joints are actuated; every other joint found in the URDF (gripper, tool frames,
+// etc.) is locked out of the Pinocchio model, same convention as gravity_compensation_node.cpp.
+const std::vector<std::string> kControlledPointControlledJointNames = {
+  "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"
+};
+
+std::string controlled_point_run_xacro(const std::string& xacro_path)
+{
+  const std::string output_path = "/tmp/explorer_joint_output_integrator_controlled_point.urdf";
+  const std::string command = std::string("xacro ") + xacro_path + " use_POC2:=true" + " > " + output_path;
+
+  const int status = std::system(command.c_str());
+  if (status != 0) {
+    throw std::runtime_error("Failed to process Xacro file via 'xacro': " + xacro_path);
+  }
+  return output_path;
+}
+
+std::string controlled_point_resolve_urdf_path(const std::string& input_path)
+{
+  if (input_path.empty()) {
+    throw std::runtime_error("No input path supplied.");
+  }
+
+  const std::string extension = input_path.substr(input_path.find_last_of('.') + 1);
+  if (extension == "xacro") {
+    return controlled_point_run_xacro(input_path);
+  }
+  return input_path;
+}
+}  // namespace
+
     JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     : n_(n)
     , sampling_period_(0.02), init(false), q_lower_limit_(7)
@@ -38,7 +83,41 @@ namespace space_control
         }
         position_error_saturation_persistent_ = n_->get_parameter("position_error_saturation_persistent").as_bool();
 
-        // Allow all three params above to be changed live (e.g. `ros2 param set`) without restarting the node.
+        // "Controlled point" marker: the cartesian tool0 position corresponding to the position
+        // command this node publishes (see publish_controlled_point_marker_()). Not gated by an
+        // enable flag (unlike the other visualization features on gravity_compensation_node) since
+        // it's cheap and has no side effect beyond publishing a marker.
+        if (!n_->has_parameter("controlled_point_urdf_path")) {
+            n_->declare_parameter<std::string>(
+                "controlled_point_urdf_path",
+                "/root/explorer_ws/explorer_stack/explorer_description/urdf/explorer.urdf.xacro");
+        }
+        controlled_point_urdf_path_ = n_->get_parameter("controlled_point_urdf_path").as_string();
+
+        if (!n_->has_parameter("controlled_point_end_effector_frame")) {
+            n_->declare_parameter<std::string>("controlled_point_end_effector_frame", "tool0");
+        }
+        controlled_point_end_effector_frame_ = n_->get_parameter("controlled_point_end_effector_frame").as_string();
+
+        // Must match the root of the URDF above (explorer.urdf.xacro's root link is "world").
+        if (!n_->has_parameter("controlled_point_marker_frame_id")) {
+            n_->declare_parameter<std::string>("controlled_point_marker_frame_id", "world");
+        }
+        controlled_point_marker_frame_id_ = n_->get_parameter("controlled_point_marker_frame_id").as_string();
+
+        std::string controlled_point_marker_topic;
+        if (!n_->has_parameter("controlled_point_marker_topic")) {
+            n_->declare_parameter<std::string>(
+                "controlled_point_marker_topic", "/explorer_controllers/joint_output_integrator/controlled_point_marker");
+        }
+        controlled_point_marker_topic = n_->get_parameter("controlled_point_marker_topic").as_string();
+        controlled_point_marker_pub_ = n_->create_publisher<visualization_msgs::msg::Marker>(controlled_point_marker_topic, 10);
+
+        controlled_point_kinematics_ready_ = false;
+        controlled_point_kinematics_load_attempted_ = false;
+
+        // Allow all three position_error_saturation_* params above to be changed live (e.g.
+        // `ros2 param set`) without restarting the node.
         on_set_parameters_callback_handle_ = n_->add_on_set_parameters_callback(
             std::bind(&JointOutputIntegrator::on_parameter_change_, this, std::placeholders::_1));
 
@@ -185,7 +264,99 @@ namespace space_control
             }
 
             command_pub_->publish(q_command_out);
+
+            publish_controlled_point_marker_(q_command_out);
         }
+    }
+
+    bool JointOutputIntegrator::ensure_controlled_point_kinematics_ready_()
+    {
+        if (controlled_point_kinematics_ready_)
+        {
+            return true;
+        }
+        if (controlled_point_kinematics_load_attempted_)
+        {
+            // Already tried and failed: don't retry (and re-log) every control cycle.
+            return false;
+        }
+        controlled_point_kinematics_load_attempted_ = true;
+
+        try
+        {
+            const std::string resolved_path = controlled_point_resolve_urdf_path(controlled_point_urdf_path_);
+            pinocchio::Model full_model;
+            pinocchio::urdf::buildModel(resolved_path, full_model, false);
+
+            std::vector<pinocchio::JointIndex> joints_to_lock;
+            for (pinocchio::JointIndex joint_id = 1; joint_id < static_cast<pinocchio::JointIndex>(full_model.njoints); ++joint_id)
+            {
+                const bool is_controlled = std::find(
+                    kControlledPointControlledJointNames.begin(), kControlledPointControlledJointNames.end(),
+                    full_model.names[joint_id]) != kControlledPointControlledJointNames.end();
+                if (!is_controlled)
+                {
+                    joints_to_lock.push_back(joint_id);
+                }
+            }
+            pinocchio::buildReducedModel(full_model, joints_to_lock, pinocchio::neutral(full_model), controlled_point_model_);
+
+            if (static_cast<std::size_t>(controlled_point_model_.njoints - 1) != kControlledPointControlledJointNames.size())
+            {
+                throw std::runtime_error("Expected joint_1..joint_6 in the URDF, found a different set of controlled joints.");
+            }
+            if (!controlled_point_model_.existFrame(controlled_point_end_effector_frame_))
+            {
+                throw std::runtime_error("Unknown end effector frame '" + controlled_point_end_effector_frame_ + "'.");
+            }
+
+            controlled_point_data_ = pinocchio::Data(controlled_point_model_);
+            controlled_point_kinematics_ready_ = true;
+        }
+        catch (const std::exception& ex)
+        {
+            RCLCPP_ERROR(
+                n_->get_logger(),
+                "Controlled point marker: unable to load Pinocchio model from '%s': %s. Marker publishing disabled.",
+                controlled_point_urdf_path_.c_str(), ex.what());
+            return false;
+        }
+        return true;
+    }
+
+    void JointOutputIntegrator::publish_controlled_point_marker_(const std_msgs::msg::Float64MultiArray& q_command_out)
+    {
+        if (!ensure_controlled_point_kinematics_ready_())
+        {
+            return;
+        }
+
+        Eigen::VectorXd q = Eigen::VectorXd::Zero(controlled_point_model_.nq);
+        for (int i = 0; i < 6; i++)
+        {
+            q[i] = q_command_out.data[static_cast<std::size_t>(i)];
+        }
+
+        pinocchio::forwardKinematics(controlled_point_model_, controlled_point_data_, q);
+        pinocchio::updateFramePlacements(controlled_point_model_, controlled_point_data_);
+        const Eigen::Vector3d x_setpoint =
+            controlled_point_data_.oMf[controlled_point_model_.getFrameId(controlled_point_end_effector_frame_)].translation();
+
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = controlled_point_marker_frame_id_;
+        marker.header.stamp = n_->now();
+        marker.ns = "controlled_point";
+        marker.id = 0;
+        marker.type = visualization_msgs::msg::Marker::SPHERE;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.pose.position.x = x_setpoint.x();
+        marker.pose.position.y = x_setpoint.y();
+        marker.pose.position.z = x_setpoint.z();
+        marker.pose.orientation.w = 1.0;
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.03;
+        marker.color.g = 1.0f;
+        marker.color.a = 1.0f;
+        controlled_point_marker_pub_->publish(marker);
     }
 }
 
