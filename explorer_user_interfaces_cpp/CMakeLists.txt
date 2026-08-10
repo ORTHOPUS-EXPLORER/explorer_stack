@@ -30,7 +30,7 @@ add_executable(command_node
   src/command_node.cpp
   src/button_handler.cpp
   src/trajectory_manager.cpp
-  src/controller_switcher.cpp
+  src/controller_manager_wrapper.cpp
   )
 
 target_include_directories(command_node

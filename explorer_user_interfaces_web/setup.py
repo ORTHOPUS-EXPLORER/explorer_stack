@@ -1,8 +1,11 @@
+import glob
+import os
+import subprocess
+import sys
+
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
-import subprocess
-import sys
 
 package_name = 'explorer_user_interfaces_web'
 
@@ -55,13 +58,10 @@ setup(
         ('share/' + package_name + '/launch', [
             'launch/web_gui.launch.py',
         ]),
-        ('share/' + package_name + '/static', [
-            'explorer_user_interfaces_web/static/style.css',
-            'explorer_user_interfaces_web/static/app.js'
-        ]),
-        ('share/' + package_name + '/templates', [
-            'explorer_user_interfaces_web/templates/index.html'
-        ]),
+        ('share/' + package_name + '/static', 
+            [f for f in glob.glob('explorer_user_interfaces_web/static/**', recursive=True) if os.path.isfile(f)]),
+        ('share/' + package_name + '/templates', 
+            [f for f in glob.glob('explorer_user_interfaces_web/templates/**', recursive=True) if os.path.isfile(f)]),
 
     ],
     install_requires=['setuptools'] + pip_dependencies,

@@ -9,7 +9,9 @@ namespace space_control
         //init settings
         dq_output_.data= {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         gripper_vel_.data = 0.0;
-        q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
+        q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        gripper_command_.data = {0.5};
+
         q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
         // init node parameters
@@ -38,6 +40,7 @@ namespace space_control
 
         //init publisher
         command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
+        gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
         auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
 
@@ -281,15 +284,16 @@ namespace space_control
                 //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
         }
         
-        q_command_.data[6] = q_command_.data[6] + gripper_vel_.data * sampling_period_;
-        if(q_command_.data[6]<= 0.0){
-            q_command_.data[6] = 0.0;
+        gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
+        if(gripper_command_.data[0]<= 0.0){
+            gripper_command_.data[0] = 0.0;
         }
-        else if(q_command_.data[6]>= 1.0){
-            q_command_.data[6] = 1.0;
+        else if(gripper_command_.data[0]>= 1.0){
+            gripper_command_.data[0] = 1.0;
         }
 
         command_pub_->publish(q_command_);
+        gripper_command_pub_->publish(gripper_command_);
     }
 
     void OutputIntegrator::home_()

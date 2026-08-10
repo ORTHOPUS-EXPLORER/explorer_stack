@@ -13,16 +13,21 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, TimerAction
-from launch.actions import RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit
-from launch.conditions import IfCondition
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.substitutions import FindPackageShare
 
 
+## LEGACY FILE: WILL BE DELETED IN THE FUTURE AND SHOULDN'T BE USED ANYMORE
 def generate_launch_description():
     # Initialize Arguments
     poc2 = LaunchConfiguration("use_POC2")
@@ -31,6 +36,8 @@ def generate_launch_description():
 
     can_port = LaunchConfiguration("can_port")
     host_id = LaunchConfiguration("host_id")
+
+    use_qp_inria = LaunchConfiguration('use_qp_inria', default='false')
 
     # Declare arguments
     declared_arguments = []
@@ -67,6 +74,13 @@ def generate_launch_description():
             "host_id",
             default_value="45",
             description="Host CAN ID for VESC Communication",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_qp_inria",
+            default_value="false",
+            description="Use QP solver from Inria",
         )
     )
 
@@ -137,6 +151,20 @@ def generate_launch_description():
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
         output="log",
+        condition=UnlessCondition(use_qp_inria)
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+    )
+
+    qcontrol_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
+        condition=IfCondition(use_qp_inria)
     )
 
     trajectory_controller_spawner = Node(
@@ -162,6 +190,8 @@ def generate_launch_description():
             target_action=joint_state_broadcaster_spawner,
             on_exit = [
                 robot_controller_spawner,
+                gripper_controller_spawner,
+                qcontrol_spawner,
                 trajectory_controller_spawner
             ]
         )

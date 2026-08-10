@@ -14,6 +14,7 @@
 
 from explorer_bringup.launch.controller_manager_spawner import (
     declare_custom_controller_spawner,
+    declare_node_gripper_controller_spawner,
 )
 from explorer_bringup.launch.hardware import declare_hardware_node_group
 from explorer_bringup.launch.hardware_parameters import declare_hardware_argument_list
@@ -63,13 +64,15 @@ def generate_launch_description():
             ),
             {
                 "use_sim_time": get_parameter_use_sim_time(),
-                "controller_position_topic_name": "/explorer_custom_controller/position/commands"
+                "controller_position_topic_name": "/explorer_custom_controller/position/commands",
+                "controller_gripper_position_topic_name": "/gripper_controller/commands",
             },
         ]
     )
 
     robot_controller_list = [
-        *declare_custom_controller_spawner(robot_controller_config=robot_controller_config)
+        *declare_custom_controller_spawner(robot_controller_config=robot_controller_config),
+        declare_node_gripper_controller_spawner()
     ]
 
     robot_simulation = declare_simulation_node_group(

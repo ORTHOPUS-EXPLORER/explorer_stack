@@ -1,7 +1,7 @@
 <library path="explorer_command_controllers">
   <class  name="explorer_command_controllers/CustomController"       
           type="explorer_command_controllers::CustomController" 
-          base_class_type="controller_interface::ControllerInterface"
+          base_class_type="controller_interface::ChainableControllerInterface"
   >
     <description>
       Custom controller, manages joint_mode (impedance/position/velocity)

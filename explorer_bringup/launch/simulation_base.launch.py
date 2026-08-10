@@ -13,20 +13,34 @@
 # limitations under the License.
 
 import os
+
 import xacro
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
+from ament_index_python.packages import (
+    get_package_share_directory,
+    get_package_share_path,
+)
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
-from launch.actions import RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    RegisterEventHandler,
+    TimerAction,
+)
 from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
+## LEGACY FILE: WILL BE DELETED IN THE FUTURE AND SHOULDN'T BE USED ANYMORE
 def generate_launch_description():
     # Initialize Arguments
     gui = LaunchConfiguration("gui")
@@ -34,6 +48,7 @@ def generate_launch_description():
     poc2 = LaunchConfiguration("use_POC2")
     rviz_delay = LaunchConfiguration("rviz_delay")
     world_file = LaunchConfiguration("world_file")
+    use_qp_inria = LaunchConfiguration('use_qp_inria', default='false') 
     
     # Declare arguments
     declared_arguments = []
@@ -69,6 +84,13 @@ def generate_launch_description():
             "world_file",
             default_value="empty_world.world",
             description="Gazebo world file to load",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_qp_inria",
+            default_value="false",
+            description="Use QP solver from Inria"
         )
     )
 
@@ -115,10 +137,24 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    robot_controller_spawner = Node(
+    robot_controller_spawner= Node(
         package="controller_manager",
         executable="spawner",
         arguments=["forward_position_controller", "--controller-manager", "/controller_manager"],
+        condition=UnlessCondition(use_qp_inria)
+    )
+
+    qcontrol_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["qontrol_explorer", "--controller-manager", "/controller_manager"],
+        condition=IfCondition(use_qp_inria)
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
     )
 
     trajectory_controller_spawner = Node(
@@ -143,6 +179,8 @@ def generate_launch_description():
                 on_exit=[
                     joint_state_broadcaster_spawner,
                     robot_controller_spawner,
+                    qcontrol_spawner,
+                    gripper_controller_spawner,
                     trajectory_controller_spawner,
                     controllers_control_node,
                 ],

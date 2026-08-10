@@ -64,8 +64,9 @@ LABEL org.opencontainers.image.description="Development image for Orthopus Explo
 # LABEL org.opencontainers.image.licenses=
 
 # Needed for build script
-ARG ROS_WS
-ENV ROS_WS=${ROS_WS}
+ENV ROS_WS=/root/explorer_ws
+RUN mkdir -p /root/explorer_ws
+WORKDIR ${ROS_WS}
 
 # Create volume to stores .ccache folderset_device_permissions
 RUN mkdir /root/.ccache
@@ -169,10 +170,9 @@ WORKDIR ${ROS_WS}
 # Setup passwordless sudoers for apt related commands
 RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh" >> /etc/sudoers
 
-COPY --chmod=0666 . ${ROS_WS}
+COPY --chmod=0666 --exclude=build --exclude=install --exclude=log . ${ROS_WS}
 
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-    rm -rf build log install &&\
     colcon build --symlink-install --continue-on-error --mixin release
 
 USER ${ROS_USER}

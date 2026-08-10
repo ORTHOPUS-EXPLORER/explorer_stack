@@ -74,6 +74,11 @@ def declare_shared_argument_list(
             description="Use POC2 urdf",
         ),
         DeclareLaunchArgument(
+            "use_qp_inria",
+            default_value="false",
+            description="Use QP solver from INRIA",
+        ),
+        DeclareLaunchArgument(
             "robot_description_param",
             default_value=Command(
                 [
