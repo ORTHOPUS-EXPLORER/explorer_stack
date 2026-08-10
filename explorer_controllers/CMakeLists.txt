@@ -60,6 +60,7 @@ set(CONTROLLERS_DEPENDENCIES
   explorer_joint_utils
   pinocchio
   orthopus_vesc_interfaces
+  visualization_msgs
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
