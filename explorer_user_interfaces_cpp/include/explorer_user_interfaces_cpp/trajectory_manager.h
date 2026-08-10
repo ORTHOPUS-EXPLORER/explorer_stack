@@ -25,7 +25,7 @@ namespace space_control
 
             bool validateTrajectory() const;
 
-            void update(std::array<double,7> q_current, double q_gripper, float axe_value);
+            void update(std::array<double,7> q_current, float axe_value);
 
             bool getLock();
 

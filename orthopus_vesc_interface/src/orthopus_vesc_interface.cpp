@@ -103,7 +103,8 @@ CallbackReturn VESCInterface::on_init(const HardwareInfo& info)
         can_port.c_str(), host_id);
       auto can = std::make_shared<vescpp::comm::CAN>(can_port);
       vesc_host_ = orthopus::VESCHost::spawn_instance(
-        host_id, can, rt_stream_rate_hz, aux_servo_stream_rate_hz, aux_config_stream_rate_hz);
+        host_id, can, rt_stream_rate_hz, aux_servo_stream_rate_hz, aux_config_stream_rate_hz,
+        is_virtual_can_used_);
 
       vesc_host_->scanCAN(true, 100ms);
       RCLCPP_DEBUG(

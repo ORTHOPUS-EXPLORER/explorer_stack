@@ -58,13 +58,12 @@ namespace space_control
         return true;
     }
 
-    void TrajectoryManager::update(std::array<double,7> q_current, double q_gripper, float axe_value) {
+    void TrajectoryManager::update(std::array<double,7> q_current, float axe_value) {
 
         for (size_t i = 0; i < 6; ++i)
         {
             q_current_[i] = q_current[i];
         }
-        gripper_ = q_gripper;
 
         // Initialize q_hold_ with actual position on first update
         if (!q_hold_initialized_) {
@@ -179,10 +178,7 @@ namespace space_control
             traj_point_start.positions.push_back(start_pos[i]);
             traj_point_target.positions.push_back(init_points_[current_point_index_][i]);
         }
-        traj_point_start.positions.push_back(gripper_);
-        traj_point_target.positions.push_back(gripper_); // keep gripper position unchanged
-
-        trajectory_msg.joint_names = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6", "right_finger_joint"};
+        trajectory_msg.joint_names = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
 
         trajectory_msg.points.push_back(traj_point_start);
         if(axe_value_ != 0.0 && std::abs(dq) > 1e-6){

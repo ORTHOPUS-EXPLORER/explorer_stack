@@ -15,13 +15,13 @@
 #ifndef EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
 #define EXPLORER_COMMAND_CONTROLLERS__CUSTOM_CONTROLLER_HPP_
 
+#include <controller_interface/chainable_controller_interface.hpp>
 #include <map>
 #include <memory>
 #include <rclcpp/time.hpp>
 #include <string>
 #include <vector>
 
-#include "controller_interface/controller_interface.hpp"
 #include "explorer_command_controllers/visibility_control.h"
 #include "explorer_custom_controller_parameters.hpp"  // generated
 #include "orthopus_vesc/common.hpp"
@@ -33,7 +33,7 @@
 
 namespace explorer_command_controllers
 {
-class CustomController : public controller_interface::ControllerInterface
+class CustomController : public controller_interface::ChainableControllerInterface
 {
 public:
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
@@ -65,8 +65,15 @@ public:
   //   const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
   EXPLORER_COMMAND_CONTROLLERS_PUBLIC
-  controller_interface::return_type update(
+  std::vector<hardware_interface::CommandInterface> on_export_reference_interfaces() override;
+  EXPLORER_COMMAND_CONTROLLERS_PUBLIC
+  controller_interface::return_type update_reference_from_subscribers(
     const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  EXPLORER_COMMAND_CONTROLLERS_PUBLIC
+  controller_interface::return_type update_and_write_commands(
+    const rclcpp::Time& time, const rclcpp::Duration& period) override;
+
+  bool on_set_chained_mode(bool chained_mode) override;
 
 protected:
   // override methods from ChainableControllerInterface
@@ -141,6 +148,7 @@ private:
   bool set_joint_mode_(const std::string&, const std::string&);
   bool set_impedance_config_(const std::string& joint_name, float damping, float stiffness) const;
   void init_ros_subscribers_();
+  bool apply_joint_input_value_(ControllerJoint&, size_t, orthopus::JointVariableType, double);
   bool apply_joint_input_command_(
     ControllerJoint&, size_t, orthopus::JointVariableType,
     const std::shared_ptr<ControllerInputCommand>&);
@@ -149,10 +157,11 @@ private:
   void write_position_(ControllerJoint&);
   void write_velocity_(ControllerJoint&);
   bool is_command_ready_to_be_written_(const ControllerJoint&, orthopus::JointVariableType);
-  controller_interface::CallbackReturn apply_config_to_joint_(const std::string &joint_name, const explorer_custom_controller::Params::Settings::MapJoints &settings);
-  void assign_joint_state_interface_list_(ControllerJoint &joint);
+  controller_interface::CallbackReturn apply_config_to_joint_(
+    const std::string& joint_name,
+    const explorer_custom_controller::Params::Settings::MapJoints& settings);
+  void assign_joint_state_interface_list_(ControllerJoint& joint);
   void assign_joint_command_interface_list_(ControllerJoint& joint);
-
 
   std::shared_ptr<ParamListener> param_listener_;
   Params params_;
@@ -163,11 +172,12 @@ private:
   rclcpp::Subscription<SubscriptionMsg>::SharedPtr velocity_commands_subscriber_;
 
   // Publishers objects (only to retrieved response and prevent false warning)
-  std::vector<std::shared_ptr<rclcpp::Client<orthopus_vesc_interfaces::srv::SetMode>>> set_mode_client_list_;
+  std::vector<std::shared_ptr<rclcpp::Client<orthopus_vesc_interfaces::srv::SetMode>>>
+    set_mode_client_list_;
 
   // Real time buffers : store data coming from topics
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>
-      effort_commands_buffer_rt_;
+    effort_commands_buffer_rt_;
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>
     position_commands_buffer_rt_;
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerInputCommand>>
@@ -177,6 +187,7 @@ private:
   std::vector<ControllerJoint> joints_;
   // ROS node clock
   rclcpp::Clock::SharedPtr clock_;
+  std::atomic<bool> is_chained_;
 
   // DEBUG
   void print_joints_() const;

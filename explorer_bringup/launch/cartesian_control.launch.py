@@ -12,235 +12,104 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from explorer_bringup.launch.controller_manager_spawner import (
+    declare_node_forward_position_controller_spawner,
+    declare_node_gripper_controller_spawner,
+    declare_node_qcontrol_controller_spawner,
+    declare_node_trajectory_controller_spawner,
+)
+from explorer_bringup.launch.hardware import (
+    declare_hardware_node_group,
+)
+from explorer_bringup.launch.hardware_parameters import (
+    declare_hardware_argument_list,
+)
+from explorer_bringup.launch.optional import (
+    declare_spacenav_node_group,
+)
+from explorer_bringup.launch.optional_parameters import (
+    declare_parameter_spacenav,
+)
+from explorer_bringup.launch.shared import (
+    declare_input_integrator_node,
+    declare_output_integrator_node,
+)
+from explorer_bringup.launch.shared_parameters import (
+    CONTROLLER_CONFIG_TYPE,
+    get_parameter_gui,
+)
+from explorer_bringup.launch.simulation import (
+    declare_simulation_node_group,
+)
+from explorer_bringup.launch.simulation_parameters import (
+    declare_simulation_argument_list,
+)
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
-from launch_ros.substitutions import FindPackageShare
+
+
+def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
+    return [
+        *declare_simulation_argument_list(
+            robot_controller_config=robot_controller_config
+        ),
+        *declare_hardware_argument_list(
+            robot_controller_config=robot_controller_config
+        ),
+        declare_parameter_spacenav(),
+    ]
 
 
 def generate_launch_description():
+    robot_controller_config = "controller"
+    # Used only if use_qp_inria=false
+    controller_position_topic_name = "/forward_position_controller/commands"
+
     # Initialize Arguments
-    gui = LaunchConfiguration("gui")
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    simulation = LaunchConfiguration('simulation')
-    spacenav = LaunchConfiguration('spacenav')
-    use_actuator_interface = LaunchConfiguration("use_actuator_interface")
-    can_port = LaunchConfiguration("can_port")
-    host_id = LaunchConfiguration("host_id")
-    poc2 = LaunchConfiguration("use_POC2")
-    robot_description_param = LaunchConfiguration("robot_description_param")
-
-    # Declare arguments
-    declared_arguments = []
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gui",
-            default_value="true",
-            description="Start RViz2 automatically with this launch file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'simulation',
-            default_value='true',
-            description='If true, use simulation (Gazebo), if false use real hardware')
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='true',
-            description='If true, use simulated clock. Auto-set based on simulation mode if not specified')
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_actuator_interface",
-            default_value="true",
-            description="Use VESCInterface to control the robot. Set to false for simulation",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "can_port",
-            default_value="can0",
-            description="CAN Port for VESC Communication",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "host_id",
-            default_value="45",
-            description="Host CAN ID for VESC Communication",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_POC2",
-            default_value="true",
-            description="Use POC2 urdf",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "robot_description_param",
-            default_value=Command([
-                PathJoinSubstitution([FindExecutable(name="xacro")]),
-                " ",
-                PathJoinSubstitution([
-                    FindPackageShare("explorer_description"),
-                    "urdf",
-                    "explorer.urdf.xacro"
-                ]),
-                " ",
-                "use_ignition:=", simulation,
-                " ",
-                "use_actuator_interface:=", use_actuator_interface,
-                " can_port:=", can_port,
-                " host_id:=", host_id,
-                " use_POC2:=", poc2
-            ]),
-            description="Robot description (URDF) evaluated from xacro"
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            name='spacenav',
-            default_value='True',
-            description='If the spacenav 3D mouse is used')
+    declared_arguments = _declare_arguments(
+        robot_controller_config=robot_controller_config
     )
 
-    # Include robot simulation (when simulation=true)
-    robot_simulation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/simulation_base.launch.py"
-        ]),
-        launch_arguments={
-            'use_POC2': poc2,
-            'gui': gui,
-            'use_sim_time': use_sim_time,
-            'rviz_delay': '0.0'
-        }.items(),
-        condition=IfCondition(simulation)
+    robot_controller_list = [
+        declare_node_forward_position_controller_spawner(),
+        declare_node_trajectory_controller_spawner(),
+        declare_node_gripper_controller_spawner(),
+        declare_node_qcontrol_controller_spawner(),
+    ]
+    robot_simulation = declare_simulation_node_group(
+        robot_controller_list=robot_controller_list,
+        launch_qp_solving=True,
+        controller_position_topic_name=controller_position_topic_name,
     )
 
-    # Include robot hardware (when simulation=false)
-    robot_hardware = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            FindPackageShare("explorer_bringup"), 
-            "/launch/hardware_base.launch.py"
-        ]),
-        launch_arguments={
-            'gui': gui,
-            'use_sim_time': use_sim_time,
-            'use_actuator_interface': use_actuator_interface,
-            'can_port': can_port,
-            'host_id': host_id,
-            'use_POC2': poc2,
-            'rviz_delay': '5.0'
-        }.items(),
-        condition=UnlessCondition(simulation)
+    robot_hardware = declare_hardware_node_group(
+        robot_controller_config_type=robot_controller_config,
+        robot_controller_list=robot_controller_list,
+        launch_qp_solving=True,
+        controller_position_topic_name=controller_position_topic_name,
     )
 
-    robot_description = {"robot_description": ParameterValue(robot_description_param, value_type=str)}
+    spacenav_node_group = declare_spacenav_node_group()
 
-    # Get SRDF via xacro
-    semantic_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("explorer_description"), "urdf", "explorer.srdf"]
-            ),
-            " ",
-        ]
-    )
-
-    robot_description_semantic = {"robot_description_semantic": ParameterValue(semantic_content, value_type=str)}
-
-    config_POC1 = PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "config", "settings_POC1.yaml"])
-
-    config_POC2 = PathJoinSubstitution(
-        [FindPackageShare("explorer_bringup"), "config", "settings_POC2.yaml"])
-
-    spacenav_config = PathJoinSubstitution(
-        [FindPackageShare("explorer_input_devices"),
-         "config",
-         "spacenav_settings.yaml"
-    ])
-
-    spacenav_node = Node(
-        package='explorer_input_devices',
-        executable='spacenav',
-        parameters=[
-            spacenav_config,
-            {'static_rot_deadband': 0.5},
-            {'static_trans_deadband': 0.5}
-        ],
-        condition=IfCondition(spacenav),
-    )
-
-    spacenav_driver_node = Node(
-        package='spacenav',
-        executable='spacenav_node',
-        parameters=[
-            {'static_rot_deadband': 0.5},
-            {'static_trans_deadband': 0.5}
-        ],
-        condition=IfCondition(spacenav),
-    )
-
-    input_integrator_node = Node(
-        package="explorer_controllers",
-        executable="input_integrator",
-        name="input_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
-    )
-
-    output_integrator_node = Node(
-        package="explorer_controllers",
-        executable="output_integrator",
-        name="output_integrator",
-        parameters=[
-            {'use_sim_time': use_sim_time}
-        ],
-    )
-
-    qp_solving_POC1_node = Node(
-        package="explorer_controllers",
-        executable="qp_solving",
-        parameters=[config_POC1, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=UnlessCondition(poc2),
-    )
-
-    qp_solving_POC2_node = Node(
-        package="explorer_controllers",
-        executable="qp_solving",
-        parameters=[config_POC2, robot_description, robot_description_semantic, {'use_sim_time': use_sim_time}],
-        condition=IfCondition(poc2),
+    input_integrator_node = declare_input_integrator_node()
+    output_integrator_node = declare_output_integrator_node(
+        controller_position_topic_name=controller_position_topic_name
     )
 
     gui_control_node = Node(
-        package='explorer_user_interfaces',
-        executable='rqt_armcontrol',
+        package="explorer_user_interfaces",
+        executable="rqt_armcontrol",
+        condition=IfCondition(get_parameter_gui()),
     )
 
     nodes = [
         robot_simulation,
         robot_hardware,
-        spacenav_node,
-        spacenav_driver_node,
+        spacenav_node_group,
         gui_control_node,
         input_integrator_node,
         output_integrator_node,
-        qp_solving_POC1_node,
-        qp_solving_POC2_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
