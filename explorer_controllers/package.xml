@@ -34,6 +34,7 @@
   <depend>pinocchio</depend>
   <depend>explorer_msgs</depend>
   <depend>explorer_user_interfaces</depend>
+  <depend>orthopus_vesc_interfaces</depend>
 
 
   <exec_depend>controller_manager</exec_depend>

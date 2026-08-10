@@ -53,6 +53,7 @@ set(CONTROLLERS_DEPENDENCIES
   Eigen3
   qpoases_ros2
   pinocchio
+  orthopus_vesc_interfaces
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
