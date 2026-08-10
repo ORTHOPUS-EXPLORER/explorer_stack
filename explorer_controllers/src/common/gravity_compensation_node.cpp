@@ -1,8 +1,10 @@
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <functional>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -11,8 +13,10 @@
 #include <Eigen/Dense>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <orthopus_vesc_interfaces/msg/config.hpp>
 
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/joint-configuration.hpp>
@@ -69,14 +73,43 @@ public:
     this->declare_parameter("external_wrench_topic", std::string("/explorer_controllers/gravity_compensation/external_wrench"));
     this->declare_parameter("default_external_wrench_frame", std::string("tool0"));
 
+    // Cartesian impedance -> per-joint stiffness/damping (see publish_cartesian_impedance_()).
+    // Disabled by default so behaviour is unchanged unless explicitly enabled.
+    this->declare_parameter("cartesian_impedance_publish_enable", false);
+    // damping = cartesian_impedance_damping_ratio_ * stiffness for every joint. 0.75 matches the
+    // rough damping/stiffness ratio of the previous fixed per-joint values in
+    // explorer_custom_controller.yaml.
+    this->declare_parameter("cartesian_impedance_damping_ratio", 0.75);
+    // Target cartesian stiffness driving every joint's computed stiffness. Defaults to ~1.4, the
+    // average of the fixed per-joint impedance_stiffness values in explorer_custom_controller.yaml
+    // (2.0, 2.5, 2.0, 1.0, 0.8, 0.3), so that at the reference configuration the computed per-joint
+    // stiffnesses are close to the previous fixed ones.
+    this->declare_parameter("cartesian_impedance_stiffness", 1.4);
+    // Frame the cartesian stiffness is expressed at / the Jacobian is computed for. Not
+    // reconfigurable at runtime (only read once here).
+    this->declare_parameter("cartesian_impedance_end_effector_frame", std::string("tool0"));
+
     std::string urdf_path;
     std::string joint_state_topic;
     this->get_parameter("urdf_path", urdf_path);
     this->get_parameter("joint_state_topic", joint_state_topic);
     this->get_parameter("default_external_wrench_frame", default_external_wrench_frame_);
+    this->get_parameter("cartesian_impedance_publish_enable", cartesian_impedance_enable_);
+    this->get_parameter("cartesian_impedance_damping_ratio", cartesian_impedance_damping_ratio_);
+    this->get_parameter("cartesian_impedance_stiffness", cartesian_impedance_stiffness_);
+    this->get_parameter("cartesian_impedance_end_effector_frame", cartesian_impedance_end_effector_frame_);
+    cartesian_impedance_reference_captured_ = false;
+    cartesian_impedance_reference_mean_lever_arm_sq_ = 0.0;
 
     if (!initialize_model(urdf_path)) {
       return;
+    }
+
+    if (!model_.existFrame(cartesian_impedance_end_effector_frame_)) {
+      RCLCPP_ERROR(
+        this->get_logger(),
+        "Cartesian impedance: unknown end effector frame '%s'; cartesian impedance publishing will stay disabled.",
+        cartesian_impedance_end_effector_frame_.c_str());
     }
 
     latest_q_ = Eigen::VectorXd::Zero(model_.nq);
@@ -96,6 +129,16 @@ public:
     external_wrench_sub_ = this->create_subscription<geometry_msgs::msg::WrenchStamped>(
       external_wrench_topic, 10,
       std::bind(&GravityCompensationNode::external_wrench_callback, this, std::placeholders::_1));
+
+    for (std::size_t i = 0; i < cartesian_impedance_config_pub_.size(); ++i) {
+      const std::string topic = "/explorer_joint_" + std::to_string(i + 1) + "/config";
+      cartesian_impedance_config_pub_[i] = this->create_publisher<orthopus_vesc_interfaces::msg::Config>(topic, 10);
+    }
+
+    // Allow the three cartesian impedance params above to be changed live (e.g. `ros2 param set`)
+    // without restarting the node.
+    on_set_parameters_callback_handle_ = this->add_on_set_parameters_callback(
+      std::bind(&GravityCompensationNode::on_parameter_change_, this, std::placeholders::_1));
 
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(100), std::bind(&GravityCompensationNode::publish_gravity_torque, this));
@@ -250,6 +293,10 @@ private:
 
     torque_pub_->publish(msg);
 
+    if (cartesian_impedance_enable_) {
+      publish_cartesian_impedance_();
+    }
+
     // model_.names[0] is the implicit "universe" root joint (no torque associated with it);
     // skip it so the printed names line up 1:1 with the published torques.
     std::ostringstream joint_names_stream;
@@ -266,6 +313,108 @@ private:
       << Eigen::Map<const Eigen::VectorXd>(torques.data(), static_cast<Eigen::Index>(torques.size())).transpose());
   }
 
+  // --- Cartesian impedance -> per-joint stiffness/damping -------------------------------------
+  //
+  // The joints' stiffness/damping used to be fixed (see explorer_custom_controller.yaml), meaning
+  // the *cartesian* impedance felt at the end effector varies a lot with the arm configuration (a
+  // given joint stiffness moves the end effector a lot when the joint is far from it, and little
+  // when it's close). When enabled, this instead derives each joint's stiffness from a single
+  // target cartesian stiffness and the current configuration, so the cartesian impedance stays
+  // approximately uniform.
+  //
+  // For a small joint deflection dq_i, the resulting end-effector displacement is dx_i = J_i * dq_i,
+  // where J_i is the i-th column of the translational Jacobian (already computed the same way as
+  // the external wrench handling above, via computeFrameJacobian). Equating the joint-space and
+  // cartesian-space elastic energy for a diagonal cartesian stiffness k_cart
+  // (1/2 * K_i * dq_i^2 == 1/2 * k_cart * ||dx_i||^2) gives:
+  //      K_i = k_cart * ||J_i||^2
+  // ||J_i||^2 is the squared lever arm of joint i in the current configuration. To keep the overall
+  // magnitude consistent with the previous fixed per-joint values (so
+  // cartesian_impedance_stiffness_'s default is "close to the actual stiffness obtained with the
+  // actual fixed joint stiffness", as opposed to a raw physical N/m value), K_i is additionally
+  // normalized by the mean lever arm captured once, at the first configuration this is evaluated on:
+  //      K_i(q) = k_cart * ||J_i(q)||^2 / mean_j(||J_j(q_ref)||^2)
+  // so that at q == q_ref, the per-joint stiffnesses average out to k_cart. The result is clamped to
+  // [kJointStiffnessMin_, kJointStiffnessMax_] as a safety net independent of
+  // cartesian_impedance_stiffness_, and published on /explorer_joint_1/config ..
+  // /explorer_joint_6/config.
+  void publish_cartesian_impedance_()
+  {
+    if (!has_received_joint_state_ || !model_.existFrame(cartesian_impedance_end_effector_frame_)) {
+      return;
+    }
+
+    pinocchio::Data::Matrix6x jacobian(6, model_.nv);
+    jacobian.setZero();
+    pinocchio::computeFrameJacobian(
+      model_, data_, latest_q_, model_.getFrameId(cartesian_impedance_end_effector_frame_),
+      pinocchio::LOCAL_WORLD_ALIGNED, jacobian);
+
+    // Per-joint lever arm weight: squared norm of the translational part of that joint's Jacobian
+    // column, i.e. how much a small rotation of that joint moves the end effector (m^2/rad^2).
+    std::array<double, 6> lever_arm_sq{};
+    for (int i = 0; i < 6; ++i) {
+      lever_arm_sq[static_cast<std::size_t>(i)] = jacobian.block<3, 1>(0, i).squaredNorm();
+    }
+
+    if (!cartesian_impedance_reference_captured_) {
+      const double sum = std::accumulate(lever_arm_sq.begin(), lever_arm_sq.end(), 0.0);
+      cartesian_impedance_reference_mean_lever_arm_sq_ = sum / 6.0;
+      if (cartesian_impedance_reference_mean_lever_arm_sq_ < 1e-9) {
+        RCLCPP_WARN_THROTTLE(
+          this->get_logger(), *this->get_clock(), 5000,
+          "Cartesian impedance: degenerate/singular reference configuration, skipping this cycle.");
+        return;
+      }
+      cartesian_impedance_reference_captured_ = true;
+      RCLCPP_INFO(
+        this->get_logger(),
+        "Cartesian impedance: captured reference mean squared lever arm = %.4f at first evaluation.",
+        cartesian_impedance_reference_mean_lever_arm_sq_);
+    }
+
+    for (int i = 0; i < 6; ++i) {
+      double stiffness = cartesian_impedance_stiffness_ *
+        (lever_arm_sq[static_cast<std::size_t>(i)] / cartesian_impedance_reference_mean_lever_arm_sq_);
+      stiffness = std::clamp(stiffness, kJointStiffnessMin_, kJointStiffnessMax_);
+      const double damping = cartesian_impedance_damping_ratio_ * stiffness;
+
+      orthopus_vesc_interfaces::msg::Config command;
+      command.timestamp = this->now();
+      command.impedance_control_stiffness = static_cast<float>(stiffness);
+      command.impedance_control_damping = static_cast<float>(damping);
+      cartesian_impedance_config_pub_[static_cast<std::size_t>(i)]->publish(command);
+    }
+  }
+
+  rcl_interfaces::msg::SetParametersResult on_parameter_change_(const std::vector<rclcpp::Parameter> & parameters)
+  {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    for (const auto & param : parameters) {
+      if (param.get_name() == "cartesian_impedance_publish_enable") {
+        cartesian_impedance_enable_ = param.as_bool();
+      } else if (param.get_name() == "cartesian_impedance_damping_ratio") {
+        const double ratio = param.as_double();
+        if (ratio < 0.0) {
+          result.successful = false;
+          result.reason = "cartesian_impedance_damping_ratio must be >= 0";
+          continue;
+        }
+        cartesian_impedance_damping_ratio_ = ratio;
+      } else if (param.get_name() == "cartesian_impedance_stiffness") {
+        const double stiffness = param.as_double();
+        if (stiffness <= 0.0) {
+          result.successful = false;
+          result.reason = "cartesian_impedance_stiffness must be > 0";
+          continue;
+        }
+        cartesian_impedance_stiffness_ = stiffness;
+      }
+    }
+    return result;
+  }
+
   pinocchio::Model model_;
   pinocchio::Data data_;
   Eigen::VectorXd latest_q_;
@@ -278,6 +427,31 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
   rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr external_wrench_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr torque_pub_;
+
+  /*!< Publishes updated per-joint stiffness/damping on /explorer_joint_1/config ..
+       /explorer_joint_6/config every publish_gravity_torque() cycle when true. Disabled by
+       default so behaviour is unchanged unless explicitly enabled. */
+  bool cartesian_impedance_enable_;
+  /*!< damping = cartesian_impedance_damping_ratio_ * stiffness for every joint. */
+  double cartesian_impedance_damping_ratio_;
+  /*!< Target cartesian stiffness driving every joint's computed stiffness (see
+       publish_cartesian_impedance_() for the full derivation). */
+  double cartesian_impedance_stiffness_;
+  /*!< Frame the cartesian stiffness is expressed at / the Jacobian is computed for. */
+  std::string cartesian_impedance_end_effector_frame_;
+  /*!< Mean squared lever arm captured at the first configuration this is evaluated on, used to
+       normalize the computed stiffness. */
+  double cartesian_impedance_reference_mean_lever_arm_sq_;
+  bool cartesian_impedance_reference_captured_;
+  /*!< Computed per-joint stiffness is clamped to this range before being published, as a safety
+       net independent of cartesian_impedance_stiffness_. */
+  static constexpr double kJointStiffnessMin_ = 0.5;
+  static constexpr double kJointStiffnessMax_ = 10.0;
+  std::array<rclcpp::Publisher<orthopus_vesc_interfaces::msg::Config>::SharedPtr, 6> cartesian_impedance_config_pub_;
+  /*!< Handle for the dynamic parameter callback (must be kept alive) allowing the three
+       cartesian_impedance_* params above to be changed at runtime, e.g. via `ros2 param set`,
+       without restarting the node. */
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr on_set_parameters_callback_handle_;
 };
 
 int main(int argc, char** argv)
