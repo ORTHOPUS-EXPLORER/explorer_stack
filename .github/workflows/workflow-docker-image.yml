@@ -20,7 +20,7 @@ jobs:
           packages: write
         steps:
             - name: Checkout PR
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                 submodules: recursive
 
@@ -28,14 +28,16 @@ jobs:
               id: meta
               uses: docker/metadata-action@v6
               with:
-                flavor: latest=false
-                images: ghcr.io/orthopus-explorer/ros-${{ inputs.ros_distro }}-explorer/${{ inputs.image_name }}
+                images: ghcr.io/orthopus-explorer/explorer_stack/${{ inputs.image_name }}
                 tags: |
                   # Tag as latest on tag on default branch
                   type=raw,value=latest,enable={{is_default_branch}}
                   # Use version only instead of raw git tag (in case of vX.Y.Z tag)
                   type=semver,pattern={{version}}
-            
+                flavor: |
+                  prefix=${{ inputs.ros_distro }}-
+                  latest=false
+
             - name: Log in to the Container registry 
               uses: docker/login-action@v4
               with:

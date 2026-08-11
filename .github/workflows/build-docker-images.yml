@@ -4,6 +4,10 @@ on:
       tags:
           - '**'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-push-CI-docker-image:
     ## Deploy new CI image only if master changes
