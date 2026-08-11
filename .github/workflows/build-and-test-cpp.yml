@@ -16,12 +16,12 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-      image: ghcr.io/orthopus-explorer/ros-jazzy-explorer/builder:latest
+      image: ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest
     permissions:
       packages: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: src/
           submodules: recursive
@@ -32,12 +32,11 @@ jobs:
         run: curl -fsSL https://deb.nodesource.com/setup_22.x | bash && apt install -y nodejs 
 
       - name: Cache colcon build directories
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           # Couldn't cache build/install folder: it keeps building cxx files everytimes so I tried to relied on ccache and it's better than nothing
           path: |
             .ccache
-            install
           key: colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-${{ github.base_ref }}
           restore-keys: |
             colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-
@@ -49,10 +48,11 @@ jobs:
             CCACHE_COMPILERCHECK=content CCACHE_BASEDIR=$PWD CCACHE_DIR=$PWD/.ccache COLCON_HOME=/root/.colcon COLCON_MIXIN_PATH=/root/.colcon/mixins colcon build --symlink-install --continue-on-error --mixin ccache compile-commands --event-handlers console_direct+
 
       - name: 'Upload build/install Artifact'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ros2-build
           path: |
+            src/
             build/
             install/
           retention-days: 2
@@ -60,15 +60,26 @@ jobs:
 
   report-cpp-lint-and-format:
     runs-on: ubuntu-latest
+    container:
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      image: ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest
     needs: build
     permissions:
       contents: write
+      packages: read
       pull-requests: write
     steps:
       - name: Download build folder from build job
         uses: actions/download-artifact@v5
         with:
           name: ros2-build
+
+      - name: Merge compile_commands.json into one unique file
+        run: |
+          apt-get update && apt-get install -y jq
+          jq -s 'add' build/*/compile_commands.json > compile_commands.json
 
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
@@ -84,6 +95,7 @@ jobs:
           # only 'update' a single comment in a pull request thread.
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
           step-summary: true
+          repo-root: "src"
 
       # Enable CI fails on error
       # - name: Check if cpp lint failed

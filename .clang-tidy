@@ -29,3 +29,5 @@ CheckOptions:
   # Require protected method to end with `_`
   - key: readability-identifier-naming.ProtectedMethodSuffix
     value: "_"
+  - key: misc-include-cleaner.MissingIncludes
+    value: "false"

@@ -4,7 +4,7 @@
         "context": "..",
         "dockerfile": "../Dockerfile",
         "target": "explorer_dev",
-        "cacheFrom": "ghcr.io/orthopus-explorer/ros-jazzy-explorer/dev:latest",
+        "cacheFrom": "ghcr.io/orthopus-explorer/explorer_stack/dev:jazzy-latest",
         "args": {
             "ROS_DISTRO": "jazzy"
         }
