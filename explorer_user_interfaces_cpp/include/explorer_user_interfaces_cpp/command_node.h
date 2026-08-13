@@ -186,6 +186,7 @@ private:
   std::optional<double> j2_operational_max_cached_;
   std::optional<double> j3_max_cached_;
   std::optional<double> j3_operational_max_cached_;
+  std::vector<std::string> parameter_name_list_in_pending_;
 
   double j2_max_;
   double j2_operational_max_;
