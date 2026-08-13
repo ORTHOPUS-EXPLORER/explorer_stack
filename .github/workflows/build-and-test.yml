@@ -1,0 +1,164 @@
+name: Build ROS2 package and launch tests
+on:
+  pull_request:
+  # Allow manual trigger
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      image: ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest
+    permissions:
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: src
+          submodules: recursive
+
+      # Only exec when testing locally with Act (https://github.com/nektos/act/issues/973)
+      - name: Act Workaround
+        if: ${{ env.ACT }}
+        run: curl -fsSL https://deb.nodesource.com/setup_22.x | bash && apt install -y nodejs 
+
+      - name: Cache colcon build directories
+        uses: actions/cache@v6
+        with:
+          # Couldn't cache build/install folder: it keeps building cxx files everytimes so I tried to relied on ccache and it's better than nothing
+          path: |
+            /root/.ccache
+          key: colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-${{ github.base_ref }}
+          restore-keys: |
+            colcon-${{ hashFiles('src/**/CMakeLists.txt', 'src/**/package.xml') }}-
+            colcon-
+
+      - name: "Build ROS package with support for linter (compile-commands)"
+        run: |
+            mv src /root/explorer_ws
+            cd /root/explorer_ws
+            source /opt/ros/${ROS_DISTRO}/setup.bash
+            CCACHE_DIR=/root/.ccache COLCON_HOME=/root/.colcon COLCON_MIXIN_PATH=/root/.colcon/mixins colcon build --symlink-install --continue-on-error --mixin ccache compile-commands build-testing-on --event-handlers console_direct+
+
+      - name: Archive ROS2
+        run: cd /root/explorer_ws && tar -czf ros2-build-explorer.tar.gz * 
+
+      - name: Upload build/install Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ros2-build-explorer
+          path: /root/explorer_ws/ros2-build-explorer.tar.gz
+          retention-days: 2
+
+
+  report-cpp-lint-and-format:
+    runs-on: ubuntu-latest
+    container:
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      image: ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest
+    needs: build
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+    steps:
+      - name: Download build folder from build job
+        uses: actions/download-artifact@v7
+        with:
+          name: ros2-build-explorer
+          path: .
+      
+      - name: Extract artifacts
+        run: tar -xzf ros2-build-explorer.tar.gz
+
+      - name: Merge compile_commands.json into one unique file
+        run: |
+          apt-get update && apt-get install -y jq
+          jq -s 'add' build/*/compile_commands.json > compile_commands.json
+
+      - uses: cpp-linter/cpp-linter-action@v2
+        id: linter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          database: "./build"
+          tidy-review: true
+          # Use .clang-format config file
+          style: 'file'
+          # Use .clang-tidy config file
+          tidy-checks: ''
+          # only 'update' a single comment in a pull request thread.
+          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          step-summary: true
+
+      # Enable CI fails on error
+      # - name: Check if cpp lint failed
+      #   if: steps.linter.outputs.checks-failed > 0
+      #   run: exit 1
+
+  launch_test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build folder from build job
+        uses: actions/download-artifact@v7
+        with:
+          name: ros2-build-explorer
+          path: .
+      
+      - name: Extract artifacts
+        run: tar -xzf ros2-build-explorer.tar.gz
+
+      - name: Setup Virtual CAN (vcan0)
+        run: |
+          # Install needed vcan modprobe
+          sudo apt update -y
+          sudo apt-get install -y linux-modules-extra-$(uname -r)
+
+          # Load the virtual CAN kernel module
+          sudo modprobe vcan
+          
+          # Create the virtual CAN interface
+          sudo ip link add dev vcan0 type vcan
+          
+          # Set the MTU (16 for standard CAN) and bring it up
+          sudo ip link set mtu 16 up dev vcan0
+          
+          # Verify the interface is up and configured correctly
+          ip -details link show vcan0
+
+      - name: Pull ROS container
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
+          docker pull ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest  
+
+      - name: Run tests
+        run: |
+          docker run --rm --entrypoint "" --network host --privileged -v ${{ github.workspace }}:/root/explorer_ws -w /root/explorer_ws \
+            ghcr.io/orthopus-explorer/explorer_stack/builder:jazzy-latest \
+            /bin/bash -c '
+            set -e;
+            source /opt/ros/${ROS_DISTRO}/setup.bash;
+            source install/setup.bash;
+            colcon test --merge-install --packages-select explorer_bringup explorer_user_interfaces_cpp;
+            colcon test-result --all'
+
+      - name: Upload test result Artifact
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ros2-explorer_stack-Testing
+          path: |
+            build/explorer_bringup/Testing
+            build/explorer_user_interfaces_cpp/Testing
+          retention-days: 2

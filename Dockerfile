@@ -47,12 +47,12 @@ LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/expl
 LABEL org.opencontainers.image.description="CI/CD image for Orthopus Explorer project"
 # LABEL org.opencontainers.image.licenses=
 
-COPY --from=explorer_cacher /tmp/build_dependencies.txt /tmp/build_dependencies.txt
+COPY --from=explorer_cacher /tmp/exec_dependencies.txt /tmp/exec_dependencies.txt
 RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/etc/apt/apt.conf.d \
     --mount=type=cache,target=/var/lib/apt/lists,from=explorer_cacher,source=/var/lib/apt/lists \
     --mount=type=cache,target=/var/cache/apt,sharing=locked \
     # Install build dependencies from rosdep
-    < /tmp/build_dependencies.txt xargs apt-get install -y --no-install-recommends \
+    < /tmp/exec_dependencies.txt xargs apt-get install -y --no-install-recommends \
     # CI build caching
     && apt install -y ccache
 
