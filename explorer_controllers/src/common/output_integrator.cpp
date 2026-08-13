@@ -19,6 +19,7 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
   go_J6_zero_(false),
   reset_(false)
 {
+  // init node parameters
   auto debug_enabled = n_->get_parameter("debug").as_bool();
   if (debug_enabled)
   {
@@ -27,20 +28,18 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
       throw std::runtime_error("Couldn't set logger level to DEBUG.");
     }
   }
-  //init settings
-  dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  gripper_vel_.data = 0.0;
-  q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
-  q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-  // init node parameters
-  n_->declare_parameter<std::string>("controller_position_topic_name", "");
 
   controller_position_topic_name_ = n_->get_parameter("controller_position_topic_name").as_string();
   if (controller_position_topic_name_.empty())
   {
     throw std::runtime_error("Parameter 'controller_position_topic_name' is required");
   }
+
+  //init settings
+  dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  gripper_vel_.data = 0.0;
+  q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
+  q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
   //init suscriber
   dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>(
@@ -573,6 +572,7 @@ int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
   rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
 
   auto n = rclcpp::Node::make_shared("output_integrator", node_options);
 

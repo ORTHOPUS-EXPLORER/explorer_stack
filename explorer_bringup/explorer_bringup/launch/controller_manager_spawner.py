@@ -91,7 +91,7 @@ def declare_custom_controller_spawner(
             get_parameter_simulation().perform(context).lower() == "true"
         )
         config["explorer_custom_controller"]["ros__parameters"]["debug"] = (
-            get_parameter_debug()
+            get_parameter_debug().perform(context).lower() == "true"
         )
 
         # Write temporary config
