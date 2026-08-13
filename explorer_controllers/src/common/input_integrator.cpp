@@ -466,6 +466,7 @@ int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
   rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
 
   auto n = rclcpp::Node::make_shared("input_integrator", node_options);
 
