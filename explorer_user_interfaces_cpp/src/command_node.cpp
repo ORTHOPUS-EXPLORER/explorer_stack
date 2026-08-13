@@ -780,13 +780,30 @@ void CommandNode::modifyTargetNodeParameter_(
 
 void CommandNode::getDoubleParameter_(const std::string& param_name, std::optional<double>& value)
 {
+  // Check if this parameter name call is already in pending
+  if (
+    std::find(
+      parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name) !=
+    parameter_name_list_in_pending_.end())
+  {
+    return;
+  }
   RCLCPP_INFO(n_->get_logger(), "Initializing %s from qp_solving (async)", param_name.c_str());
+
+  parameter_name_list_in_pending_.push_back(param_name);
 
   param_client_->get_parameters(
     {param_name},
     [this, param_name, &value](std::shared_future<std::vector<rclcpp::Parameter>> future)
     {
-      const auto params = future.get();
+      const auto &params = future.get();
+      // Delete this parameter from the parameter pending request list
+      auto parameter_it = std::find(
+        parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name);
+      if (parameter_it != parameter_name_list_in_pending_.end())
+      {
+        parameter_name_list_in_pending_.erase(parameter_it);
+      }
 
       if (params.empty())
       {
