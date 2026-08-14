@@ -780,8 +780,9 @@ void CommandNode::modifyTargetNodeParameter_(
 
 void CommandNode::getDoubleParameter_(const std::string& param_name, std::optional<double>& value)
 {
-  // Check if this parameter name call is already in pending
-  if (
+  // Check if parameters client is ready to accept requests
+  if (!param_client_->service_is_ready() ||
+    // Check if this parameter name call is already in pending
     std::find(
       parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name) !=
     parameter_name_list_in_pending_.end())
