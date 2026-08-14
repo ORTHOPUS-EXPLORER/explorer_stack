@@ -23,7 +23,9 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
   auto debug_enabled = n_->get_parameter("debug").as_bool();
   if (debug_enabled)
   {
-    if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    if (
+      rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) !=
+      RCUTILS_RET_OK)
     {
       throw std::runtime_error("Couldn't set logger level to DEBUG.");
     }
@@ -38,8 +40,9 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
   //init settings
   dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   gripper_vel_.data = 0.0;
-  q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5};
+  q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  gripper_command_.data = {0.5};
 
   //init suscriber
   dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>(
@@ -82,6 +85,8 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
   //init publisher
   command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
+  gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
+
 
   auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
 
@@ -373,17 +378,18 @@ void OutputIntegrator::timer_callback_()
     //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
   }
 
-  q_command_.data[6] = q_command_.data[6] + gripper_vel_.data * sampling_period_;
-  if (q_command_.data[6] <= 0.0)
+  gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
+  if (gripper_command_.data[0] <= 0.0)
   {
-    q_command_.data[6] = 0.0;
+    gripper_command_.data[0] = 0.0;
   }
-  else if (q_command_.data[6] >= 1.0)
+  else if (gripper_command_.data[0] >= 1.0)
   {
-    q_command_.data[6] = 1.0;
+    gripper_command_.data[0] = 1.0;
   }
 
   command_pub_->publish(q_command_);
+  gripper_command_pub_->publish(gripper_command_);
 }
 
 void OutputIntegrator::home_()
