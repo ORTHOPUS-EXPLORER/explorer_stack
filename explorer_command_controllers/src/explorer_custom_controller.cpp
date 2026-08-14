@@ -202,7 +202,7 @@ void CustomController::init_ros_subscribers_()
     "~/position/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
-      if (!is_chained_.load()) return;
+      if (is_chained_.load()) return;
 
       auto command_type = orthopus::JointVariableType::POSITION;
       if (
