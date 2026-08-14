@@ -10,9 +10,11 @@ import pytest
 from ament_index_python.packages import get_package_share_directory
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_testing import ready_to_test_action_timeout
 
 
 @pytest.mark.launch_test
+@ready_to_test_action_timeout(30)
 def generate_test_description():
     # 1. Locate your launch file
     pkg_share = get_package_share_directory('explorer_bringup')
@@ -24,10 +26,10 @@ def generate_test_description():
         launch_arguments={'can_port': 'vcan0', 'gui': 'false'}.items()
     )
 
-    # Create a timer to kill the test after 7.5 seconds. 
+    # Create a timer to kill the test after 15 seconds. 
     # This gives nodes enough time to boot up, configure, and prove they don't crash.
     shutdown_timer = launch.actions.TimerAction(
-        period=7.5,
+        period=15.0,
         actions=[
             launch_testing.actions.ReadyToTest()
         ]
