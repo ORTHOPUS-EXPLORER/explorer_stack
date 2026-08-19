@@ -28,6 +28,7 @@ qontrol_explorer:
       - velocity
       - effort
     robot_command: position
+    reference_interface_name: velocity
 
     # Velocity parameters
     command_max_linear_velocity: 0.03
