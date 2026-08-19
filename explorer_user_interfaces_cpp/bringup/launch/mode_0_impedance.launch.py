@@ -33,7 +33,6 @@ from explorer_bringup.launch.shared import (
     declare_web_gui_node,
 )
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     get_parameter_use_qp_inria,
 )
 from explorer_bringup.launch.simulation import (
@@ -51,7 +50,7 @@ from launch.actions import (
 from launch_ros.actions import SetParameter
 
 
-def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
+def _declare_arguments(robot_controller_config: str):
     return [
         *declare_simulation_argument_list(
             robot_controller_config=robot_controller_config
@@ -72,7 +71,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 
 def generate_launch_description():
     # Use default robot controller config
-    robot_controller_config = "custom_controller"
+    robot_controller_config = "explorer_custom_controller"
     controller_position_topic_name = "/explorer_custom_controller/position/commands"
 
     # Initialize Arguments
@@ -160,7 +159,7 @@ def generate_launch_description():
         launch_qp_solving=True,
         controller_position_topic_name=controller_position_topic_name,
         qp_solving_post_start_list=[input_integrator_node, output_integrator_node],
-        robot_controller_config_type=robot_controller_config,
+        robot_controller_config_file=robot_controller_config,
     )
 
     joy_node = declare_joy_node()
