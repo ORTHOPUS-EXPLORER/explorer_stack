@@ -35,6 +35,7 @@ set(CONTROLLERS_DEPENDENCIES
   realtime_tools
   Eigen3
   qpoases_ros2
+  explorer_joint_utils
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)

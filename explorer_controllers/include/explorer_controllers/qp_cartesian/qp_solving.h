@@ -16,6 +16,7 @@
 #include "explorer_controllers/qp_cartesian/types/joint_velocity.h"
 #include "explorer_controllers/qp_cartesian/types/space_position.h"
 #include "explorer_controllers/qp_cartesian/types/space_velocity.h"
+#include "explorer_joint_utils/joint_mode_resolver.h"
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_msgs/srv/float64.hpp"
 #include "explorer_msgs/srv/pose.hpp"
@@ -105,33 +106,10 @@ private:
   double
     movement_detection_threshold_global_; /*!< Velocity magnitude threshold to detect intentional user input (global drift prevention) */
 
-  enum class Mode
-  {
-    INVALID,
-    EXPLORER,
-    FULL
-  };
-
-  std::vector<std::string> expected_names_explorer_ = {
-    "joint_1",
-    "joint_2",
-    "joint_3",
-    "joint_4",
-    "joint_5",
-    "joint_6",
-    "left_external_rod_joint_mimic",
-    "left_fingertip_joint_mimic",
-    "left_finger_joint_mimic",
-    "right_external_rod_joint_mimic",
-    "right_fingertip_joint_mimic",
-    "right_finger_joint"};
-  std::vector<std::string> expected_names_wheelchair_ = {
-    "left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint",
-    "right_rear_wheel_joint", "left_wheel_joint",        "right_wheel_joint",
-    "left_right_head_joint",  "up_down_head_joint"};
+  space_control::JointModeResolver joint_mode_resolver_;
 
   std::vector<size_t> joint_order_;
-  Mode mode_;
+  space_control::JointMode mode_;
   std::vector<double> q_init_;
 
   void callback_current_pos_(const sensor_msgs::msg::JointState& msg);

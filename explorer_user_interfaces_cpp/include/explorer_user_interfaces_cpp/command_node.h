@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "atomic"
+#include "explorer_joint_utils/joint_mode_resolver.h"
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_user_interfaces_cpp/button_handler.h"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
@@ -172,15 +173,10 @@ private:
   bool wheelchair_;
   bool first_use_;
 
-  enum class Mode
-  {
-    INVALID,
-    EXPLORER,
-    FULL
-  };
+  space_control::JointModeResolver joint_mode_resolver_;
 
   std::vector<size_t> joint_order_;
-  Mode mode_;
+  space_control::JointMode mode_;
 
   std::optional<double> j2_max_cached_;
   std::optional<double> j2_operational_max_cached_;

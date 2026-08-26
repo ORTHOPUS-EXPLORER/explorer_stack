@@ -434,205 +434,18 @@ void CommandNode::callback_x_current_(const geometry_msgs::msg::Pose& msg) { x_c
 
 void CommandNode::callback_q_current_(const sensor_msgs::msg::JointState& msg)
 {
-  static const std::vector<std::string> expected_names_explorer = {
-    "joint_1",
-    "joint_2",
-    "joint_3",
-    "joint_4",
-    "joint_5",
-    "joint_6",
-    "left_external_rod_joint_mimic",
-    "left_fingertip_joint_mimic",
-    "left_finger_joint_mimic",
-    "right_external_rod_joint_mimic",
-    "right_fingertip_joint_mimic",
-    "right_finger_joint"};
-  static const std::vector<std::string> expected_names_wheelchair = {
-    "left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint",
-    "right_rear_wheel_joint", "left_wheel_joint",        "right_wheel_joint",
-    "left_right_head_joint",  "up_down_head_joint"};
-
-  if (!init_)
-  {
-    current_pos_ = msg;
-    // Check for explorer
-    bool valid_explorer = std::all_of(
-      expected_names_explorer.begin(), expected_names_explorer.end(),
-      [&](const std::string& name)
-      {
-        if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // allow them to be missing
-          return true;
-        }
-        return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
-      });
-
-    // Check for wheelchair
-    bool all_wheelchair = std::all_of(
-      expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // Check for any wheelchair joints present
-    bool any_wheelchair = std::any_of(
-      expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // CASES:
-    if (valid_explorer && all_wheelchair)
-    {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
-    }
-    else
-    {
-      mode_ = Mode::INVALID;
-      RCLCPP_ERROR(
-        n_->get_logger(),
-        "[command_node] Invalid joint configuration detected! Initialization failed.");
-      // Optionally, handle the error (throw, return, etc)
-      // return;
-    }
-
-    if (valid_explorer && all_wheelchair)
-    {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
-
-      // Build order: wheelchair first, then explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_wheelchair.size() + expected_names_explorer.size());
-      for (const auto& name : expected_names_wheelchair)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        joint_order_.push_back(std::distance(msg.name.begin(), it));
-      }
-      for (const auto& name : expected_names_explorer)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // fallback to "right_finger_joint"
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[command_node] Joint %s missing, using right_finger_joint as fallback",
-              name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(n_->get_logger(), "[command_node] Joint %s not found!", name.c_str());
-        }
-      }
-      init_ = true;
-      return;
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
-
-      // Build order: just the explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_explorer.size());
-      for (const auto& name : expected_names_explorer)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[command_node] Joint %s missing, using right_finger_joint as fallback",
-              name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-            return;
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(), "[command_node] Joint %s not found and no fallback defined",
-            name.c_str());
-          return;
-        }
-      }
-
-      // Debug: Print out sizes to check bounds
-      RCLCPP_INFO(n_->get_logger(), "joint_order.size() = %zu", joint_order_.size());
-      RCLCPP_INFO(n_->get_logger(), "current_pos_.name.size() = %zu", current_pos_.name.size());
-
-      // Decide safe upper bound
-      int safe_limit = std::min<int>(joint_order_.size(), current_pos_.name.size());
-      int n_to_print = std::min<int>(safe_limit, (wheelchair_ ? 20 : 12));
-
-      for (int i = 0; i < n_to_print; i++)
-      {
-        RCLCPP_INFO(
-          n_->get_logger(), "Joint order[%d]: %ld, Name: %s", i, joint_order_[i],
-          current_pos_.name[joint_order_[i]].c_str());
-      }
-      // If there's a mismatch, warn
-      if (
-        joint_order_.size() < static_cast<size_t>(n_to_print) ||
-        current_pos_.name.size() < static_cast<size_t>(n_to_print))
-      {
-        RCLCPP_WARN(
-          n_->get_logger(),
-          "WARNING: joint_order or current_pos_.name was smaller than expected! Potential config "
-          "problem.");
-      }
-      init_ = true;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
-      return;
-    }
-  }
-
   current_pos_ = msg;
+  if (init_) return;
+
+  mode_ = joint_mode_resolver_.detect_mode(msg.name, n_->get_logger(), "[command_node]");
+  if (
+    mode_ != space_control::JointMode::INVALID &&
+    joint_mode_resolver_.build_joint_order(
+      mode_, msg.name, joint_order_, n_->get_logger(), "[command_node]"))
+  {
+    init_ = true;
+    RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
+  }
 }
 
 void CommandNode::handle_controller_state_()
@@ -781,11 +594,12 @@ void CommandNode::modifyTargetNodeParameter_(
 void CommandNode::getDoubleParameter_(const std::string& param_name, std::optional<double>& value)
 {
   // Check if parameters client is ready to accept requests
-  if (!param_client_->service_is_ready() ||
+  if (
+    !param_client_->service_is_ready() ||
     // Check if this parameter name call is already in pending
     std::find(
       parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name) !=
-    parameter_name_list_in_pending_.end())
+      parameter_name_list_in_pending_.end())
   {
     return;
   }
@@ -797,7 +611,7 @@ void CommandNode::getDoubleParameter_(const std::string& param_name, std::option
     {param_name},
     [this, param_name, &value](std::shared_future<std::vector<rclcpp::Parameter>> future)
     {
-      const auto &params = future.get();
+      const auto& params = future.get();
       // Delete this parameter from the parameter pending request list
       auto parameter_it = std::find(
         parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name);
