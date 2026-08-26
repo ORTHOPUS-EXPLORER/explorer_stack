@@ -26,10 +26,10 @@ def generate_test_description():
         launch_arguments={'can_port': 'vcan0', 'gui': 'false'}.items()
     )
 
-    # Create a timer to kill the test after 10.0 seconds. 
+    # Create a timer to kill the test after 12.5 seconds. 
     # This gives nodes enough time to boot up, configure, and prove they don't crash.
     shutdown_timer = launch.actions.TimerAction(
-        period=10.0,
+        period=12.5,
         actions=[
             launch_testing.actions.ReadyToTest()
         ]
@@ -50,8 +50,8 @@ class TestProcessOutput(unittest.TestCase):
         """Check that all processes exited normally (no crashes)."""
 
         ## Cannot be tested as long as the while loop in constructor exists
-        # launch_testing.asserts.assertExitCodes(proc_info, process="input_integrator")
-        # launch_testing.asserts.assertExitCodes(proc_info, process="output_integrator")
+        launch_testing.asserts.assertExitCodes(proc_info, process="input_integrator")
+        launch_testing.asserts.assertExitCodes(proc_info, process="output_integrator")
         
         launch_testing.asserts.assertExitCodes(proc_info, process="command_node")
         launch_testing.asserts.assertExitCodes(proc_info, process="robot_state_publisher")
