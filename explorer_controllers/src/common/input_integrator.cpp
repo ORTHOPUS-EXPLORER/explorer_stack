@@ -20,14 +20,14 @@ InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
   max_vel_orientation_ = 0.5;
   sampling_period_ = 0.01;
 
-  go_home = false;
-  go_zero = false;
-  go_J1_zero = false;
-  go_J2_zero = false;
-  go_J3_zero = false;
-  go_J4_zero = false;
-  go_J5_zero = false;
-  go_J6_zero = false;
+  go_home_ = false;
+  go_zero_ = false;
+  go_J1_zero_ = false;
+  go_J2_zero_ = false;
+  go_J3_zero_ = false;
+  go_J4_zero_ = false;
+  go_J5_zero_ = false;
+  go_J6_zero_ = false;
 
   x_des_updated_.data = false;
 
@@ -59,65 +59,65 @@ InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
   //init suscribers
   input_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>(
     "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 10,
-    std::bind(&InputIntegrator::callback_input, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_input_, this, std::placeholders::_1));
 
   linear_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
     "/explorer_user_interfaces/rqt_armcontrol/max_linear_speed", 10,
-    std::bind(&InputIntegrator::callback_linear_speed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_linear_speed_, this, std::placeholders::_1));
   angular_speed_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
     "/explorer_user_interfaces/rqt_armcontrol/max_angular_speed", 10,
-    std::bind(&InputIntegrator::callback_angular_speed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_angular_speed_, this, std::placeholders::_1));
   x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>(
     "/explorer_controllers/qp_solving/x_current", 10,
-    std::bind(&InputIntegrator::callback_x_current, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_x_current_, this, std::placeholders::_1));
   home_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/home_released", 10,
-    std::bind(&InputIntegrator::callback_home_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_home_released_, this, std::placeholders::_1));
   home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10,
-    std::bind(&InputIntegrator::callback_home_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_home_pressed_, this, std::placeholders::_1));
   zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/zero_released", 10,
-    std::bind(&InputIntegrator::callback_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_zero_released_, this, std::placeholders::_1));
   zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_zero_pressed_, this, std::placeholders::_1));
   J1_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J1_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J1_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J1_zero_released_, this, std::placeholders::_1));
   J1_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J1_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J1_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J1_zero_pressed_, this, std::placeholders::_1));
   J2_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J2_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J2_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J2_zero_released_, this, std::placeholders::_1));
   J2_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J2_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J2_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J2_zero_pressed_, this, std::placeholders::_1));
   J3_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J3_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J3_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J3_zero_released_, this, std::placeholders::_1));
   J3_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J3_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J3_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J3_zero_pressed_, this, std::placeholders::_1));
   J4_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J4_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J4_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J4_zero_released_, this, std::placeholders::_1));
   J4_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J4_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J4_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J4_zero_pressed_, this, std::placeholders::_1));
   J5_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J5_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J5_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J5_zero_released_, this, std::placeholders::_1));
   J5_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J5_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J5_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J5_zero_pressed_, this, std::placeholders::_1));
   J6_zero_released_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J6_zero_released", 10,
-    std::bind(&InputIntegrator::callback_J6_zero_released, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J6_zero_released_, this, std::placeholders::_1));
   J6_zero_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/J6_zero_pressed", 10,
-    std::bind(&InputIntegrator::callback_J6_zero_pressed, this, std::placeholders::_1));
+    std::bind(&InputIntegrator::callback_J6_zero_pressed_, this, std::placeholders::_1));
 
   x_init_client_ =
     n_->create_client<explorer_msgs::srv::Pose>("/explorer_controllers/qp_solving/x_init");
@@ -147,27 +147,27 @@ InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
 
   //init x_desired with the simulation
   x_desired_ = x_init_;
-  send_input();
+  send_input_();
 
-  timer_ = n_->create_wall_timer(10ms, std::bind(&InputIntegrator::timer_callback, this));
+  timer_ = n_->create_wall_timer(10ms, std::bind(&InputIntegrator::timer_callback_, this));
 }
 
-void InputIntegrator::callback_input(const geometry_msgs::msg::TwistStamped& msg)
+void InputIntegrator::callback_input_(const geometry_msgs::msg::TwistStamped& msg)
 {
   dx_input_ = msg;
 }
 
-void InputIntegrator::callback_linear_speed(const std_msgs::msg::Float64& msg)
+void InputIntegrator::callback_linear_speed_(const std_msgs::msg::Float64& msg)
 {
   max_vel_ = msg.data;
 }
 
-void InputIntegrator::callback_angular_speed(const std_msgs::msg::Float64& msg)
+void InputIntegrator::callback_angular_speed_(const std_msgs::msg::Float64& msg)
 {
   max_vel_orientation_ = msg.data;
 }
 
-void InputIntegrator::callback_x_current(const geometry_msgs::msg::Pose& msg)
+void InputIntegrator::callback_x_current_(const geometry_msgs::msg::Pose& msg)
 {
   x_current_.position.x() = msg.position.x;
   x_current_.position.y() = msg.position.y;
@@ -178,172 +178,172 @@ void InputIntegrator::callback_x_current(const geometry_msgs::msg::Pose& msg)
   x_current_.orientation.z() = msg.orientation.z;
 }
 
-void InputIntegrator::callback_home_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_home_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_home = false;
+    go_home_ = false;
   }
 }
 
-void InputIntegrator::callback_home_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_home_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_home = true;
+    go_home_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_zero = false;
+    go_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_zero = true;
+    go_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_J1_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J1_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J1_zero = false;
+    go_J1_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J1_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J1_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J1_zero = true;
+    go_J1_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_J2_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J2_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J2_zero = false;
+    go_J2_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J2_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J2_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J2_zero = true;
+    go_J2_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_J3_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J3_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J3_zero = false;
+    go_J3_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J3_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J3_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J3_zero = true;
+    go_J3_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_J4_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J4_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J4_zero = false;
+    go_J4_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J4_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J4_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J4_zero = true;
+    go_J4_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
-void InputIntegrator::callback_J5_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J5_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J5_zero = false;
+    go_J5_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J5_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J5_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J5_zero = true;
+    go_J5_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::callback_J6_zero_released(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J6_zero_released_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
     x_desired_ = x_current_;
     x_des_updated_.data = true;
-    go_J6_zero = false;
+    go_J6_zero_ = false;
   }
 }
 
-void InputIntegrator::callback_J6_zero_pressed(const std_msgs::msg::Bool& msg)
+void InputIntegrator::callback_J6_zero_pressed_(const std_msgs::msg::Bool& msg)
 {
   if (msg.data == true)
   {
-    go_J6_zero = true;
+    go_J6_zero_ = true;
     x_des_updated_.data = false;
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::timer_callback()
+void InputIntegrator::timer_callback_()
 {
   tf2::Quaternion q_orig, q_rot, q_new;
 
   if (
-    !go_home && !go_zero && !go_J1_zero && !go_J2_zero && !go_J3_zero && !go_J4_zero &&
-    !go_J5_zero && !go_J6_zero)
+    !go_home_ && !go_zero_ && !go_J1_zero_ && !go_J2_zero_ && !go_J3_zero_ && !go_J4_zero_ &&
+    !go_J5_zero_ && !go_J6_zero_)
   {
     dx_desired_.position.x() = (dx_input_.twist.linear.x * max_vel_);
     dx_desired_.position.y() = (dx_input_.twist.linear.y * max_vel_);
@@ -380,13 +380,13 @@ void InputIntegrator::timer_callback()
     x_desired_.orientation.z() = (q_new[2]);
     x_desired_.orientation.w() = (q_new[3]);
 
-    send_input();
+    send_input_();
 
     x_des_updated_pub_->publish(x_des_updated_);
   }
 }
 
-void InputIntegrator::send_input()
+void InputIntegrator::send_input_()
 {
   geometry_msgs::msg::Pose x_desired_pose;
   x_desired_pose.position.x = x_desired_.position.x();
