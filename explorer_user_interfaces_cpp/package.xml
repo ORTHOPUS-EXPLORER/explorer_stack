@@ -23,6 +23,7 @@
   <depend>geometry_msgs</depend>
   <depend>trajectory_msgs</depend>
   <depend>explorer_msgs</depend>
+  <depend>explorer_joint_utils</depend>
   <depend>joy</depend>
   <depend>controller_manager</depend>
   <depend>controller_manager_msgs</depend>

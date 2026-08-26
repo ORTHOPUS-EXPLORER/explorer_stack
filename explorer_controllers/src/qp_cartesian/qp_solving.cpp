@@ -195,179 +195,17 @@ void QPSolving::callback_current_pos_(const sensor_msgs::msg::JointState& msg)
   if (!init_)
   {
     current_pos_ = msg;
-    // Check for explorer
-    bool valid_explorer = std::all_of(
-      expected_names_explorer_.begin(), expected_names_explorer_.end(),
-      [&](const std::string& name)
-      {
-        if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // allow them to be missing
-          return true;
-        }
-        return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
-      });
 
-    // Check for wheelchair
-    bool all_wheelchair = std::all_of(
-      expected_names_wheelchair_.begin(), expected_names_wheelchair_.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // Check for any wheelchair joints present
-    bool any_wheelchair = std::any_of(
-      expected_names_wheelchair_.begin(), expected_names_wheelchair_.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // CASES:
-    if (valid_explorer && all_wheelchair)
+    mode_ = joint_mode_resolver_.detect_mode(msg.name, n_->get_logger(), "[qp_solving]");
+    if (
+      mode_ != space_control::JointMode::INVALID &&
+      joint_mode_resolver_.build_joint_order(
+        mode_, msg.name, joint_order_, n_->get_logger(), "[qp_solving]"))
     {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
-    }
-    else
-    {
-      mode_ = Mode::INVALID;
-      RCLCPP_ERROR(
-        n_->get_logger(),
-        "[qp_solving] Invalid joint configuration detected! Initialization failed.");
-      // Optionally, handle the error (throw, return, etc)
-      // return;
-    }
-
-    if (valid_explorer && all_wheelchair)
-    {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[qp_solving] Full robot (explorer + wheelchair) detected.");
-
-      // Build order: wheelchair first, then explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_wheelchair_.size() + expected_names_explorer_.size());
-      for (const auto& name : expected_names_wheelchair_)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        joint_order_.push_back(std::distance(msg.name.begin(), it));
-      }
-      for (const auto& name : expected_names_explorer_)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // fallback to "right_finger_joint"
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(n_->get_logger(), "[qp_solving] Joint %s not found!", name.c_str());
-        }
-      }
-      init_ = true;
-      return;
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[qp_solving] Explorer-only configuration detected.");
-
-      // Build order: just the explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_explorer_.size());
-      for (const auto& name : expected_names_explorer_)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[qp_solving] Joint %s missing, using right_finger_joint as fallback", name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[qp_solving] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-            return;
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(), "[qp_solving] Joint %s not found and no fallback defined",
-            name.c_str());
-          return;
-        }
-      }
-
-      // Debug: Print out sizes to check bounds
-      RCLCPP_INFO(n_->get_logger(), "joint_order.size() = %zu", joint_order_.size());
-      RCLCPP_INFO(n_->get_logger(), "current_pos_.name.size() = %zu", current_pos_.name.size());
-
-      // Decide safe upper bound
-      int safe_limit = std::min<int>(joint_order_.size(), current_pos_.name.size());
-      int n_to_print = std::min<int>(safe_limit, (wheelchair_ ? 20 : 12));
-
-      for (int i = 0; i < n_to_print; i++)
-      {
-        RCLCPP_INFO(
-          n_->get_logger(), "Joint order[%d]: %ld, Name: %s", i, joint_order_[i],
-          current_pos_.name[joint_order_[i]].c_str());
-      }
-      // If there's a mismatch, warn
-      if (
-        joint_order_.size() < static_cast<size_t>(n_to_print) ||
-        current_pos_.name.size() < static_cast<size_t>(n_to_print))
-      {
-        RCLCPP_WARN(
-          n_->get_logger(),
-          "WARNING: joint_order or current_pos_.name was smaller than expected! Potential config "
-          "problem.");
-      }
       init_ = true;
       RCLCPP_INFO(n_->get_logger(), "[qp_solving] Init done.");
-      return;
     }
+    return;
   }
 
   current_pos_ = msg;
@@ -616,8 +454,8 @@ void QPSolving::timer_callback_()
     q_current_[i] = current_pos_.position[joint_order_[i]];
   }
 
-  size_t wc_size = expected_names_wheelchair_.size();
-  size_t explorer_size = expected_names_explorer_.size();
+  size_t wc_size = joint_mode_resolver_.expected_names_wheelchair().size();
+  size_t explorer_size = joint_mode_resolver_.expected_names_explorer().size();
 
   if (first_use_)
   {
@@ -625,14 +463,14 @@ void QPSolving::timer_callback_()
   }
   else
   {
-    if (mode_ == Mode::FULL)
+    if (mode_ == space_control::JointMode::FULL)
     {
       for (size_t i = 0; i < explorer_size; ++i)
       {
         q_current_[wc_size + i] = q_command_prec_.data[i];
       }
     }
-    else if (mode_ == Mode::EXPLORER)
+    else if (mode_ == space_control::JointMode::EXPLORER)
     {
       for (size_t i = 0; i < explorer_size; ++i)
       {
@@ -673,7 +511,7 @@ void QPSolving::timer_callback_()
         ik_.setQCurrent(q_current_);
         ik_.setXCurrent(x_current_);
         ik_.resolveInverseKinematic(
-          dq_desired_, dx_desired_, x_desired_, false, mode_ == Mode::FULL);
+          dq_desired_, dx_desired_, x_desired_, false, mode_ == space_control::JointMode::FULL);
         send_output_();
       }
       else
@@ -691,7 +529,8 @@ void QPSolving::timer_callback_()
       // Movement detection disabled - always run IK solver (legacy behavior)
       ik_.setQCurrent(q_current_);
       ik_.setXCurrent(x_current_);
-      ik_.resolveInverseKinematic(dq_desired_, dx_desired_, x_desired_, false, mode_ == Mode::FULL);
+      ik_.resolveInverseKinematic(
+        dq_desired_, dx_desired_, x_desired_, false, mode_ == space_control::JointMode::FULL);
       send_output_();
     }
   }

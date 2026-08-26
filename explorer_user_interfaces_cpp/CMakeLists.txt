@@ -20,6 +20,7 @@ set(INTERFACES_DEPENDENCIES
   geometry_msgs
   trajectory_msgs
   explorer_msgs
+  explorer_joint_utils
   joy
   controller_manager
   controller_manager_msgs
