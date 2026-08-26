@@ -53,8 +53,8 @@ class TestProcessOutput(unittest.TestCase):
         """Check that all processes exited normally (no crashes)."""
 
         ## Cannot be tested as long as the while loop in constructor exists
-        # launch_testing.asserts.assertExitCodes(proc_info, process="input_integrator")
-        # launch_testing.asserts.assertExitCodes(proc_info, process="output_integrator")
+        launch_testing.asserts.assertExitCodes(proc_info, process="input_integrator")
+        launch_testing.asserts.assertExitCodes(proc_info, process="output_integrator")
 
         launch_testing.asserts.assertExitCodes(proc_info, process="command_node")
         launch_testing.asserts.assertExitCodes(
