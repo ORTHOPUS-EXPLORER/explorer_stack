@@ -499,8 +499,38 @@ CallbackReturn VESCInterface::on_activate(
 CallbackReturn VESCInterface::on_deactivate(
   [[maybe_unused]] const rclcpp_lifecycle::State& previous_state)
 {
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Deactivating ...please wait...", name_.c_str());
-  //RCLCPP_INFO(rclcpp::get_logger("VESCInterface"), "[%s] Successfully deactivated!", name_.c_str());
+  for (auto& j : vesc_dev_->joints)
+  {
+    if (!j.in_use) continue;
+
+    // Force ctrl OFF mode and set refs value to "stationary" so the joint stops moving as soon as the next
+    // stream cycle picks up this state, instead of keeping the last active command running.
+    j.ctrl = (j.ctrl & ~orthopus::ORTHOPUS_CTRL_MODE_MSK) | orthopus::ORTHOPUS_CTRL_MODE_OFF;
+
+    if (auto it = j.refs.find("velocity"); it != j.refs.end())
+    {
+      it->second.v = 0.0;
+    }
+    if (auto it = j.refs.find("effort"); it != j.refs.end())
+    {
+      it->second.v = 0.0;
+    }
+    if (auto pos_it = j.refs.find("position"); pos_it != j.refs.end())
+    {
+      // Hold the last measured position rather than snapping to 0.0
+      if (auto meas_it = j.meas.find("position"); meas_it != j.meas.end() && meas_it->second.in_use)
+      {
+        pos_it->second.v = meas_it->second.v;
+      }
+    }
+
+    j.stream = false;
+
+    RCLCPP_INFO(
+      rclcpp::get_logger("VESCInterface"), "[on_deactivate][%s] Stopped joint '%s' (ctrl: 0x%04X)",
+      name_.c_str(), j.name.c_str(), j.ctrl);
+  }
+
   return CallbackReturn::SUCCESS;
 }
 
