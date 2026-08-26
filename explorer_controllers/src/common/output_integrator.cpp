@@ -1,14 +1,12 @@
 #include "explorer_controllers/common/output_integrator.h"
 
+#include "explorer_controllers/common/service_init_utils.h"
+
 namespace space_control
 {
 OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
 : n_(n),
   sampling_period_(0.02),
-  error_(false),
-  call_service_attempt_(0),
-  init_attempt_(0),
-  success_init_(false),
   go_home_(false),
   go_zero_(false),
   go_J1_zero_(false),
@@ -89,59 +87,12 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
 
 
   auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
+  request->ready = true;
 
-  while (init_attempt_ < 100000 && call_service_attempt_ < 100000 && success_init_ == false)
-  {
-    request->ready = true;
+  auto response = wait_and_call_init_service<explorer_msgs::srv::Float64>(n_, q_init_client_, request);
 
-    while (!q_init_client_->wait_for_service(1s) && error_ == false &&
-           call_service_attempt_ < 100000)
-    {
-      if (!rclcpp::ok())
-      {
-        RCLCPP_ERROR(
-          rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-        error_ = true;
-      }
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-      call_service_attempt_ += 1;
-    }
-
-    if (call_service_attempt_ <= 100000)
-    {
-      RCLCPP_INFO_ONCE(rclcpp::get_logger("rclcpp"), "service available");
-      auto result = q_init_client_->async_send_request(request);
-      if (rclcpp::spin_until_future_complete(n_, result) == rclcpp::FutureReturnCode::SUCCESS)
-      {
-        auto copy_result = result.get();
-        if (copy_result.get()->code_error == 0)
-        {
-          q_init_ = copy_result.get()->data;
-          success_init_ = true;
-          RCLCPP_INFO(n_->get_logger(), "output_integrator_initialized");
-        }
-        else
-        {
-          init_attempt_ += 1;
-          //RCLCPP_INFO_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
-          //RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
-        }
-      }
-      else
-      {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
-      }
-    }
-    else
-    {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
-    }
-  }
-  if (init_attempt_ >= 100000)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
-    exit(0);
-  }
+  q_init_ = response->data;
+  RCLCPP_INFO(n_->get_logger(), "output_integrator_initialized");
 
   for (int i = 0; i < 6; i++)
   {

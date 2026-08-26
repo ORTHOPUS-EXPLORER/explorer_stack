@@ -75,11 +75,6 @@ private:
   double max_vel_orientation_;
   double sampling_period_;
 
-  bool error_;
-  bool end_init_;
-  int call_service_attempt_;
-  int init_attempt_;
-  bool success_init_;
   bool go_home;
   bool go_zero;
   bool go_J1_zero;
