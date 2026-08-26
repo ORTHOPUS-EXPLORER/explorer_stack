@@ -52,10 +52,6 @@ private:
   std::vector<double> q_init_;
 
   double sampling_period_;
-  bool error_;
-  int call_service_attempt_;
-  int init_attempt_;
-  bool success_init_;
   bool go_home_;
   bool go_zero_;
   bool go_J1_zero_;

@@ -1,5 +1,7 @@
 #include "explorer_controllers/common/input_integrator.h"
 
+#include "explorer_controllers/common/service_init_utils.h"
+
 namespace space_control
 {
 InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
@@ -18,11 +20,6 @@ InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
   max_vel_orientation_ = 0.5;
   sampling_period_ = 0.01;
 
-  error_ = false;
-  end_init_ = false;
-  call_service_attempt_ = 0;
-  init_attempt_ = 0;
-  success_init_ = false;
   go_home = false;
   go_zero = false;
   go_J1_zero = false;
@@ -134,66 +131,19 @@ InputIntegrator::InputIntegrator(rclcpp::Node::SharedPtr n)
     "/explorer_controllers/input_integrator/x_des_updated", 10);
 
   auto request = std::make_shared<explorer_msgs::srv::Pose::Request>();
+  request->ready = true;
 
-  while (init_attempt_ < 100000 && call_service_attempt_ < 100000 && success_init_ == false)
-  {
-    request->ready = true;
+  auto response = wait_and_call_init_service<explorer_msgs::srv::Pose>(n_, x_init_client_, request);
 
-    while (!x_init_client_->wait_for_service(1s) && error_ == false &&
-           call_service_attempt_ < 100000)
-    {
-      if (!rclcpp::ok())
-      {
-        RCLCPP_ERROR(
-          rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-        error_ = true;
-      }
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-      call_service_attempt_ += 1;
-    }
-
-    if (call_service_attempt_ <= 100000)
-    {
-      RCLCPP_INFO_ONCE(rclcpp::get_logger("rclcpp"), "service available");
-      auto result = x_init_client_->async_send_request(request);
-      if (rclcpp::spin_until_future_complete(n_, result) == rclcpp::FutureReturnCode::SUCCESS)
-      {
-        auto copy_result = result.get();
-        if (copy_result.get()->code_error == 0)
-        {
-          x_init_pose_ = copy_result.get()->pose;
-          x_init_.position.x() = x_init_pose_.position.x;
-          x_init_.position.y() = x_init_pose_.position.y;
-          x_init_.position.z() = x_init_pose_.position.z;
-          x_init_.orientation.w() = x_init_pose_.orientation.w;
-          x_init_.orientation.x() = x_init_pose_.orientation.x;
-          x_init_.orientation.y() = x_init_pose_.orientation.y;
-          x_init_.orientation.z() = x_init_pose_.orientation.z;
-          success_init_ = true;
-          RCLCPP_INFO(n_->get_logger(), "input_integrator_initialized");
-        }
-        else
-        {
-          init_attempt_ += 1;
-          //RCLCPP_INFO_STREAM(n_->get_logger(), "init_attempt : " << init_attempt_);
-          //RCLCPP_INFO(n_->get_logger(), "new init_attempt ");
-        }
-      }
-      else
-      {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service");
-      }
-    }
-    else
-    {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, use initialised values");
-    }
-  }
-  if (init_attempt_ >= 100000)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Could not initialise joints positions");
-    exit(0);
-  }
+  x_init_pose_ = response->pose;
+  x_init_.position.x() = x_init_pose_.position.x;
+  x_init_.position.y() = x_init_pose_.position.y;
+  x_init_.position.z() = x_init_pose_.position.z;
+  x_init_.orientation.w() = x_init_pose_.orientation.w;
+  x_init_.orientation.x() = x_init_pose_.orientation.x;
+  x_init_.orientation.y() = x_init_pose_.orientation.y;
+  x_init_.orientation.z() = x_init_pose_.orientation.z;
+  RCLCPP_INFO(n_->get_logger(), "input_integrator_initialized");
 
   //init x_desired with the simulation
   x_desired_ = x_init_;
