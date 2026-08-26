@@ -37,7 +37,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
   {
     RCLCPP_FATAL(
       rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, can_port is not defined");
-    exit(0);
+    return CallbackReturn::ERROR;
   }
   auto can_port = it->second;
   // Virtual can communication used if can port starts with letter 'v'
@@ -57,7 +57,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
       {
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"), " Can't spawn VESCHost, host_id is not defined");
-        exit(0);
+        return CallbackReturn::ERROR;
       }
       auto host_id =
         (vescpp::VESC::BoardId)(from_str<unsigned int>(it->second, vescpp::VESC::InvalidBoardId)) &
@@ -74,7 +74,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
           " Can't spawn VESCHost, rt_stream_rate is not defined");
-        exit(0);
+        return CallbackReturn::ERROR;
       }
       auto rt_stream_rate_hz = from_str<unsigned>(it->second, 250);
       // Aux servo rate
@@ -84,7 +84,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
           " Can't spawn VESCHost, aux_servo_stream_rate is not defined");
-        exit(0);
+        return CallbackReturn::ERROR;
       }
       auto aux_servo_stream_rate_hz = from_str<unsigned>(it->second, 50);
       // Aux config rate
@@ -94,7 +94,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
         RCLCPP_FATAL(
           rclcpp::get_logger("VESCInterface"),
           " Can't spawn VESCHost, aux_config_stream_rate is not defined");
-        exit(0);
+        return CallbackReturn::ERROR;
       }
       auto aux_config_stream_rate_hz = from_str<unsigned>(it->second, 10);
 
@@ -102,9 +102,18 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
         rclcpp::get_logger("VESCInterface"), " => Use CAN port '%s' with Host ID '%d'",
         can_port.c_str(), host_id);
       auto can = std::make_shared<vescpp::comm::CAN>(can_port);
-      vesc_host_ = orthopus::VESCHost::spawn_instance(
-        host_id, can, rt_stream_rate_hz, aux_servo_stream_rate_hz, aux_config_stream_rate_hz,
-        is_virtual_can_used_);
+      try
+      {
+        vesc_host_ = orthopus::VESCHost::spawn_instance(
+          host_id, can, rt_stream_rate_hz, aux_servo_stream_rate_hz, aux_config_stream_rate_hz,
+          is_virtual_can_used_);
+      }
+      catch (const std::exception& e)
+      {
+        RCLCPP_FATAL(
+          rclcpp::get_logger("VESCInterface"), "Failed to spawn VESCHost: %s", e.what());
+        return CallbackReturn::ERROR;
+      }
 
       vesc_host_->scanCAN(true, 100ms);
       RCLCPP_DEBUG(
