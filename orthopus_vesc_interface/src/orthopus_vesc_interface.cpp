@@ -611,6 +611,24 @@ return_type VESCInterface::perform_command_mode_switch(
 return_type VESCInterface::read(
   [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
+  static constexpr auto measure_stale_timeout = std::chrono::milliseconds(200);
+  static rclcpp::Clock steady_clock(RCL_STEADY_TIME);
+
+  // Skip stale check for startup time (wait at least one measure)
+  const bool has_measure = vesc_dev_->_meas_last_tp.time_since_epoch().count() > 0;
+
+  // Check if last measure read time is older than a threshold
+  const bool stale =
+    has_measure && (vescpp::Time::now() - vesc_dev_->_meas_last_tp) > measure_stale_timeout;
+  if (stale)
+  {
+    RCLCPP_WARN_THROTTLE(
+      rclcpp::get_logger("VESCInterface"), steady_clock, 1000,
+      "[%s] CAN feedback is stale (no measures in over %ldms), state interfaces may be frozen",
+      name_.c_str(), (long)measure_stale_timeout.count());
+    return return_type::ERROR;
+  }
+
   return return_type::OK;
 }
 
