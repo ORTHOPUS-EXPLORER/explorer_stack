@@ -95,6 +95,8 @@ private:
   std::shared_ptr<orthopus::VESCTarget> vesc_dev_{nullptr};
   std::string default_mode_{
     "off"};  // Default mode to apply on activation (backward compatible: "off" if not specified)
+  unsigned int can_write_failures_threshold_{
+    5};  // Max consecutive CAN write failures allowed before write() reports an error
   std::string name_;
   bool is_virtual_can_used_ = false;
 

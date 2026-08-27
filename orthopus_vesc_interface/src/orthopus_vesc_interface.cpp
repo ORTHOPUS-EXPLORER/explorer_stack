@@ -110,8 +110,7 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
       }
       catch (const std::exception& e)
       {
-        RCLCPP_FATAL(
-          rclcpp::get_logger("VESCInterface"), "Failed to spawn VESCHost: %s", e.what());
+        RCLCPP_FATAL(rclcpp::get_logger("VESCInterface"), "Failed to spawn VESCHost: %s", e.what());
         return CallbackReturn::ERROR;
       }
 
@@ -129,6 +128,19 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
       default_mode_ = it->second;
       RCLCPP_INFO(
         rclcpp::get_logger("VESCInterface"), " => Default mode set to '%s'", default_mode_.c_str());
+    }
+  }
+
+  // Read can_write_fail_threshold parameter (optional, defaults to 5)
+  {
+    auto it = info_.hardware_parameters.find("can_write_fail_threshold");
+    if (it != info_.hardware_parameters.end())
+    {
+      can_write_failures_threshold_ =
+        from_str<unsigned int>(it->second, can_write_failures_threshold_);
+      RCLCPP_INFO(
+        rclcpp::get_logger("VESCInterface"), " => CAN write fail threshold set to '%d'",
+        can_write_failures_threshold_);
     }
   }
 
@@ -605,9 +617,31 @@ return_type VESCInterface::read(
 return_type VESCInterface::write(
   [[maybe_unused]] const rclcpp::Time& time, [[maybe_unused]] const rclcpp::Duration& period)
 {
+  // Feed the stale command watchdog variable
+  // Needed by transmitter thread to judge if this control cycle is still alive
+  const auto now = vescpp::Time::now();
+  bool can_ok = true;
+  for (auto& j : vesc_dev_->joints)
+  {
+    if (!j.in_use)
+    {
+      continue;
+    }
+    // If it's the first time we write, assign the atomic timepoint
+    if (!j.last_command_timepoint.has_value())
+    {
+      j.last_command_timepoint.emplace();
+    }
+    j.last_command_timepoint.value().store(now);
+
+    if (j.can_write_fail_count.load() >= can_write_failures_threshold_)
+    {
+      can_ok = false;
+    }
+  }
+
   // Async, Refs are sent in another Thread, managed by orthopus::VESCHost
-  // TODO: Sanity checks: Make sure the refs are not completely out of range, for instance
-  return return_type::OK;
+  return can_ok ? return_type::OK : return_type::ERROR;
 }
 
 void VESCInterface::print_parameters_(const std::unordered_map<std::string, std::string>& params)
