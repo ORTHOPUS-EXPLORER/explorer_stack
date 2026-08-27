@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <xacro:macro name="actuator_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1 can_id:=^|17  host_id:=^|45 rt_stream_rate aux_config_stream_rate aux_servo_stream_rate">
+  <xacro:macro name="actuator_ros2_control" params="name use_ignition:=^|false can_port:=^|vxcan1 can_id:=^|17  host_id:=^|45 rt_stream_rate aux_config_stream_rate aux_servo_stream_rate can_write_failures_threshold:=^|5">
 
   <ros2_control name="${name}" type="actuator">
     <hardware>
@@ -17,6 +17,7 @@
       <param name="rt_stream_rate">${rt_stream_rate}</param>
       <param name="aux_config_stream_rate">${aux_config_stream_rate}</param>
       <param name="aux_servo_stream_rate">${aux_servo_stream_rate}</param>
+      <param name="can_write_failures_threshold">${can_write_failures_threshold}</param>
     </hardware>
 
     <joint name="joint">
