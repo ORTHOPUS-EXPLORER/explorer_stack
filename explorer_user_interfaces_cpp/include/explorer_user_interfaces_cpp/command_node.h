@@ -175,6 +175,8 @@ private:
 
   std::vector<size_t> joint_order_;
   space_control::JointMode mode_;
+  // Index of the first joint of Explorer robot (> 0 in case of wheelchair stack)
+  size_t explorer_joint_offset_ = 0;
 
   std::optional<double> j2_max_cached_;
   std::optional<double> j2_operational_max_cached_;

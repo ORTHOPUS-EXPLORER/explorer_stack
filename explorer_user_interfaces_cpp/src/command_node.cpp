@@ -4,8 +4,7 @@
 
 namespace space_control
 {
-CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
-: n_(n), controller_manager_wrapper_(n)
+CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
@@ -443,6 +442,11 @@ void CommandNode::callback_q_current_(const sensor_msgs::msg::JointState& msg)
     joint_mode_resolver_.build_joint_order(
       mode_, msg.name, joint_order_, n_->get_logger(), "[command_node]"))
   {
+    // In FULL mode, wheelchair joints are added in first, so the Explorer robot joints range starts after them
+    // In EXPLORER mode it starts at 0
+    explorer_joint_offset_ = (mode_ == space_control::JointMode::FULL)
+                               ? joint_mode_resolver_.expected_names_wheelchair().size()
+                               : 0;
     init_ = true;
     RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
   }
@@ -769,8 +773,27 @@ void CommandNode::timer_callback_()
     }
     else if (trajectory_manager_.getStatusString() == "ready")
     {
+      if (!init_ || joint_order_.size() < explorer_joint_offset_ + 3)
+      {
+        RCLCPP_ERROR(
+          n_->get_logger(),
+          "[command_node] timer_callback_: joint_order_ not ready, skipping j2/j3 operational "
+          "limit update");
+        return;
+      }
+
+      size_t j2_index = joint_order_[explorer_joint_offset_ + 1];
+      size_t j3_index = joint_order_[explorer_joint_offset_ + 2];
+      if (j2_index >= current_pos_.position.size() || j3_index >= current_pos_.position.size())
+      {
+        RCLCPP_ERROR(
+          n_->get_logger(),
+          "[command_node] timer_callback_: joint index out of range, skipping j2/j3 "
+          "operational limit update");
+        return;
+      }
       if (
-        current_pos_.position[joint_order_[1]] < j2_operational_max_ &&
+        current_pos_.position[j2_index] < j2_operational_max_ &&
         actual_j2_limit_ != j2_operational_max_)
       {
         modifyTargetNodeParameter_("j2.max", rclcpp::ParameterValue(j2_operational_max_));
@@ -778,7 +801,7 @@ void CommandNode::timer_callback_()
       }
 
       if (
-        current_pos_.position[joint_order_[2]] < j3_operational_max_ &&
+        current_pos_.position[j3_index] < j3_operational_max_ &&
         actual_j3_limit_ != j3_operational_max_)
       {
         modifyTargetNodeParameter_("j3.max", rclcpp::ParameterValue(j3_operational_max_));
@@ -1093,9 +1116,27 @@ void CommandNode::trajectory_control_(const AxisInfo& axis_info)
     return;  // pas encore actif → on attend le switch
   }
 
+  if (!init_ || joint_order_.size() < explorer_joint_offset_ + 7)
+  {
+    RCLCPP_ERROR(
+      n_->get_logger(),
+      "[command_node] trajectory_control_ called before joint_order_ is ready, skipping cycle");
+    return;
+  }
   for (size_t i = 0; i < 7; ++i)
   {
-    q_current_[i] = current_pos_.position[joint_order_[i]];
+    size_t idx = joint_order_[explorer_joint_offset_ + i];
+    if (idx >= current_pos_.position.size())
+    {
+      RCLCPP_ERROR(
+        n_->get_logger(),
+        "[command_node] trajectory_control_: out of range joint index %zu (current_pos_ has %zu "
+        "positions), skipping this index",
+        idx, current_pos_.position.size());
+      // TODO continue even with partial joints or return ?
+      continue;
+    }
+    q_current_[i] = current_pos_.position[idx];
   }
 
   float value = readAxisValue_(axis_info);
