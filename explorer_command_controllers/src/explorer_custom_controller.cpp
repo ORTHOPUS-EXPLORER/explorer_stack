@@ -81,7 +81,7 @@ bool CustomController::set_joint_mode_(const std::string& joint_name, const std:
 }
 
 bool CustomController::set_impedance_config_(
-  const std::string& joint_name, double damping, double stiffness)
+  const std::string& joint_name, float damping, float stiffness)
 {
   auto service_name = "/explorer_" + joint_name + "/config";
   auto config_publisher =
