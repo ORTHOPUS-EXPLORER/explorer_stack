@@ -2,6 +2,7 @@
 #include <fstream>
 #include <functional>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 #include "atomic"
@@ -71,6 +72,7 @@ class CommandNode
 {
 public:
   CommandNode(rclcpp::Node::SharedPtr n);
+  ~CommandNode();
 
 protected:
 private:
@@ -149,10 +151,14 @@ private:
     RESTORING_DEFAULT_CONTROLLER
   };
 
-  ControlState control_state_ = ControlState::DEFAULT_CONTROLLER;
+  // Written from main thread and the detached switch_thread_
+  std::atomic<ControlState> control_state_{ControlState::DEFAULT_CONTROLLER};
 
   bool trajectory_requested_ = false;
-  bool switch_in_progress_ = false;
+  std::atomic<bool> switch_in_progress_{false};
+
+  // Holds the controller-switch thread spawned in handle_controller_state_()
+  std::thread switch_thread_;
 
   sensor_msgs::msg::JointState current_state_;
 

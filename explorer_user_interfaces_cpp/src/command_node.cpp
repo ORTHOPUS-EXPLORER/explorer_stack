@@ -177,6 +177,14 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     std::bind(&CommandNode::timer_callback_, this));
 }
 
+CommandNode::~CommandNode()
+{
+  if (switch_thread_.joinable())
+  {
+    switch_thread_.join();
+  }
+}
+
 // Load mode configuration from YAML file
 ModeData CommandNode::loadModeData_(const std::string& filename)
 {
@@ -482,8 +490,12 @@ void CommandNode::handle_controller_state_()
         auto future = controller_manager_wrapper_.switch_controller_async(
           default_controller_name_list_, {"joint_trajectory_controller"});
 
+        if (switch_thread_.joinable())
+        {
+          switch_thread_.join();
+        }
         // Callback when the switch completes
-        std::thread(
+        switch_thread_ = std::thread(
           [this, future = std::move(future)]() mutable
           {
             try
@@ -506,8 +518,7 @@ void CommandNode::handle_controller_state_()
               control_state_ = ControlState::DEFAULT_CONTROLLER;
             }
             switch_in_progress_ = false;
-          })
-          .detach();  // détache le thread pour ne pas bloquer le main executor
+          });
       }
       break;
 
@@ -532,7 +543,11 @@ void CommandNode::handle_controller_state_()
         auto future = controller_manager_wrapper_.switch_controller_async(
           {"joint_trajectory_controller"}, default_controller_name_list_);
 
-        std::thread(
+        if (switch_thread_.joinable())
+        {
+          switch_thread_.join();
+        }
+        switch_thread_ = std::thread(
           [this, vec_string_to_string, future = std::move(future)]() mutable
           {
             try
@@ -559,8 +574,7 @@ void CommandNode::handle_controller_state_()
               control_state_ = ControlState::TRAJECTORY;
             }
             switch_in_progress_ = false;
-          })
-          .detach();
+          });
       }
       break;
   }
