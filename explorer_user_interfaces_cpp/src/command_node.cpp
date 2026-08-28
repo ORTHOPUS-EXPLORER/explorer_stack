@@ -5,7 +5,7 @@
 namespace space_control
 {
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
-: n_(n), button_handler_(), trajectory_manager_(), controller_manager_wrapper_(n)
+: n_(n), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 

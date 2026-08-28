@@ -169,9 +169,7 @@ private:
 
   sensor_msgs::msg::JointState current_pos_;
 
-  bool init_;
-  bool wheelchair_;
-  bool first_use_;
+  bool init_{false};
 
   space_control::JointModeResolver joint_mode_resolver_;
 
