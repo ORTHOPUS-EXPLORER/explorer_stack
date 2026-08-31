@@ -1,6 +1,73 @@
-## Demo use of ROS2 hardware interface for Explorer
+## ROS2 hardware interface for Explorer : Launch mode_0 
 
-1. Setup virtual can interface for simulator
+## Install
+
+`explorer_stack` targets ROS 2 **Jazzy** and depends on a git submodule (`libs/orthopus_vesc`), so make sure submodules are checked out / up to date:
+```
+git submodule update --init --recursive
+```
+
+Then choose one of the proposed options below.
+
+### Devcontainer (recommended)
+
+This repository ships a ready-to-use [Dev Container](.devcontainer/devcontainer.json) for VS Code (or any [Dev Containers](https://containers.dev/)-compatible editor).
+
+1. Install [Docker](https://docs.docker.com/engine/install/) (ubuntu: expect issues installing with snap, prefer install through apt) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
+2. Open the workspace folder in VS Code and select **Reopen in Container**.
+3. The container builds the workspace automatically on creation (`.devcontainer/build.sh`). Once it's up, jump to next section to launch the stack.
+
+### Ready-to-use Docker image
+
+Prebuilt image are hosted on Github Registry and available publicly here: `ghcr.io/orthopus-explorer/explorer_stack/dev:jazzy-latest`, it includes development packages (build tools, debugging) and ros2 dependencies defined in this project.
+
+Pull & run:
+```
+docker pull ghcr.io/orthopus-explorer/explorer_stack/dev:jazzy-latest
+docker run -it --network=host --privileged --ipc=host --ulimit rtprio=99 --ulimit memlock=-1  --device /dev/dri:/dev/dri  --device /dev/input:/dev/input -e DISPLAY="$DISPLAY" --volume=/tmp/.X11-unix:/tmp/.X11-unix ghcr.io/orthopus-explorer/explorer_stack/dev:jazzy-latest bash
+```
+
+Or build an image locally instead of pulling:
+```
+docker build --target explorer_dev -t explorer_stack:dev .
+```
+
+### Plain ROS 2 install (no Docker)
+
+1. Install [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) on your machine.
+2. Clone this repo (with submodules) into a ros2 colcon workspace, for example `~/ros2_ws/src/explorer_stack`.
+3. Install dependencies and build:
+```
+source /opt/ros/jazzy/setup.bash
+cd ~/ros2_ws
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install
+source install/setup.bash
+```
+
+Once installed, continue with the CAN interface setup and launch commands below.
+
+## Launch ros2 stack
+
+### Robot
+
+1. Setup hardware can interface 
+
+```
+modprobe vcan
+ip link set can0 up type can bitrate 1000000
+ip link set can0 txqueuelen 100
+```
+
+2. Launch with default parameter
+```
+ros2 launch explorer_user_interfaces_cpp mode_0.launch.py
+```
+
+
+### Simulation 
+
+1. Setup virtual can interface for simulation
 
 ```
 modprobe vcan
@@ -8,25 +75,17 @@ ip link add dev vcan0 type vcan
 ip link set mtu 16 up dev vcan0
 ```
 
-2. Launch Simulator
+2. Launch with can_port parameter set
 ```
-ros2 run pyvesc_explorer app_sim
-```
-
-3. Launch Robot controller (and Explorer Comm bridge)
-```
-ros2 launch explorer_bringup hardware_base.launch.py use_bridge:=true
+ros2 launch explorer_user_interfaces_cpp mode_0.launch.py can_port:=vcan0
 ```
 
-4. Publish some commands
-```
-ros2 launch explorer_bringup cartesian_control.launch.py
-```
+### Launch files
 
-Notes:
-- Setup should be quite similar for actual robot, just edit the config files.
-- Only position interface is supported for now
-- The bridge only supports position commands for now.
+Several other launch files are worth mentioning / using (format: package  launch_file):
+- GUI with cartesian control: explorer_bringup cartesian_control.launch.py
+- GUI with joints control: explorer_bringup joint_control.launch.py
+- Mode 0 but with impedance control controller enabled: explorer_user_interfaces_cpp mode_0_impedance.launch.py
 
 ## Impedance control
 
@@ -44,7 +103,7 @@ In particular when powered by AC adapter, playing too hard with the robot in imp
 
 ![control scheme](scripts/run/impedance/Impedance_scheme.jpg)
 
-This control schme describes the impedance control scheme:
+This control scheme describes the impedance control scheme:
 
 - setpoints (pos, vel (not used yet) and torque) are streamed over CAN
 - Stiffness and daping gains are used to compute a target torque that simulates a physical spring and damper between the target angle and the actual angle -> this computes a target torque 
@@ -110,3 +169,9 @@ In impedance control mode, effort interface can be used to send torque commands 
 ```
 ros2 topic pub /explorer_custom_controller/effort/commands std_msgs/msg/Float64MultiArray "{data: [0.0,0.0,0.0,0.0,0.0,0.0]}"
 ```
+
+## Development / Code style
+
+This project is using clang as [C++ linter](https://clang.llvm.org/extra/clang-tidy/) for code static analysis / good practice enforcer and as [C++ code formatter](https://clang.llvm.org/docs/ClangFormat.html), you could have a look here at their configuration here : [linting](.clang-format) and [formatter](.clang-tidy).
+
+For Python code, we're using [ruff](https://github.com/astral-sh/ruff) as linter and formatter, check [ruff.toml](ruff.toml) file for its configuration.
