@@ -26,6 +26,7 @@ from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.optional_parameters import (
     get_parameter_input_device,
+    get_parameter_joy_backend,
     get_parameter_spacenav,
 )
 
@@ -42,6 +43,14 @@ def declare_joy_node(unique_device: Literal["movis", "xbox"] | None = None) -> N
     device_config_map = {
         "movis": "movis_joystick_settings.yaml",
         "xbox": "xbox_gamepad_settings.yaml",
+    }
+    joy_backend_package_map = {
+        "joy": "joy",
+        "joy_linux": "joy_linux",
+    }
+    joy_backend_executable_map = {
+        "joy": "joy_node",
+        "joy_linux": "joy_linux_node",
     }
 
     # Select device config based on unique_device (if provided) (fallback to launch param 'input_device parameter')
@@ -61,9 +70,14 @@ def declare_joy_node(unique_device: Literal["movis", "xbox"] | None = None) -> N
         ]
     )
 
+    # Select joy driver backend (package/executable) based on launch param 'joy_backend'
+    joy_backend = get_parameter_joy_backend()
+
     return Node(
-        package="joy",
-        executable="joy_node",
+        package=PythonExpression([f'{joy_backend_package_map}["', joy_backend, '"]']),
+        executable=PythonExpression(
+            [f'{joy_backend_executable_map}["', joy_backend, '"]']
+        ),
         output="screen",
         parameters=[device_yaml_file_path],
     )

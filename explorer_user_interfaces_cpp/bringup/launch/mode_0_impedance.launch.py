@@ -24,6 +24,7 @@ from explorer_bringup.launch.hardware_parameters import declare_hardware_argumen
 from explorer_bringup.launch.optional import declare_joy_node
 from explorer_bringup.launch.optional_parameters import (
     declare_parameter_input_device,
+    declare_parameter_joy_backend,
     declare_parameter_list_web_gui_settings,
 )
 from explorer_bringup.launch.shared import (
@@ -60,6 +61,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
             robot_controller_config=robot_controller_config
         ),
         declare_parameter_input_device(),
+        declare_parameter_joy_backend(),
         # TODO unused ?
         DeclareLaunchArgument(
             "force_deploy",

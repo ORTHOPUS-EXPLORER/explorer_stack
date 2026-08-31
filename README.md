@@ -17,6 +17,8 @@ This repository ships a ready-to-use [Dev Container](.devcontainer/devcontainer.
 2. Open the workspace folder in VS Code and select **Reopen in Container**.
 3. The container builds the workspace automatically on creation (`.devcontainer/build.sh`). Once it's up, jump to next section to launch the stack.
 
+**Tips: package joy for joystick input management doesn't deals with hot plug in Docker container, use ros parameter 'joy_backend:=joy_linux' to circumvent this issue**
+
 ### Ready-to-use Docker image
 
 Prebuilt image are hosted on Github Registry and available publicly here: `ghcr.io/orthopus-explorer/explorer_stack/dev:jazzy-latest`, it includes development packages (build tools, debugging) and ros2 dependencies defined in this project.
