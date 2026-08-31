@@ -23,6 +23,8 @@
         "--ulimit", "memlock=-1",
         "--device", "/dev/dri:/dev/dri",
         "--device", "/dev/input:/dev/input",
+        // Whitelist input device regarding joysticks (13: taken from https://www.kernel.org/doc/Documentation/admin-guide/devices.txt)
+        "--device-cgroup-rule=c 13:* rmw",
         // "--pid=host", // DDS discovery with host, without --network=host
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],

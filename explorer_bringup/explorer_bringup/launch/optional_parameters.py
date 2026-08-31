@@ -38,6 +38,20 @@ def declare_parameter_input_device() -> DeclareLaunchArgument:
     )
 
 
+def declare_parameter_joy_backend() -> DeclareLaunchArgument:
+    """Declare launch parameter 'joy_backend'
+
+    Returns:
+        DeclareLaunchArgument: Argument declared
+    """
+    return DeclareLaunchArgument(
+        "joy_backend",
+        default_value="joy",
+        choices=["joy", "joy_linux"],
+        description="Joystick driver backend used to publish sensor_msgs/Joy",
+    )
+
+
 def declare_parameter_spacenav() -> DeclareLaunchArgument:
     """Declare launch parameter 'spacenav'
 
@@ -90,6 +104,15 @@ def get_parameter_input_device() -> LaunchConfiguration:
         LaunchConfiguration: input_device
     """
     return LaunchConfiguration("input_device")
+
+
+def get_parameter_joy_backend() -> LaunchConfiguration:
+    """Get ros2 parameter "joy_backend".
+
+    Returns:
+        LaunchConfiguration: joy_backend
+    """
+    return LaunchConfiguration("joy_backend")
 
 
 def get_parameter_spacenav() -> LaunchConfiguration:

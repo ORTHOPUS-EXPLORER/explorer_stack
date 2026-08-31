@@ -24,6 +24,7 @@ from explorer_bringup.launch.optional import (
     declare_joy_node,
     declare_xbox_gamepad_joint_node,
 )
+from explorer_bringup.launch.optional_parameters import declare_parameter_joy_backend
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_use_sim_time,
@@ -46,6 +47,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
         *declare_hardware_argument_list(
             robot_controller_config=robot_controller_config
         ),
+        declare_parameter_joy_backend(),
     ]
 
 
