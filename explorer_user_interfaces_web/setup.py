@@ -1,4 +1,3 @@
-import glob
 import os
 import subprocess
 import sys
@@ -8,6 +7,22 @@ from setuptools.command.develop import develop
 from setuptools.command.install import install
 
 package_name = 'explorer_user_interfaces_web'
+
+
+def data_files_for_dir(source_dir, dest_prefix):
+    """Build data_files entries preserving the subdirectory structure.
+
+    setuptools data_files flattens every file listed for a given destination,
+    so we build folder architecture manually.
+    """
+    entries = []
+    for root, _dirs, files in os.walk(source_dir):
+        if not files:
+            continue
+        rel = os.path.relpath(root, source_dir)
+        dest = dest_prefix if rel == '.' else os.path.join(dest_prefix, rel)
+        entries.append((dest, [os.path.join(root, f) for f in files]))
+    return entries
 
 # Dependencies that need pip
 pip_dependencies = [
@@ -58,11 +73,12 @@ setup(
         ('share/' + package_name + '/launch', [
             'launch/web_gui.launch.py',
         ]),
-        ('share/' + package_name + '/static', 
-            [f for f in glob.glob('explorer_user_interfaces_web/static/**', recursive=True) if os.path.isfile(f)]),
-        ('share/' + package_name + '/templates', 
-            [f for f in glob.glob('explorer_user_interfaces_web/templates/**', recursive=True) if os.path.isfile(f)]),
-
+        *data_files_for_dir(
+            os.path.join(package_name, 'static'),
+            'share/' + package_name + '/static'),
+        *data_files_for_dir(
+            os.path.join(package_name, 'templates'),
+            'share/' + package_name + '/templates'),
     ],
     install_requires=['setuptools'] + pip_dependencies,
     zip_safe=True,
