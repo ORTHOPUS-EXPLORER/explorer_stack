@@ -101,6 +101,11 @@ def declare_parameter_list_camera_settings() -> List[DeclareLaunchArgument]:
         DeclareLaunchArgument: Argument declared
     """
     return [
+        DeclareLaunchArgument(
+            name="use_camera",
+            default_value="False",
+            description="Conditional camera node launched",
+        ),
         # Camera settings that will be passed to camera_ros
         # https://github.com/christianrauch/camera_ros#static-camera-stream-configuration
         DeclareLaunchArgument(
@@ -201,6 +206,15 @@ def get_parameter_web_gui_mode_config_path() -> LaunchConfiguration:
         LaunchConfiguration: mode_config_path
     """
     return LaunchConfiguration("mode_config_path")
+
+
+def get_parameter_use_camera() -> LaunchConfiguration:
+    """Get ros2 parameter "use_camera".
+
+    Returns:
+        LaunchConfiguration: use_camera
+    """
+    return LaunchConfiguration("use_camera")
 
 
 def get_parameter_camera_device() -> LaunchConfiguration:

@@ -36,6 +36,7 @@ from explorer_bringup.launch.optional_parameters import (
     get_parameter_input_device,
     get_parameter_joy_backend,
     get_parameter_spacenav,
+    get_parameter_use_camera,
 )
 
 
@@ -159,4 +160,7 @@ def declare_camera_node():
             )
         ]
 
-    return OpaqueFunction(function=inner_opaque_function)
+    return OpaqueFunction(
+        function=inner_opaque_function,
+        condition=IfCondition(get_parameter_use_camera()),
+    )
