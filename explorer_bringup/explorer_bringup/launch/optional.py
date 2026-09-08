@@ -15,7 +15,7 @@
 
 from typing import Literal
 
-from launch.actions import GroupAction
+from launch.actions import GroupAction, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import (
     PathJoinSubstitution,
@@ -25,6 +25,14 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.optional_parameters import (
+    get_parameter_camera_device,
+    get_parameter_camera_format,
+    get_parameter_camera_height,
+    get_parameter_camera_info_url,
+    get_parameter_camera_orientation,
+    get_parameter_camera_role,
+    get_parameter_camera_use_node_time,
+    get_parameter_camera_width,
     get_parameter_input_device,
     get_parameter_joy_backend,
     get_parameter_spacenav,
@@ -122,3 +130,33 @@ def declare_xbox_gamepad_joint_node():
             ),
         ],
     )
+
+
+def declare_camera_node():
+    def inner_opaque_function(context, *args, **kwargs):
+        parameters = [
+            {"camera": get_parameter_camera_device()},
+            {"role": get_parameter_camera_role()},
+            {"format": get_parameter_camera_format()},
+            {"orientation": get_parameter_camera_orientation()},
+            {"camera_info_url": get_parameter_camera_info_url()},
+            {"use_node_time": get_parameter_camera_use_node_time()},
+        ]
+
+        width = get_parameter_camera_width().perform(context)
+        if width:
+            parameters.append({"width": int(width)})
+
+        height = get_parameter_camera_height().perform(context)
+        if height:
+            parameters.append({"height": int(height)})
+
+        return [
+            Node(
+                package="camera_ros",
+                executable="camera_node",
+                parameters=parameters,
+            )
+        ]
+
+    return OpaqueFunction(function=inner_opaque_function)
