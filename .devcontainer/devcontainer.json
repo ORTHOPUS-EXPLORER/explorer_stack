@@ -23,8 +23,16 @@
         "--ulimit", "memlock=-1",
         "--device", "/dev/dri:/dev/dri",
         "--device", "/dev/input:/dev/input",
-        // Whitelist input device regarding joysticks (13: taken from https://www.kernel.org/doc/Documentation/admin-guide/devices.txt)
-        "--device-cgroup-rule=c 13:* rmw",
+        // Whiteliste all characters devices (tried to whitelist only what's needed but issue regarding /dev/media* devices)
+        "--device-cgroup-rule=c *:* rw",
+        
+        // Whitelist devices : joystick (13: taken from https://www.kernel.org/doc/Documentation/admin-guide/devices.txt)
+        // "--device-cgroup-rule=c 13:* rw",
+        // Whitelist devices : video4linux camera
+        // "--device-cgroup-rule=c 81:* rw",
+        // Whitelist devices :  GPU
+        // "--device-cgroup-rule=c 226:* rw"
+
         // "--pid=host", // DDS discovery with host, without --network=host
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],
