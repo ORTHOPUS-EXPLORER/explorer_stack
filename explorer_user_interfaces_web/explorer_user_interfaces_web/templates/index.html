@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,49 +8,122 @@
     <script src="/static/tailwind.js"></script>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        :root {
+            --panel-size: min(80vh, 42vw);
+        }
+
+        .panels-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 4vw;
+            width: 100%;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1 1 0;
+        }
+
+        /* Portrait viewport (height > width): stack panels vertically */
+        @media (orientation: portrait) {
+            :root {
+                --panel-size: min(85vw, 38vh);
+            }
+
+            .panels-row {
+                flex-direction: column;
+                gap: 4vh;
+                padding: 1rem;
+            }
+
+            .panel {
+                flex: 0 0 auto;
+            }
+        }
+
         .main-square {
-            width: 30mm;
-            height: 30mm;
+            width: var(--panel-size);
+            height: var(--panel-size);
             min-width: 113px;
             min-height: 113px;
-            max-width: 120px;
-            max-height: 120px;
+            max-width: 500px;
+            max-height: 500px;
             background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             display: flex;
             flex-direction: row;
             overflow: hidden;
             border: black 1px solid;
         }
+
+        .camera-square {
+            width: var(--panel-size);
+            height: var(--panel-size);
+            min-width: 113px;
+            min-height: 113px;
+            max-width: 500px;
+            max-height: 500px;
+            background: #000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: black 1px solid;
+            position: relative;
+        }
+
+        .camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        #no-camera-text {
+            position: absolute;
+            z-index: 1;
+        }
+
         .left-col {
             width: 80%;
             height: 100%;
             display: flex;
             flex-direction: column;
         }
+
         .top-row {
             display: flex;
             flex-direction: row;
             height: 80%;
         }
+
         .image-cell {
             width: 100%;
             height: 80%;
             display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
+            align-items: center;
+            justify-content: center;
         }
+
         .image-square {
             width: 100%;
             height: 100%;
-            max-width: 96px;
-            max-height: 96px;
             background: #e5e7eb;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
         }
+
         .mode-background {
             position: absolute;
             top: 0;
@@ -59,6 +133,7 @@
             object-fit: contain;
             z-index: 1;
         }
+
         .mode-overlay {
             position: absolute;
             top: 0;
@@ -69,6 +144,7 @@
             z-index: 2;
             display: none;
         }
+
         .bottom-row {
             display: flex;
             flex-direction: row;
@@ -76,13 +152,14 @@
             background: #eeeeee;
             border-top: black 1px solid;
         }
+
         .mode-cell {
             width: 100%;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            padding-left: 0.5rem;
+            justify-content: center;
         }
+
         .led-col {
             width: 20%;
             height: 100%;
@@ -95,44 +172,55 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-50 font-sans">
-    <div class="flex items-center justify-center min-h-screen">
-        <div class="main-square">
-            <div class="left-col">
-                <div class="image-cell">
-                    <div class="image-square" id="mode-image-container">
-                        <img id="mode-background-image"
-                             src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
-                             alt="Background Image"
-                             class="mode-background">
-                        <img id="mode-image"
-                             src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
-                             alt="Mode Image"
-                             class="mode-overlay"
-                             style="display: none;"
-                             onload="this.style.display='block'; this.parentNode.style.background='transparent';"
-                             onerror="this.style.display='none';">
-                        <span class="text-gray-500 text-sm" id="no-image-text" style="position: absolute; z-index: 3;">No Image</span>
+    <div class="panels-row">
+        <div class="panel">
+            <div class="main-square">
+                <div class="left-col">
+                    <div class="image-cell">
+                        <div class="image-square" id="mode-image-container">
+                            <img id="mode-background-image"
+                                src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
+                                alt="Background Image" class="mode-background">
+                            <img id="mode-image"
+                                src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
+                                alt="Mode Image" class="mode-overlay" style="display: none;"
+                                onload="this.style.display='block'; this.parentNode.style.background='transparent';"
+                                onerror="this.style.display='none';">
+                            <span class="text-gray-500 text-sm" id="no-image-text"
+                                style="position: absolute; z-index: 3;">No Image</span>
+                        </div>
+                    </div>
+                    <div class="bottom-row">
+                        <div class="mode-cell">
+                            <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="bottom-row">
-                    <div class="mode-cell">
-                        <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
+                <div class="led-col">
+                    <div id="status-led" class="status-led" style="margin-top: 8px;"></div>
+                    <div id="drink-led" class="status-led" style="margin-top: 6px;"></div>
+                    <div id="speed-level" class="text-xs font-bold text-gray-900 mt-1" style="text-align: center;">
+                        {{ speed_level if speed_level is not none else '--' }}
                     </div>
                 </div>
             </div>
-            <div class="led-col">
-                <div id="status-led" class="status-led" style="margin-top: 8px;"></div>
-                <div id="drink-led" class="status-led" style="margin-top: 6px;"></div>
-                <div id="speed-level" class="text-xs font-bold text-gray-900 mt-1" style="text-align: center;">
-                    {{ speed_level if speed_level is not none else '--' }}
-                </div>
+        </div>
+        <div class="panel">
+            <div class="camera-square" id="camera-image-container">
+                <img id="camera-feed-image" alt="Camera Feed" class="camera-feed"
+                    onload="this.style.display='block'; document.getElementById('no-camera-text').style.display='none';"
+                    onerror="this.style.display='none'; document.getElementById('no-camera-text').style.display='block';">
+                <span class="text-gray-500 text-sm" id="no-camera-text">No Camera Feed</span>
             </div>
         </div>
     </div>
     <script>
-window.explorerConfig = {{ mode_config | tojson }};
-</script>
+        window.explorerConfig = {{ mode_config | tojson }};
+    </script>
+    <script src="/static/websocket_wrapper.js"></script>
     <script src="/static/app.js"></script>
 </body>
+
 </html>
