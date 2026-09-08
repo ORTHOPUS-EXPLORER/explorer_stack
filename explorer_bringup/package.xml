@@ -43,6 +43,7 @@
   <exec_depend>ros_gz_image</exec_depend>
   <exec_depend>joy</exec_depend>
   <exec_depend>joy_linux</exec_depend>
+  <exec_depend>camera_ros</exec_depend>
 
   <exec_depend>orthopus_vesc_interface</exec_depend>
   <exec_depend>explorer_command_controllers</exec_depend>
