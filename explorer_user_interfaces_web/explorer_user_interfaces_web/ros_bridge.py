@@ -53,6 +53,18 @@ class RosBridge:
             String, "/command_node/retract_status", self.retract_status_callback, 10
         )
 
+        # Camera related variables
+        camera_topic = ros_node.get_parameter("camera_topic").value
+        self._camera_frame_condition = threading.Condition()
+        self._latest_camera_frame: bytes | None = None
+        self._latest_camera_frame_index = 0
+        self.camera_subscriber = self.node.create_subscription(
+            CompressedImage,
+            camera_topic,
+            self.camera_image_callback,
+            qos_profile_sensor_data,
+        )
+
         self.node.get_logger().info("ROS Bridge initialized")
 
     def mode_callback(self, msg: String):
@@ -122,6 +134,41 @@ class RosBridge:
                     "timestamp": time.time(),
                 }
             )
+
+    def camera_image_callback(self, msg: CompressedImage):
+        """Callback for ROS camera frame topic"""
+        with self._camera_frame_condition:
+            self._latest_camera_frame = bytes(msg.data)
+            self._latest_camera_frame_index += 1
+            self._camera_frame_condition.notify_all()
+
+    def _wait_for_camera_frame(self, last_frame_index: int, timeout: float):
+        """Blocking wait (should run in an executor thread) until a frame newer than
+        last_frame_index arrives, or timeout occured.
+        """
+        with self._camera_frame_condition:
+            self._camera_frame_condition.wait_for(
+                lambda: (
+                    self._latest_camera_frame is not None
+                    and self._latest_camera_frame_index > last_frame_index
+                ),
+                timeout=timeout,
+            )
+            return self._latest_camera_frame, self._latest_camera_frame_index
+
+    async def get_latest_camera_frame(
+        self, last_frame_index: int, timeout: float = 5.0
+    ):
+        """Return a tuple (frame, last_frame_index) or (None, last_frame_index)
+        if timeout occured.
+        """
+        loop = asyncio.get_running_loop()
+        frame, frame_index = await loop.run_in_executor(
+            None, self._wait_for_camera_frame, last_frame_index, timeout
+        )
+        if frame_index == last_frame_index:
+            return None, last_frame_index
+        return frame, frame_index
 
     async def get_updates(self):
         """Get any pending updates from the queue"""

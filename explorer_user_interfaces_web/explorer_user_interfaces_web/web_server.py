@@ -14,6 +14,9 @@ from rclpy.node import Node
 
 from explorer_user_interfaces_web.ros_bridge import RosBridge
 
+# How long the camera endpoint blocks waiting for a new frame before it timeouts and check for disconnection.
+CAMERA_FRAME_WAIT_TIMEOUT = 4.0
+
 
 def create_app(ros_node: Node) -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -56,11 +59,10 @@ def create_app(ros_node: Node) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request):
         """Main page"""
-        # Load mode configuration
-        config_path = ros_node.get_parameter("mode_config_path").value
-        mode_config = load_mode_config(config_path)
-
-        context = {"current_mode": ros_bridge.current_mode, "mode_config": mode_config}
+        context = {
+            "current_mode": ros_bridge.current_mode,
+            "mode_config": ros_bridge.mode_config,
+        }
         return templates.TemplateResponse(
             request=request, name="index.html", context=context
         )
@@ -117,5 +119,37 @@ def create_app(ros_node: Node) -> FastAPI:
         except Exception as e:
             ros_node.get_logger().error(f"WebSocket error: {e}")
             ros_bridge.connected_clients.discard(websocket)
+
+    @app.websocket("/ws/camera")
+    async def websocket_camera_endpoint(websocket: WebSocket):
+        """WebSocket endpoint for camera frames"""
+        await websocket.accept()
+        last_frame_index = 0
+
+        try:
+            while True:
+                try:
+                    frame, last_frame_index = await ros_bridge.get_latest_camera_frame(
+                        last_frame_index, timeout=CAMERA_FRAME_WAIT_TIMEOUT
+                    )
+                    if frame is not None:
+                        await websocket.send_bytes(frame)
+                    else:
+                        # Wait timed out, briefly check for client disconnect before waiting again.
+                        try:
+                            await asyncio.wait_for(
+                                websocket.receive_text(), timeout=0.01
+                            )
+                        except asyncio.TimeoutError:
+                            pass
+
+                except Exception as e:
+                    ros_node.get_logger().error(f"Camera WebSocket error: {e}")
+                    break
+
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            ros_node.get_logger().error(f"Camera WebSocket error: {e}")
 
     return app
