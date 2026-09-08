@@ -19,10 +19,19 @@ from explorer_bringup.launch.optional_parameters import (
     declare_parameter_list_camera_settings,
 )
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 
 
 def _declare_arguments():
-    return [*declare_parameter_list_camera_settings()]
+    return [
+        # Override the parameter responsible for launching camera node.
+        DeclareLaunchArgument(
+            name="use_camera",
+            default_value="True",
+            description="If the camera node is launched",
+        ),
+        *declare_parameter_list_camera_settings(),
+    ]
 
 
 def generate_launch_description():

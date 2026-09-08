@@ -22,10 +22,11 @@ from explorer_bringup.launch.controller_manager_spawner import (
 )
 from explorer_bringup.launch.hardware import declare_hardware_node_group
 from explorer_bringup.launch.hardware_parameters import declare_hardware_argument_list
-from explorer_bringup.launch.optional import declare_joy_node
+from explorer_bringup.launch.optional import declare_camera_node, declare_joy_node
 from explorer_bringup.launch.optional_parameters import (
     declare_parameter_input_device,
     declare_parameter_joy_backend,
+    declare_parameter_list_camera_settings,
     declare_parameter_list_web_gui_settings,
 )
 from explorer_bringup.launch.shared import (
@@ -65,6 +66,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
             description="Force robot deployment to rest position before enabling any other control",
         ),
         *declare_parameter_list_web_gui_settings(),
+        *declare_parameter_list_camera_settings(),
     ]
 
 
@@ -159,6 +161,7 @@ def generate_launch_description():
 
     joy_node = declare_joy_node()
     web_gui_node = declare_web_gui_node()
+    camera_node = declare_camera_node()
 
     nodes = [
         robot_simulation,
@@ -166,6 +169,7 @@ def generate_launch_description():
         joy_node,
         command_node,
         web_gui_node,
+        camera_node
     ]
 
     return LaunchDescription([*declared_arguments, *nodes])
