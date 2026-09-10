@@ -46,11 +46,10 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 4vw;
     width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
-    padding: 2rem;
+    padding: 1rem;
     box-sizing: border-box;
 }
 
@@ -64,13 +63,13 @@
 /* Portrait viewport (height > width): stack panels vertically */
 @media (orientation: portrait) {
     :root {
-        --panel-size: min(85vw, 38vh);
+        --panel-size: min(94vw, 42vh);
     }
 
     .panels-row {
         flex-direction: column;
-        gap: 4vh;
-        padding: 1rem;
+        gap: 2vh;
+        padding: 0.5rem;
     }
 
     .panel {
@@ -190,6 +189,7 @@
 }
 
 .led-col {
+    min-width: 100px;
     width: 25%;
     height: 100%;
     display: flex;
@@ -211,7 +211,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    width: 70%;
+    width: 80%;
 }
 
 .led-label {
