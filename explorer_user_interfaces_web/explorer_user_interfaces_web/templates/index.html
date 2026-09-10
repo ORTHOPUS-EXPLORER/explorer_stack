@@ -7,170 +7,6 @@
     <title>Explorer Robot Control</title>
     <script src="/static/tailwind.js"></script>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        :root {
-            --panel-size: min(80vh, 42vw);
-        }
-
-        .panels-row {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-            gap: 4vw;
-            width: 100%;
-            min-height: 100vh;
-            min-height: 100dvh;
-            padding: 2rem;
-            box-sizing: border-box;
-        }
-
-        .panel {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 1 1 0;
-        }
-
-        /* Portrait viewport (height > width): stack panels vertically */
-        @media (orientation: portrait) {
-            :root {
-                --panel-size: min(85vw, 38vh);
-            }
-
-            .panels-row {
-                flex-direction: column;
-                gap: 4vh;
-                padding: 1rem;
-            }
-
-            .panel {
-                flex: 0 0 auto;
-            }
-        }
-
-        .main-square {
-            width: var(--panel-size);
-            height: var(--panel-size);
-            min-width: 113px;
-            min-height: 113px;
-            max-width: 500px;
-            max-height: 500px;
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            display: flex;
-            flex-direction: row;
-            overflow: hidden;
-            border: black 1px solid;
-        }
-
-        .camera-square {
-            width: var(--panel-size);
-            height: var(--panel-size);
-            min-width: 113px;
-            min-height: 113px;
-            max-width: 500px;
-            max-height: 500px;
-            background: #000;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: black 1px solid;
-            position: relative;
-        }
-
-        .camera-feed {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
-
-        #no-camera-text {
-            position: absolute;
-            z-index: 1;
-        }
-
-        .left-col {
-            width: 80%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .top-row {
-            display: flex;
-            flex-direction: row;
-            height: 80%;
-        }
-
-        .image-cell {
-            width: 100%;
-            height: 80%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .image-square {
-            width: 100%;
-            height: 100%;
-            background: #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .mode-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            z-index: 1;
-        }
-
-        .mode-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            z-index: 2;
-            display: none;
-        }
-
-        .bottom-row {
-            display: flex;
-            flex-direction: row;
-            height: 20%;
-            background: #eeeeee;
-            border-top: black 1px solid;
-        }
-
-        .mode-cell {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .led-col {
-            width: 20%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            background: #eeeeee;
-            border-left: black 1px solid;
-        }
-    </style>
 </head>
 
 <body class="bg-gray-50 font-sans">
@@ -199,10 +35,42 @@
                     </div>
                 </div>
                 <div class="led-col">
-                    <div id="status-led" class="status-led" style="margin-top: 8px;"></div>
-                    <div id="drink-led" class="status-led" style="margin-top: 6px;"></div>
-                    <div id="speed-level" class="text-xs font-bold text-gray-900 mt-1" style="text-align: center;">
-                        {{ speed_level if speed_level is not none else '--' }}
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">Deployed</span>
+                        <div id="status-led" class="status-led" title="Deployment"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">Drink</span>
+                        <div id="drink-led" class="status-led" title="Drink"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">Speed</span>
+                        <span id="speed-level">{{ speed_level if speed_level is not none else '--' }}</span>
+                    </div>
+                    <div class="led-separator"></div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J1</span>
+                        <div id="joint-led-1" class="status-led" title="Joint 1"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J2</span>
+                        <div id="joint-led-2" class="status-led" title="Joint 2"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J3</span>
+                        <div id="joint-led-3" class="status-led" title="Joint 3"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J4</span>
+                        <div id="joint-led-4" class="status-led" title="Joint 4"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J5</span>
+                        <div id="joint-led-5" class="status-led" title="Joint 5"></div>
+                    </div>
+                    <div class="joint-led-row" style="margin-top: 4px;">
+                        <span class="led-label">J6</span>
+                        <div id="joint-led-6" class="status-led" title="Joint 6"></div>
                     </div>
                 </div>
             </div>
