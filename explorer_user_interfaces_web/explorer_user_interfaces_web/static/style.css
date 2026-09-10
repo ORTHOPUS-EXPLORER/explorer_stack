@@ -1,32 +1,223 @@
 /* Explorer Robot Web GUI Styles */
 
-.status-led, #drink-led {
+.status-led,
+#drink-led {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    box-shadow: 0 0 4px rgba(0,0,0,0.3);
-    background-color: #bbb; /* Inactive: light gray */
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    background-color: #bbb;
+    /* Inactive: light gray */
     transition: background 0.3s;
 }
 
 /* Retract status LED colors */
-.status-led.status-ready {
-    background-color: #10b981 !important; /* Green: deployed and ready to use */
+.status-led.status-green {
+    background-color: #10b981 !important;
+    /* Green: deployed and ready to use */
     box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
-.status-led.status-moving {
-    background-color: #f97316 !important; /* Orange: moving/in progress */
+.status-led.status-orange {
+    background-color: #f97316 !important;
+    /* Orange: moving/in progress */
     box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
 }
 
-.status-led.status-retracted {
-    background-color: #ef4444 !important; /* Red: retracted*/
+.status-led.status-red {
+    background-color: #ef4444 !important;
+    /* Red: retracted*/
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 }
 
 /* Drink LED */
 #drink-led.active {
-    background-color: #3b82f6 !important; /* Active: blue */
+    background-color: #3b82f6 !important;
+    /* Active: blue */
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+}
+
+:root {
+    --panel-size: min(80vh, 42vw);
+}
+
+.panels-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 4vw;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+.panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0;
+}
+
+/* Portrait viewport (height > width): stack panels vertically */
+@media (orientation: portrait) {
+    :root {
+        --panel-size: min(85vw, 38vh);
+    }
+
+    .panels-row {
+        flex-direction: column;
+        gap: 4vh;
+        padding: 1rem;
+    }
+
+    .panel {
+        flex: 0 0 auto;
+    }
+}
+
+.main-square {
+    width: var(--panel-size);
+    height: var(--panel-size);
+    min-width: 113px;
+    min-height: 113px;
+    max-width: 500px;
+    max-height: 500px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    border: black 1px solid;
+}
+
+.camera-square {
+    width: var(--panel-size);
+    height: var(--panel-size);
+    min-width: 113px;
+    min-height: 113px;
+    max-width: 500px;
+    max-height: 500px;
+    background: #000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: black 1px solid;
+    position: relative;
+}
+
+.camera-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+#no-camera-text {
+    position: absolute;
+    z-index: 1;
+}
+
+.left-col {
+    width: 80%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-row {
+    display: flex;
+    flex-direction: row;
+    height: 80%;
+}
+
+.image-cell {
+    width: 100%;
+    height: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-square {
+    width: 100%;
+    height: 100%;
+    background: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.mode-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 1;
+}
+
+.mode-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 2;
+    display: none;
+}
+
+.bottom-row {
+    display: flex;
+    flex-direction: row;
+    height: 20%;
+    background: #eeeeee;
+    border-top: black 1px solid;
+}
+
+.mode-cell {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.led-col {
+    width: 25%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: #eeeeee;
+    border-left: black 1px solid;
+}
+
+.led-separator {
+    width: 70%;
+    border-top: 2px solid #ccc;
+    margin: 6px 0;
+}
+
+.joint-led-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 70%;
+}
+
+.led-label {
+    flex: 1;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #374151;
 }
