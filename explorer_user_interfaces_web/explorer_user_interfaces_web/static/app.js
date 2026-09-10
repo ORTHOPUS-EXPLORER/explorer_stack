@@ -48,6 +48,10 @@ class ExplorerWebGUI {
                 this.updateRetractStatus(data.retract_status);
                 break;
 
+            case 'joint_state_update':
+                this.updateJointState(data);
+                break;
+
             case 'mode_update':
                 this.updateMode(data.mode);
                 break;
@@ -74,12 +78,6 @@ class ExplorerWebGUI {
             currentModeElement.style.display = "inline-block";
             currentModeElement.style.position = "relative";
             currentModeElement.style.transform = "translate(-5px, 0px)";
-
-            // Add highlight animation
-            currentModeElement.classList.add('status-update');
-            setTimeout(() => {
-                currentModeElement.classList.remove('status-update');
-            }, 500);
         }
 
         // Update mode image
@@ -160,22 +158,47 @@ class ExplorerWebGUI {
 
     updateRetractStatus(status) {
         const statusLed = document.getElementById('status-led');
-        if (statusLed) {
-            // Remove all status classes
-            statusLed.classList.remove('status-ready', 'status-moving', 'status-retracted');
+        if (!statusLed) {
+            return;
+        }
+        // Remove all status classes
+        statusLed.classList.remove('status-green', 'status-orange', 'status-red');
 
-            // Map status string to CSS class
-            // "ready" -> green (deployed, ready to use)
-            // "in progress" -> orange (moving and not yet at ready position)
-            // "retracted"  -> red (retracted)
-            if (status === 'ready') {
-                statusLed.classList.add('status-ready');
-            } else if (status === 'in progress') {
-                statusLed.classList.add('status-moving');
-            } else {
-                // "retracted"
-                statusLed.classList.add('status-retracted');
-            }
+        // Map status string to CSS class
+        // "ready" -> green (deployed, ready to use)
+        // "in progress" -> orange (moving and not yet at ready position)
+        // "retracted"  -> red (retracted)
+        if (status === 'ready') {
+            statusLed.classList.add('status-green');
+        } else if (status === 'in progress') {
+            statusLed.classList.add('status-orange');
+        } else {
+            // "retracted"
+            statusLed.classList.add('status-red');
+        }
+    }
+
+    updateJointState(data) {
+        const jointLed = document.getElementById('joint-led-' + data.joint_index);
+        if (!jointLed) {
+            return;
+        }
+        // Remove previous status classes
+        jointLed.classList.remove('status-green', 'status-orange', 'status-red');
+
+        switch (data.state) {
+            case "Init": case "Idle": 
+                jointLed.classList.add('status-orange');
+                break;
+            case "Enable":
+                jointLed.classList.add('status-green');
+                break;
+            case "Hold":
+            case "Brake":
+            case "EStop":
+            case "unknown":
+                jointLed.classList.add('status-red');
+                break;
         }
     }
 }
