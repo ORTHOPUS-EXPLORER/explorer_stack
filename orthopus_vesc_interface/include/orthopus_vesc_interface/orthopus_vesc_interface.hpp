@@ -83,6 +83,7 @@ private:
   void callback_config_(const orthopus_vesc_interfaces::msg::Config& msg);
   CallbackReturn wait_can_data_();
   void init_refs_();
+  void publish_joint_state_(const std::string& joint_name, uint16_t status);
 
   rclcpp::Time print_buf_start_{0};
   rclcpp::Duration print_buf_duration_ = rclcpp::Duration::from_seconds(0);

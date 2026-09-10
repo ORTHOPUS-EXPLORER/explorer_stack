@@ -6,13 +6,31 @@ import os
 import queue
 import threading
 import time
-from typing import Dict
+from typing import Dict, List
 
 import yaml
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSHistoryPolicy,
+    QoSProfile,
+    qos_profile_sensor_data,
+)
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Int32, String
+
+from orthopus_vesc_interfaces.msg import State
+
+NUM_JOINTS = 6
+
+# Must match orthopus_vesc_interface's state_pub_ QoS (transient-local, depth 1)
+# so we get the current state immediately on connect instead of waiting for
+# the next change.
+QOS_JOINT_STATE = QoSProfile(
+    depth=1,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+)
 
 
 class RosBridge:
@@ -52,6 +70,20 @@ class RosBridge:
         self.retract_status_subscriber = self.node.create_subscription(
             String, "/command_node/retract_status", self.retract_status_callback, 10
         )
+
+        # Joint state subscribers - one per joint, published only on actual change
+        self.joint_state_subscribers = [
+            self.node.create_subscription(
+                State,
+                f"/explorer_joint_{joint_index}/state",
+                lambda msg, joint_index=joint_index: self.joint_state_callback(
+                    joint_index, msg
+                ),
+                QOS_JOINT_STATE,
+            )
+            for joint_index in range(1, NUM_JOINTS + 1)
+        ]
+        self.last_joint_state_message_dict = {}
 
         # Camera related variables
         camera_topic = ros_node.get_parameter("camera_topic").value
@@ -134,6 +166,19 @@ class RosBridge:
                     "timestamp": time.time(),
                 }
             )
+
+    def joint_state_callback(self, joint_index: int, msg: State):
+        """Callback for joint state feedback."""
+        self.last_joint_state_message_dict[joint_index] = {
+            "type": "joint_state_update",
+            "joint_index": joint_index,
+            "joint_name": msg.joint_name,
+            "mode": msg.mode,
+            "state": msg.state,
+            "error": msg.error,
+            "timestamp": time.time(),
+        }
+        self.update_queue.put(self.last_joint_state_message_dict[joint_index])
 
     def camera_image_callback(self, msg: CompressedImage):
         """Callback for ROS camera frame topic"""
@@ -246,6 +291,21 @@ class RosBridge:
                 disconnected.add(websocket)
 
         self.connected_clients -= disconnected
+
+    def get_initial_message_list_on_connected(self) -> List[Dict]:
+        initial_messages = [
+            {
+                "type": "initial",
+                "mode": self.current_mode,
+                "speed_level": self.speed_level,
+                "retract_status": self.retract_status,
+            }
+        ]
+
+        for joint_state_message in self.last_joint_state_message_dict.values():
+            initial_messages.append(joint_state_message)
+
+        return initial_messages
 
 
 def load_mode_config(config_path: str) -> Dict:

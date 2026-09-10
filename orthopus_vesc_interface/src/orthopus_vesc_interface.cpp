@@ -1,6 +1,7 @@
 #include "orthopus_vesc_interface/orthopus_vesc_interface.hpp"
 
 #include <chrono>
+#include <rclcpp/qos.hpp>
 #include <sstream>  // for from_str, below
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
@@ -23,6 +24,9 @@ T from_str(const std::string& str, const T& def_v)
 }
 
 const auto qos_pub = rclcpp::SystemDefaultsQoS();
+// Transient-local: retains the last message so a late-joining subscriber
+// gets the current state immediately instead of waiting for the next change.
+const auto qos_state_pub = rclcpp::QoS(1).transient_local();
 
 // See https://github.com/ros-controls/ros2_control/blob/master/hardware_interface/include/hardware_interface/hardware_info.hpp
 CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& params)
@@ -254,20 +258,12 @@ CallbackReturn VESCInterface::on_init(const HardwareComponentInterfaceParams& pa
     // FIXME: Not required for SERVO joint. Also, the capture of j is not that great.
     j->status_changed_cb = [j, this](orthopus::VESCTarget::joint_t& j_data, uint16_t)
     {
-      const std::string& sstr = orthopus::state_to_text(j_data.status);
-      const std::string& estr = orthopus::error_to_text(j_data.status);
-      const std::string& mstr = orthopus::mode_to_text(j_data.status);
       RCLCPP_INFO(
         rclcpp::get_logger("VESCInterface"),
         "[%s] Got State: 0x%04X: State: '%s' Error '%s' Mode '%s'", name_.c_str(), j_data.status,
-        sstr.c_str(), estr.c_str(), mstr.c_str());
-      if (!state_rtpub_) return;
-      state_rtpub_->lock();
-      state_rtpub_->msg_.timestamp = rclcpp::Clock().now();
-      state_rtpub_->msg_.joint_name = j->name;  // FIXME: Get real joint name
-
-      state_rtpub_->msg_.mode = mstr;
-      state_rtpub_->unlockAndPublish();
+        orthopus::state_to_text(j_data.status), orthopus::error_to_text(j_data.status),
+        orthopus::mode_to_text(j_data.status));
+      publish_joint_state_(j->name, j_data.status);
     };
 
     for (const auto& cif : cfg_j.command_interfaces)
@@ -456,10 +452,18 @@ CallbackReturn VESCInterface::on_configure(
     "~/config", 10, [this](orthopus_vesc_interfaces::msg::Config msg) { callback_config_(msg); });
 
   state_pub_ =
-    get_node()->create_publisher<orthopus_vesc_interfaces::msg::State>("~/state", qos_pub);
+    get_node()->create_publisher<orthopus_vesc_interfaces::msg::State>("~/state", qos_state_pub);
   state_rtpub_ =
     std::make_unique<realtime_tools::RealtimePublisher<orthopus_vesc_interfaces::msg::State>>(
       state_pub_);
+
+  // status_changed_cb (registered in `on_init`) may have already fired before
+  // state_rtpub_ existed so we publish manually just after it's creation
+  auto &joint = vesc_dev_->get_joint();
+  if (joint.in_use)
+  {
+    publish_joint_state_(joint.name, joint.status);
+  }
 
   return CallbackReturn::SUCCESS;
 }
@@ -734,6 +738,18 @@ void VESCInterface::callback_config_(const orthopus_vesc_interfaces::msg::Config
 {
   vesc_dev_->acquire_joint().impedance_control_damping = msg.impedance_control_damping;
   vesc_dev_->acquire_joint().impedance_control_stiffness = msg.impedance_control_stiffness;
+}
+
+void VESCInterface::publish_joint_state_(const std::string& joint_name, uint16_t status)
+{
+  if (!state_rtpub_) return;
+  state_rtpub_->lock();
+  state_rtpub_->msg_.timestamp = rclcpp::Clock().now();
+  state_rtpub_->msg_.joint_name = joint_name;
+  state_rtpub_->msg_.state = orthopus::state_to_text(status);
+  state_rtpub_->msg_.error = orthopus::error_to_text(status);
+  state_rtpub_->msg_.mode = orthopus::mode_to_text(status);
+  state_rtpub_->unlockAndPublish();
 }
 
 CallbackReturn VESCInterface::wait_can_data_()

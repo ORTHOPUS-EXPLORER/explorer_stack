@@ -84,14 +84,10 @@ def create_app(ros_node: Node) -> FastAPI:
         ros_bridge.connected_clients.add(websocket)
 
         try:
-            # Send initial status
-            initial_message = {
-                "type": "initial",
-                "mode": ros_bridge.current_mode,
-                "speed_level": ros_bridge.speed_level,
-                "retract_status": ros_bridge.retract_status,
-            }
-            await websocket.send_text(json.dumps(initial_message))
+            # Send initial messages
+            initial_message_list = ros_bridge.get_initial_message_list_on_connected()
+            for initial_message in initial_message_list:
+                await websocket.send_text(json.dumps(initial_message))
 
             # Keep connection alive and check for updates
             while True:
