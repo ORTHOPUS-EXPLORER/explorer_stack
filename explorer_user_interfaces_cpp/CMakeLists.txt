@@ -31,9 +31,8 @@ foreach(Dependency IN ITEMS ${INTERFACES_DEPENDENCIES})
 endforeach()
 
 
-add_executable(command_node 
+add_executable(command_node
   src/command_node.cpp
-  src/button_handler.cpp
   src/trajectory_manager.cpp
   src/controller_manager_wrapper.cpp
   )
