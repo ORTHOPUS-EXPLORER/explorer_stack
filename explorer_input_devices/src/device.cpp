@@ -3,76 +3,49 @@
  *  Copyright (C) 2022 Orthopus
  *  All rights reserved.
  */
-#include "rclcpp/rclcpp.hpp"
-
 #include "explorer_input_devices/device.h"
+
+#include <algorithm>
+#include <utility>
+
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 namespace input_device
 {
-Device::Device(rclcpp::Node::SharedPtr n) : n_(n)
+Device::Device(
+  rclcpp::Node::SharedPtr n, const std::string& joystick_topic, JoystickCallback joystick_callback)
+: n_(std::move(n))
 {
   RCLCPP_DEBUG(n_->get_logger(), "Device constructor");
 
-  cartesian_cmd_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>
-                        ("/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 1);
-  gripper_cmd_pub_ = n_->create_publisher<std_msgs::msg::Float64>
-                        ("/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 1);
-  //initializeServices_();
+  cartesian_cmd_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>(
+    "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 1);
+  gripper_command_pub_ =
+    n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 1);
+
+  device_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>(
+    joystick_topic, 10, std::move(joystick_callback));
+
+  // Half open
+  gripper_command_.data = {0.5};
 }
 
-Device::~Device()
-{
-}
-/*
-void Device::initializeServices_()
-{
-  ros::service::waitForService("/niryo_one/activate_learning_mode");
-  ros::service::waitForService("/niryo_one/change_tool");
-  ros::service::waitForService("/niryo_one/tools/open_gripper");
-  ros::service::waitForService("/niryo_one/tools/close_gripper");
+Device::~Device() {}
 
-  learning_mode_client_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/activate_learning_mode");
-  change_tool_srv_ = n_.serviceClient<niryo_one_msgs::SetInt>("niryo_one/change_tool");
-  open_gripper_srv_ = n_.serviceClient<niryo_one_msgs::OpenGripper>("niryo_one/tools/open_gripper");
-  close_gripper_srv_ = n_.serviceClient<niryo_one_msgs::CloseGripper>("niryo_one/tools/close_gripper");
+const rclcpp::Node::SharedPtr& Device::get_node_() const { return n_; }
+
+void Device::publish_cartesian_command_(const geometry_msgs::msg::TwistStamped& cartesian_cmd) const
+{
+  cartesian_cmd_pub_->publish(cartesian_cmd);
 }
 
-void Device::requestLearningMode(int state)
+void Device::update_gripper_command_(double velocity, double dt)
 {
-  niryo_one_msgs::SetInt learning_mode;
-  learning_mode.request.value = state;
-  if (!learning_mode_client_.call(learning_mode))
-  {
-    ROS_WARN("Could not set learning mode. Service call failed.");
-  }
-}
+  double& position = gripper_command_.data[0];
 
-void Device::setGripperId_()
-{
-  niryo_one_msgs::SetInt gripper_id;
-  gripper_id.request.value = 12;
-  change_tool_srv_.call(gripper_id);  // gripper 2
-}
+  position = std::clamp(position + velocity * dt, 0.0, 1.0);
 
-void Device::openGripper_()
-{
-  niryo_one_msgs::OpenGripper open_gripper;
-  open_gripper.request.id = 12;
-  open_gripper.request.open_position = 640;
-  open_gripper.request.open_speed = 300;
-  open_gripper.request.open_hold_torque = 128;
-  open_gripper_srv_.call(open_gripper);
+  gripper_command_pub_->publish(gripper_command_);
 }
-
-void Device::closeGripper_()
-{
-  niryo_one_msgs::CloseGripper close_gripper;
-  close_gripper.request.id = 12;
-  close_gripper.request.close_position = 400;
-  close_gripper.request.close_speed = 300;
-  close_gripper.request.close_hold_torque = 128;
-  close_gripper.request.close_max_torque = 1023;
-  close_gripper_srv_.call(close_gripper);
-}
-*/
-}
+}  // namespace input_device

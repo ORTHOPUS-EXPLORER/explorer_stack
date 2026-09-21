@@ -12,6 +12,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 
 # find dependencies
+find_package(yaml-cpp REQUIRED)
+
 set(SPACENAV_DEPENDENCIES
   rclcpp
   std_msgs
@@ -23,6 +25,13 @@ set(SPACENAV_DEPENDENCIES
 foreach(Dependency IN ITEMS ${SPACENAV_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
+
+# The joystick device additionally publishes the control frame selection.
+set(JOYSTICK_DEPENDENCIES
+  ${SPACENAV_DEPENDENCIES}
+  explorer_msgs
+)
+find_package(explorer_msgs REQUIRED)
 
 # INSTALL
 install(DIRECTORY config
@@ -45,6 +54,27 @@ ament_target_dependencies(spacenav
   ${SPACENAV_DEPENDENCIES}
 )
 
+add_executable(device_joystick
+  src/device.cpp
+  src/device_joystick.cpp
+  src/button_handler.cpp
+  src/mode_config.cpp
+)
+
+target_include_directories(device_joystick
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/explorer_input_devices>
+)
+
+ament_target_dependencies(device_joystick
+  ${JOYSTICK_DEPENDENCIES}
+)
+
+target_link_libraries(device_joystick
+  yaml-cpp
+)
+
 add_executable(xbox_gamepad_joint
   src/xbox_gamepad_joint.cpp
 )
@@ -61,6 +91,7 @@ ament_target_dependencies(xbox_gamepad_joint
 )
 
 install(TARGETS spacenav
+                device_joystick
                 xbox_gamepad_joint
         DESTINATION lib/explorer_input_devices
 )

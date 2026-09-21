@@ -1,73 +1,37 @@
+#ifndef EXPLORER_USER_INTERFACES_CPP_COMMAND_NODE_H
+#define EXPLORER_USER_INTERFACES_CPP_COMMAND_NODE_H
+
 #include <ctime>
 #include <fstream>
 #include <functional>
+#include <optional>
 #include <string>
 #include <thread>
-#include <unordered_map>
+#include <vector>
 
 #include "atomic"
 #include "explorer_joint_utils/joint_mode_resolver.h"
-#include "explorer_msgs/msg/control_frame_selection.hpp"
-#include "explorer_user_interfaces_cpp/button_handler.h"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
 #include "explorer_user_interfaces_cpp/trajectory_manager.h"
-#include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
-#include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "std_msgs/msg/float64.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
-#include "std_msgs/msg/int32.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "yaml-cpp/yaml.h"
+#include "std_srvs/srv/set_bool.hpp"
 
 using namespace std::chrono;
 
 namespace space_control
 {
-// Information about each axis control
-struct AxisInfo
-{
-  std::string control_name;
-  std::string joystick_axis;
-  int direction;
-  double scale;
-  double smoothing_alpha = 1.0;  // Smoothing factor (1.0 = no smoothing, 0.1 = heavy smoothing)
-  std::map<std::string, double> params;
-};
-
-// Actions associated with button clicks
-struct ButtonAction
-{
-  std::string long_click;
-  std::string short_click;
-};
-
-// Information about each button mode
-struct ButtonMode
-{
-  std::string name;
-  std::vector<AxisInfo> axes;
-  ButtonAction buttons;
-};
-
-// Information about the overall mode
-struct ModeInfo
-{
-  std::string name;
-  std::string display_name;
-  std::string description;
-};
-
-// Complete mode data structure
-struct ModeData
-{
-  ModeInfo mode_info;
-  std::unordered_map<std::string, ButtonMode> button_modes_map;
-};
-
+/**
+ * \brief Robot-side command executor
+ *
+ * Owns the trajectory manager and deals with the controller switch:
+ *   - command_node/set_trajectory_mode enable/disable the joint_trajectory_controller;
+ *   - command_node/retract_status reports trajectory progress
+ * Input devices feeds the cartesian velocity input topic.
+ */
 class CommandNode
 {
 public:
@@ -78,72 +42,32 @@ protected:
 private:
   rclcpp::Node::SharedPtr n_;
 
-  ButtonHandler button_handler_;
   TrajectoryManager trajectory_manager_;
   ControllerManagerWrapper controller_manager_wrapper_;
 
   // Subscribers
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
-  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr default_controller_sub_;
+  // Cartesian velocity command input
+  // While trajectory mode is on, twist.linear.z carries the retract rate
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_sub_;
 
   // Publishers
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr joint_vel_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_pub_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr mode_name_pub_;
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
-  rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reset_qp_solving_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr retract_status_pub_;
+
+  // Services
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_trajectory_mode_srv_;
 
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 
-  std::string current_mode_name_;
-  std::unordered_map<std::string, std::function<void(AxisInfo)>> control_behaviors_;
-
-  // Joystick state variables
-  mutable std::mutex mutex_axis_;
-
-  // Raw joystick values (before smoothing)
-  float axis_1_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
-  float axis_2_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
-
-  // Smoothed joystick values (computed once per timer cycle)
-  float axis_1_smoothed_ = 0.0f;
-  float axis_2_smoothed_ = 0.0f;
-
-  int button_threshold_ms_;
   double sampling_period_;
-
-  ModeData data_;
-
-  // Speed control variables
-  float speed_factor_;
-  int speed_level_;
-  float joy_prec_;
-  float speed_change_threshold_;
-  float speed_level_multiplier_;
-
-  bool complex_mode_;
-  double v_x_ = 0.0;
-  double v_y_ = 0.0;
-  double rotation_speed_scale_;
-
-  bool active_trajectory_;
 
   bool use_qp_inria_;
 
-  std::string active_controller_;
-
-  std::atomic<bool> lock_{false};
-
-  enum class ControlState
+  enum class ControllerState
   {
     DEFAULT_CONTROLLER,  // default controller used (forward_position_controller, explorer_custom_controller ... ?)
     SWITCHING_TO_TRAJ,
@@ -152,28 +76,22 @@ private:
   };
 
   // Written from main thread and the detached switch_thread_
-  std::atomic<ControlState> control_state_{ControlState::DEFAULT_CONTROLLER};
+  std::atomic<ControllerState> controller_state_{ControllerState::DEFAULT_CONTROLLER};
 
-  bool trajectory_requested_ = false;
+  // Is trajectory mode enabled, only changed by setTrajectoryMode_()
+  std::atomic<bool> trajectory_mode_{false};
+
+  // Trajectory movement input, taken from twist.linear.z of the active Cartesian command.
+  std::atomic<double> trajectory_velocity_input_{0.0};
+
   std::atomic<bool> switch_in_progress_{false};
 
   // Holds the controller-switch thread spawned in handle_controller_state_()
   std::thread switch_thread_;
 
-  sensor_msgs::msg::JointState current_state_;
-
-  // Velocity messages
-  geometry_msgs::msg::TwistStamped cartesian_vel_;
-  std_msgs::msg::Float64MultiArray joint_vel_;
-  std_msgs::msg::Float64 gripper_vel_;
-  std_msgs::msg::Float64MultiArray gripper_command_;
-
-  explorer_msgs::msg::ControlFrameSelection frame_id_;
-
-  geometry_msgs::msg::Pose x_current_;
-  std::array<double, 7> q_current_;
-
   sensor_msgs::msg::JointState current_pos_;
+
+  std::array<double, 7> q_current_;
 
   bool init_{false};
 
@@ -202,16 +120,19 @@ private:
 
   std::vector<std::string> default_controller_name_list_;
 
-  ModeData loadModeData_(const std::string& filename);
-  bool validateModeData_(const ModeData& data);
-
-  void callback_joystick_(const sensor_msgs::msg::Joy& msg);
-
-  void callback_x_current_(const geometry_msgs::msg::Pose& msg);
-
   void callback_q_current_(const sensor_msgs::msg::JointState& msg);
 
-  void callback_defaut_controller_(const std_msgs::msg::Float64MultiArray& msg);
+  void callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg);
+
+  void callback_set_trajectory_mode_(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+
+  // Enable/disable joint_trajectory_controller
+  void setTrajectoryMode_(bool enable);
+
+  // Drive the trajectory progress via trajectory_velocity_input_, while trajectory mode is enabled.
+  void update_trajectory_();
 
   void handle_controller_state_();
 
@@ -221,26 +142,8 @@ private:
   void getDoubleParameter_(const std::string& param_name, std::optional<double>& value);
 
   void timer_callback_();
-
-  // Execute behavior based on axis information
-  void executeBehavior_(const AxisInfo& axis);
-
-  // Read joystick axis value
-  float readAxisValue_(const AxisInfo& axis_info);
-
-  void resetVelocities_();
-
-  void complex_calculation_(const double rotation_speed_scale);
-
-  // Behavior functions
-  void cartesian_linear_(const AxisInfo& axis_info);
-  void cartesian_rotation_(const AxisInfo& axis_info);
-  void joint_direct_(const AxisInfo& axis_info);
-  void change_speed_(const AxisInfo& axis_info);
-  void drink_(const AxisInfo& axis_info);
-  void gripper_(const AxisInfo& axis_info);
-  void complex_(const AxisInfo& axis_info);
-  void trajectory_control_(const AxisInfo& axis_info);
 };
 
 }  // namespace space_control
+
+#endif

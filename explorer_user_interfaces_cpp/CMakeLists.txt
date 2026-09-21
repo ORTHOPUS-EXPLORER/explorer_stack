@@ -17,6 +17,8 @@ find_package(backward_ros REQUIRED)
 set(INTERFACES_DEPENDENCIES
   rclcpp
   std_msgs
+  std_srvs
+  sensor_msgs
   geometry_msgs
   trajectory_msgs
   explorer_msgs
