@@ -171,7 +171,7 @@ class RqtCartesianController(Plugin):
         self.joint.position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         self.publisher_ = self._context.node.create_publisher(TwistStamped, "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 1)
-        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 1)
+        self.publisher_gripper_ = self._context.node.create_publisher(Float64, "/command_node/gripper/velocity/commands", 1)
         self.publisher_linear_speed_ = self._context.node.create_publisher(Float64, "/explorer_user_interfaces/rqt_armcontrol/max_linear_speed", 1)
         self.publisher_angular_speed_ = self._context.node.create_publisher(Float64, "/explorer_user_interfaces/rqt_armcontrol/max_angular_speed", 1)
         self.publisher_spacemouse_select_ = self._context.node.create_publisher(Int64, "/explorer_user_interfaces/rqt_armcontrol/spacemouse_select", 1)

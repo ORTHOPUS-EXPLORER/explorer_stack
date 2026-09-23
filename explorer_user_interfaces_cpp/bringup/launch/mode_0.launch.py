@@ -99,12 +99,6 @@ def generate_launch_description():
         default_controller_name_list=OpaqueFunction(
             function=opaque_function_default_controller_name_list,
         ),
-        remappings=[
-            (
-                "/command_node/cartesian_velocity_command",
-                "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
-            ),
-        ]
     )
 
     robot_controller_list = [

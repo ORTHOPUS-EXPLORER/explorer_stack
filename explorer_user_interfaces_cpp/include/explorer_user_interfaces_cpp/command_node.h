@@ -11,12 +11,16 @@
 
 #include "atomic"
 #include "explorer_joint_utils/joint_mode_resolver.h"
+#include "explorer_msgs/srv/set_speed_level.hpp"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
 #include "explorer_user_interfaces_cpp/trajectory_manager.h"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/int32.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 
@@ -30,7 +34,14 @@ namespace space_control
  * Owns the trajectory manager and deals with the controller switch:
  *   - command_node/set_trajectory_mode enable/disable the joint_trajectory_controller;
  *   - command_node/retract_status reports trajectory progress
- * Input devices feeds the cartesian velocity input topic.
+ *
+ * Also acts as the gateway between input devices and the robot, owning the speed level:
+ *   - [service] command_node/set_speed_level sets or shifts the speed level;
+ *   - [topic] command_node/speed_level reports it;
+ *   - [topic] command_node/robot/velocity/commands is scaled by the speed factor and relayed to the
+ *     controllers;
+ *   - [topic] command_node/gripper/velocity/commands is scaled by the speed factor, integrated into a
+ *     position and relayed to the gripper controller.
  */
 class CommandNode
 {
@@ -50,14 +61,21 @@ private:
   // Cartesian velocity command input
   // While trajectory mode is on, twist.linear.z carries the retract rate
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_sub_;
+  // Normalized gripper velocity input; sign is open/close, magnitude is speed
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_vel_sub_;
 
   // Publishers
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reset_qp_solving_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr retract_status_pub_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr speed_level_pub_;
+  // Speed-scaled relays of the input device commands
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
   // Services
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_trajectory_mode_srv_;
+  rclcpp::Service<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_srv_;
 
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
 
@@ -85,6 +103,17 @@ private:
   std::atomic<double> trajectory_velocity_input_{0.0};
 
   std::atomic<bool> switch_in_progress_{false};
+
+  // Speed level, the speed factor applied to relayed commands is multiplier * level
+  int min_speed_level_;
+  int max_speed_level_;
+  int speed_level_;
+  double speed_level_multiplier_;
+
+  // Integrated gripper position, value sent to the gripper controller
+  std_msgs::msg::Float64MultiArray gripper_command_;
+  // Reception time of the previous gripper velocity, the integration step is measured from it
+  std::optional<rclcpp::Time> last_gripper_vel_time_;
 
   // Holds the controller-switch thread spawned in handle_controller_state_()
   std::thread switch_thread_;
@@ -124,9 +153,17 @@ private:
 
   void callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg);
 
+  void callback_gripper_velocity_(const std_msgs::msg::Float64& msg);
+
   void callback_set_trajectory_mode_(
     const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
     std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+
+  void callback_set_speed_level_(
+    const std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Request> request,
+    std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Response> response);
+
+  [[nodiscard]] double speed_factor_() const;
 
   // Enable/disable joint_trajectory_controller
   void setTrajectoryMode_(bool enable);

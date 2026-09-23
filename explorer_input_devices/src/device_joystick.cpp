@@ -19,7 +19,6 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   get_node_()->declare_parameter<int>("button_threshold_ms", button_default_threshold_ms);
   get_node_()->declare_parameter<double>("speed_change_threshold", 0.95);
-  get_node_()->declare_parameter<double>("speed_level_multiplier", 0.25);
   get_node_()->declare_parameter<double>("sampling_period", 0.01);
   get_node_()->declare_parameter<std::string>("mode_file", "");
   get_node_()->declare_parameter<std::string>(
@@ -27,7 +26,6 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   button_threshold_ms_ = get_node_()->get_parameter("button_threshold_ms").as_int();
   speed_change_threshold_ = get_node_()->get_parameter("speed_change_threshold").as_double();
-  speed_level_multiplier_ = get_node_()->get_parameter("speed_level_multiplier").as_double();
   sampling_period_ = get_node_()->get_parameter("sampling_period").as_double();
 
   button_handler_.init(button_threshold_ms_);
@@ -90,10 +88,10 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     "/explorer_controllers/command_node/control_frame_selection", 10);
   mode_name_pub_ =
     get_node_()->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
-  speed_level_pub_ =
-    get_node_()->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
   set_trajectory_mode_client_ =
     get_node_()->create_client<std_srvs::srv::SetBool>("command_node/set_trajectory_mode");
+  set_speed_level_client_ =
+    get_node_()->create_client<explorer_msgs::srv::SetSpeedLevel>("command_node/set_speed_level");
 
   reset_velocities_();
 
@@ -158,6 +156,33 @@ void DeviceJoystick::request_trajectory_mode_(bool enable)
         RCLCPP_ERROR(
           get_node_()->get_logger(), "Failed to %s trajectory mode: %s",
           enable ? "request" : "release", response->message.c_str());
+      }
+    });
+}
+
+void DeviceJoystick::request_speed_level_change_(int delta)
+{
+  if (!set_speed_level_client_->service_is_ready())
+  {
+    RCLCPP_ERROR(
+      get_node_()->get_logger(), "command_node/set_speed_level unavailable, cannot change speed");
+    return;
+  }
+
+  auto request = std::make_shared<explorer_msgs::srv::SetSpeedLevel::Request>();
+  request->level = delta;
+  request->relative = true;
+
+  set_speed_level_client_->async_send_request(
+    request,
+    [this](rclcpp::Client<explorer_msgs::srv::SetSpeedLevel>::SharedFuture future)
+    {
+      const auto& response = future.get();
+      if (!response->success)
+      {
+        RCLCPP_ERROR(
+          get_node_()->get_logger(), "Failed to change speed level: %s",
+          response->message.c_str());
       }
     });
 }
@@ -256,10 +281,9 @@ void DeviceJoystick::timer_callback_()
   }
 
   mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name_));
-  speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
   // Every cycle, including with velocity 0 outside the gripper mode, so the controller
   // keeps being commanded to the held position.
-  update_gripper_command_(gripper_vel_, sampling_period_);
+  publish_gripper_velocity_(gripper_vel_);
 }
 
 void DeviceJoystick::execute_behavior_(const AxisInfo& axis)
@@ -308,8 +332,8 @@ float DeviceJoystick::read_axis_value_(const AxisInfo& axis_info)
     }
   }
 
-  // Apply direction, scale and speed factor
-  float value = smoothed_value * axis_info.direction * axis_info.scale * speed_factor_;
+  // Apply direction / scale (speed factor is applied by command_node)
+  float value = smoothed_value * axis_info.direction * axis_info.scale;
 
   return value;
 }
@@ -407,18 +431,6 @@ void DeviceJoystick::joint_direct_(const AxisInfo& axis_info)
 
 void DeviceJoystick::change_speed_(const AxisInfo& axis_info)
 {
-  // Get min/max speed levels from params (default: 1 to 4)
-  int min_level = 1;
-  int max_level = 4;
-  if (axis_info.params.count("min_speed_level"))
-  {
-    min_level = static_cast<int>(axis_info.params.at("min_speed_level"));
-  }
-  if (axis_info.params.count("max_speed_level"))
-  {
-    max_level = static_cast<int>(axis_info.params.at("max_speed_level"));
-  }
-
   // Determine joystick axis value (use raw values for instant threshold detection)
   float value = 0.0;
   std::lock_guard<std::mutex> lock_axis(mutex_axis_);
@@ -433,26 +445,17 @@ void DeviceJoystick::change_speed_(const AxisInfo& axis_info)
 
   value *= axis_info.direction * axis_info.scale;
 
-  // Change speed level based on joystick movement
+  // Change speed level based on joystick movement, command_node clamps it to its bounds
   if (value > speed_change_threshold_ && joy_prec_ <= speed_change_threshold_)
   {
-    speed_level_ += 1;
-    if (speed_level_ > max_level)
-    {
-      speed_level_ = max_level;
-    }
+    request_speed_level_change_(1);
   }
   else if (value < -speed_change_threshold_ && joy_prec_ >= -speed_change_threshold_)
   {
-    speed_level_ -= 1;
-    if (speed_level_ < min_level)
-    {
-      speed_level_ = min_level;
-    }
+    request_speed_level_change_(-1);
   }
 
   joy_prec_ = value;
-  speed_factor_ = speed_level_multiplier_ * speed_level_;
 }
 
 void DeviceJoystick::drink_(const AxisInfo& axis_info)

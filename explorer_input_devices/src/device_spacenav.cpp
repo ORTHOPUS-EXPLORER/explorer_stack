@@ -5,8 +5,6 @@
  */
 #include "explorer_input_devices/device_spacenav.h"
 
-#include <algorithm>
-
 #include "explorer_input_devices/spacenav_config.h"
 #include "rclcpp/rclcpp.hpp"
 
@@ -31,8 +29,6 @@ DeviceSpacenav::DeviceSpacenav(rclcpp::Node::SharedPtr node)
   trans_x_ = 0.0;
   trans_y_ = 0.0;
   trans_z_ = 0.0;
-
-  last_gripper_update_ = get_node_()->now();
 
   get_node_()->get_parameter("debounce_button_time", debounce_button_time_);
   get_node_()->get_parameter("static_trans_deadband", static_trans_deadband_);
@@ -176,14 +172,7 @@ void DeviceSpacenav::update_gripper_command_()
     gripper_velocity = -0.5;
   }
 
-  // Clamp the interval so that a time gap between joy messages cannot
-  // turn into one large step change for the gripper.
-  const rclcpp::Time now = get_node_()->now();
-  const double elapsed_seconds =
-    std::min((now - last_gripper_update_).seconds(), MAX_GRIPPER_INTERVAL_SECONDS);
-  last_gripper_update_ = now;
-
-  Device::update_gripper_command_(gripper_velocity, elapsed_seconds);
+  publish_gripper_velocity_(gripper_velocity);
 }
 
 }  // namespace input_device

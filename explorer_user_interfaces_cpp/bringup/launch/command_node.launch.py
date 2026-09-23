@@ -29,6 +29,8 @@ def generate_launch_description():
         output="screen",
         parameters=[{
             "mode_file": config_yaml_file_path,
+            # No joystick_selector here, feed command_node directly
+            "cartesian_command_topic": "/command_node/robot/velocity/commands",
         }],
     )
 
@@ -39,12 +41,6 @@ def generate_launch_description():
     parameters=[{
         "trajectory_file": trajectory_yaml_file_path
         }],
-    remappings=[
-        (
-            "/command_node/cartesian_velocity_command",
-            "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity",
-        ),
-    ],
 )
     nodes = [
         command_node,

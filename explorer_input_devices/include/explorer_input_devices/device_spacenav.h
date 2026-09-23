@@ -36,10 +36,6 @@ private:
   double static_trans_deadband_, static_rot_deadband_;
   double trans_x_, trans_y_, trans_z_, rot_x_, rot_y_, rot_z_;
 
-  // The spacemouse callback is event driven, so the gripper integration in Device is
-  // fed the measured interval between two joy messages.
-  rclcpp::Time last_gripper_update_;
-
   // Control mode selection is specific to the spacemouse, so it is owned here rather
   // than by Device.
   rclcpp::Subscription<std_msgs::msg::Int64>::SharedPtr select_sub_;

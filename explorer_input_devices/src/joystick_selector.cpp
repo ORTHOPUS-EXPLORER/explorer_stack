@@ -21,7 +21,7 @@ JoystickSelector::JoystickSelector(rclcpp::Node::SharedPtr node) : node_(std::mo
   node_->declare_parameter<std::string>(
     "virtual_command_topic", "/explorer_input_devices/joystick/virtual/velocity/commands");
   node_->declare_parameter<std::string>(
-    "selected_command_topic", "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity");
+    "selected_command_topic", "/command_node/robot/velocity/commands");
   node_->declare_parameter<double>("input_timeout_seconds", 0.5);
   node_->declare_parameter<double>("activity_threshold", 1e-3);
   node_->declare_parameter<double>("watchdog_rate_hz", 20.0);

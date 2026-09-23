@@ -1,9 +1,17 @@
 #include "explorer_user_interfaces_cpp/command_node.h"
 
+#include <algorithm>
 #include <string>
 
 namespace space_control
 {
+namespace
+{
+// Bounds the gripper integration step so that a gap between two velocity messages cannot
+// turn into one large position jump.
+constexpr double MAX_GRIPPER_INTERVAL_SECONDS = 0.1;
+}  // namespace
+
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
@@ -41,12 +49,37 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
 
   n_->get_parameter("use_qp_inria", use_qp_inria_);
 
+  n_->declare_parameter<int>("min_speed_level", 1);
+  n_->declare_parameter<int>("max_speed_level", 4);
+  n_->declare_parameter<int>("default_speed_level", 2);
+  n_->declare_parameter<double>("speed_level_multiplier", 0.25);
+  n_->declare_parameter<std::string>(
+    "cartesian_velocity_output_topic",
+    "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity");
+
+  min_speed_level_ = static_cast<int>(n_->get_parameter("min_speed_level").as_int());
+  max_speed_level_ = static_cast<int>(n_->get_parameter("max_speed_level").as_int());
+  if (min_speed_level_ > max_speed_level_)
+  {
+    throw std::runtime_error("Parameter 'min_speed_level' must not exceed 'max_speed_level'");
+  }
+  speed_level_ = std::clamp(
+    static_cast<int>(n_->get_parameter("default_speed_level").as_int()), min_speed_level_,
+    max_speed_level_);
+  speed_level_multiplier_ = n_->get_parameter("speed_level_multiplier").as_double();
+
+  // Half open
+  gripper_command_.data = {0.5};
+
   // Initialize subscribers and publishers
   q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>(
     "/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
   cartesian_vel_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>(
-    "command_node/cartesian_velocity_command", 10,
+    "command_node/robot/velocity/commands", 10,
     std::bind(&CommandNode::callback_cartesian_velocity_, this, std::placeholders::_1));
+  gripper_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+    "command_node/gripper/velocity/commands", 10,
+    std::bind(&CommandNode::callback_gripper_velocity_, this, std::placeholders::_1));
 
   trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "joint_trajectory_controller/joint_trajectory", 10);
@@ -54,16 +87,29 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
   retract_status_pub_ =
     n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
+  // Latched: only published on change, late subscribers still get the current level
+  speed_level_pub_ = n_->create_publisher<std_msgs::msg::Int32>(
+    "command_node/speed_level", rclcpp::QoS(1).transient_local());
+  cartesian_vel_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>(
+    n_->get_parameter("cartesian_velocity_output_topic").as_string(), 10);
+  gripper_command_pub_ =
+    n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
   set_trajectory_mode_srv_ = n_->create_service<std_srvs::srv::SetBool>(
     "command_node/set_trajectory_mode",
     std::bind(
       &CommandNode::callback_set_trajectory_mode_, this, std::placeholders::_1,
       std::placeholders::_2));
+  set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
+    "command_node/set_speed_level",
+    std::bind(
+      &CommandNode::callback_set_speed_level_, this, std::placeholders::_1,
+      std::placeholders::_2));
 
   param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(n_, "qp_solving");
 
   retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+  speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
 
   // Timer callback
   timer_ = n_->create_wall_timer(
@@ -79,9 +125,62 @@ CommandNode::~CommandNode()
   }
 }
 
+double CommandNode::speed_factor_() const { return speed_level_multiplier_ * speed_level_; }
+
 void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg)
 {
-  trajectory_velocity_input_.store(msg.twist.linear.z);
+  const double factor = speed_factor_();
+
+  geometry_msgs::msg::TwistStamped scaled = msg;
+  scaled.twist.linear.x *= factor;
+  scaled.twist.linear.y *= factor;
+  scaled.twist.linear.z *= factor;
+  scaled.twist.angular.x *= factor;
+  scaled.twist.angular.y *= factor;
+  scaled.twist.angular.z *= factor;
+
+  cartesian_vel_pub_->publish(scaled);
+  trajectory_velocity_input_.store(scaled.twist.linear.z);
+}
+
+void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
+{
+  const rclcpp::Time now = n_->now();
+  double dt = 0.0;
+  if (last_gripper_vel_time_)
+  {
+    dt = std::clamp((now - *last_gripper_vel_time_).seconds(), 0.0, MAX_GRIPPER_INTERVAL_SECONDS);
+  }
+  last_gripper_vel_time_ = now;
+
+  double& position = gripper_command_.data[0];
+  position = std::clamp(position + msg.data * speed_factor_() * dt, 0.0, 1.0);
+
+  gripper_command_pub_->publish(gripper_command_);
+}
+
+void CommandNode::callback_set_speed_level_(
+  const std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Request> request,
+  std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Response> response)
+{
+  const int requested = request->relative ? speed_level_ + request->level : request->level;
+  const int previous = speed_level_;
+
+  speed_level_ = std::clamp(requested, min_speed_level_, max_speed_level_);
+
+  if (speed_level_ != previous)
+  {
+    RCLCPP_INFO(n_->get_logger(), "Speed level changed to %d", speed_level_);
+    speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
+  }
+
+  response->success = true;
+  response->level = speed_level_;
+  response->message = requested == speed_level_
+                        ? "Speed level set"
+                        : "Requested speed level " + std::to_string(requested) +
+                            " clamped to [" + std::to_string(min_speed_level_) + ", " +
+                            std::to_string(max_speed_level_) + "]";
 }
 
 void CommandNode::callback_set_trajectory_mode_(

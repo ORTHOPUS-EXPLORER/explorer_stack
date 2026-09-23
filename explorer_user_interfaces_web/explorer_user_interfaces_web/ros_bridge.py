@@ -32,6 +32,14 @@ QOS_JOINT_STATE = QoSProfile(
     durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
 )
 
+# Must match command_node's speed_level_pub_ QoS (transient-local, depth 1),
+# the level is only published on change.
+QOS_SPEED_LEVEL = QoSProfile(
+    depth=1,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+)
+
 
 class RosBridge:
     """Bridge between ROS2 and the web interface"""
@@ -63,7 +71,10 @@ class RosBridge:
 
         # Speed level subscriber - integer topic
         self.speed_level_subscriber = self.node.create_subscription(
-            Int32, "/command_node/speed_level", self.speed_level_callback, 10
+            Int32,
+            "/command_node/speed_level",
+            self.speed_level_callback,
+            QOS_SPEED_LEVEL,
         )
 
         # Retract status subscriber - string topic

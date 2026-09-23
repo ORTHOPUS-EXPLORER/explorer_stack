@@ -12,7 +12,7 @@
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
-#include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/float64.hpp"
 
 namespace input_device
 {
@@ -47,26 +47,21 @@ protected:
   /**
     * \brief Drive the gripper from a velocity.
     *
-    * Devices produce a gripper velocity, the velocity is integrated over dt into a position
-    * command, clamped to [0, 1], and published.
+    * Speed scaling is done afterward, only publish unscaled velocities .
     *
     * \param velocity  Normalized gripper velocity; sign is open/close, magnitude is speed.
-    * \param dt        Seconds elapsed since the previous call.
     */
-  void update_gripper_command_(double velocity, double dt);
+  void publish_gripper_velocity_(double velocity) const;
 
 private:
   rclcpp::Node::SharedPtr n_;
 
   // Publishers
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_cmd_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gripper_velocity_pub_;
 
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr device_sub_;
-
-  // Integrated gripper position, value sent to the gripper controller
-  std_msgs::msg::Float64MultiArray gripper_command_;
 };
 }  // namespace input_device
 
