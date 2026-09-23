@@ -90,8 +90,23 @@ ament_target_dependencies(xbox_gamepad_joint
   ${SPACENAV_DEPENDENCIES}
 )
 
+add_executable(joystick_selector
+  src/joystick_selector.cpp
+)
+
+target_include_directories(joystick_selector
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/explorer_input_devices>
+)
+
+ament_target_dependencies(joystick_selector
+  ${SPACENAV_DEPENDENCIES}
+)
+
 install(TARGETS spacenav
                 device_joystick
+                joystick_selector
                 xbox_gamepad_joint
         DESTINATION lib/explorer_input_devices
 )

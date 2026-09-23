@@ -14,7 +14,6 @@
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
-/* TODO Improve multiple device handling. Currently, all devices could publish in the same topics which is nor safe nor expected behavior */
 namespace input_device
 {
 /**

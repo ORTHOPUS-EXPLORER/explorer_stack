@@ -55,6 +55,7 @@ class TestProcessOutput(unittest.TestCase):
         
         launch_testing.asserts.assertExitCodes(proc_info, process="command_node")
         launch_testing.asserts.assertExitCodes(proc_info, process="device_joystick")
+        launch_testing.asserts.assertExitCodes(proc_info, process="joystick_selector")
         launch_testing.asserts.assertExitCodes(proc_info, process="robot_state_publisher")
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["joint_state_broadcaster"])
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["explorer_custom_controller"])

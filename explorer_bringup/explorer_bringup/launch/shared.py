@@ -305,12 +305,25 @@ def declare_joystick_device_node(output: str = "screen") -> OpaqueFunction:
                     {
                         "mode_file": mode_yaml_file_path,
                         "end_effector_pose_topic": end_effector_pose_topic,
+                        # Publish to joystick_selector physical joy input topic
+                        "cartesian_command_topic": "/explorer_input_devices/joystick/physical/velocity/commands"
                     }
                 ],
             )
         ]
 
     return OpaqueFunction(function=inner_opaque_function)
+
+
+def declare_joystick_selector_node(output: str = "screen") -> Node:
+    """Forwards either the physical or the virtual joystick to the robot.
+    """
+    return Node(
+        package="explorer_input_devices",
+        executable="joystick_selector",
+        name="joystick_selector",
+        output=output,
+    )
 
 
 def declare_web_gui_node(output: str = "screen") -> Node:

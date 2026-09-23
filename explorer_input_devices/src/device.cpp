@@ -19,8 +19,13 @@ Device::Device(
 {
   RCLCPP_DEBUG(n_->get_logger(), "Device constructor");
 
-  cartesian_cmd_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>(
-    "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 1);
+  const auto cartesian_command_topic = n_->declare_parameter<std::string>(
+    "cartesian_command_topic", "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity");
+  RCLCPP_INFO(
+    n_->get_logger(), "Publishing cartesian command on '%s'", cartesian_command_topic.c_str());
+
+  cartesian_cmd_pub_ =
+    n_->create_publisher<geometry_msgs::msg::TwistStamped>(cartesian_command_topic, 1);
   gripper_command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 1);
 

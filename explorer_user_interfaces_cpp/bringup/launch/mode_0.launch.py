@@ -33,6 +33,7 @@ from explorer_bringup.launch.shared import (
     declare_command_node,
     declare_input_integrator_node,
     declare_joystick_device_node,
+    declare_joystick_selector_node,
     declare_output_integrator_node,
     declare_web_gui_node,
 )
@@ -136,6 +137,7 @@ def generate_launch_description():
 
     joy_node = declare_joy_node()
     joystick_device_node = declare_joystick_device_node()
+    joystick_selector_node = declare_joystick_selector_node()
     web_gui_node = declare_web_gui_node()
     camera_node = declare_camera_node()
 
@@ -144,6 +146,7 @@ def generate_launch_description():
         robot_hardware,
         joy_node,
         joystick_device_node,
+        joystick_selector_node,
         command_node,
         web_gui_node,
         camera_node
