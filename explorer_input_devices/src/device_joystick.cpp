@@ -20,6 +20,9 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
   get_node_()->declare_parameter<int>("button_threshold_ms", button_default_threshold_ms);
   get_node_()->declare_parameter<double>("speed_change_threshold", 0.95);
   get_node_()->declare_parameter<double>("sampling_period", 0.01);
+  get_node_()->declare_parameter<double>("activity_deadzone", 0.1);
+  get_node_()->declare_parameter<std::string>(
+    "active_topic", "/explorer_input_devices/joystick/physical/active");
   get_node_()->declare_parameter<std::string>("mode_file", "");
   get_node_()->declare_parameter<std::string>(
     "end_effector_pose_topic", "/explorer_controllers/qp_solving/x_current");
@@ -27,6 +30,7 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
   button_threshold_ms_ = get_node_()->get_parameter("button_threshold_ms").as_int();
   speed_change_threshold_ = get_node_()->get_parameter("speed_change_threshold").as_double();
   sampling_period_ = get_node_()->get_parameter("sampling_period").as_double();
+  activity_deadzone_ = get_node_()->get_parameter("activity_deadzone").as_double();
 
   button_handler_.init(button_threshold_ms_);
 
@@ -88,6 +92,8 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     "/explorer_controllers/command_node/control_frame_selection", 10);
   mode_name_pub_ =
     get_node_()->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
+  active_pub_ = get_node_()->create_publisher<std_msgs::msg::Bool>(
+    get_node_()->get_parameter("active_topic").as_string(), 10);
   set_trajectory_mode_client_ =
     get_node_()->create_client<std_srvs::srv::SetBool>("command_node/set_trajectory_mode");
   set_speed_level_client_ =
@@ -119,6 +125,7 @@ void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
     // Store raw joystick values (smoothing is applied per-axis in readAxisValue)
     axis_1_raw_ = msg.axes[0];
     axis_2_raw_ = msg.axes[1];
+    button_pressed_ = msg.buttons[0] != 0;
   }
 
   button_handler_.update(msg.buttons[0]);
@@ -227,11 +234,16 @@ void DeviceJoystick::timer_callback_()
   }
 
   // Step 3: Atomically read raw values and apply smoothing
+  bool active = false;
   {
     std::lock_guard<std::mutex> lock_axis(mutex_axis_);
     axis_1_smoothed_ = alpha_ax1 * axis_1_raw_ + (1.0f - alpha_ax1) * axis_1_smoothed_;
     axis_2_smoothed_ = alpha_ax2 * axis_2_raw_ + (1.0f - alpha_ax2) * axis_2_smoothed_;
+    active = std::abs(axis_1_raw_) > activity_deadzone_ ||
+             std::abs(axis_2_raw_) > activity_deadzone_ || button_pressed_;
   }
+  // Tell if physical joystick is currently being used
+  active_pub_->publish(std_msgs::msg::Bool().set__data(active));
 
   // Step 4: Reset velocities
   reset_velocities_();
@@ -281,8 +293,8 @@ void DeviceJoystick::timer_callback_()
   }
 
   mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name_));
-  // Every cycle, including with velocity 0 outside the gripper mode, so the controller
-  // keeps being commanded to the held position.
+  // Device only forwards it while non-zero (plus the stop), so other gripper sources are not
+  // flooded with zeros
   publish_gripper_velocity_(gripper_vel_);
 }
 

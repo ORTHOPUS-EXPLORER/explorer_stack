@@ -7,8 +7,8 @@ namespace space_control
 {
 namespace
 {
-// Bounds the gripper integration step so that a gap between two velocity messages cannot
-// turn into one large position jump.
+// Longest gap between two gripper velocity messages to be considered "continuous".
+// If this value is reached we considers it's a new "set" of gripper inputs.
 constexpr double MAX_GRIPPER_INTERVAL_SECONDS = 0.1;
 }  // namespace
 
@@ -149,7 +149,9 @@ void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
   double dt = 0.0;
   if (last_gripper_vel_time_)
   {
-    dt = std::clamp((now - *last_gripper_vel_time_).seconds(), 0.0, MAX_GRIPPER_INTERVAL_SECONDS);
+    // Computes time gap for "continuous" input or set to 0.0 for a new set of inputs
+    const double gap = (now - *last_gripper_vel_time_).seconds();
+    dt = gap > MAX_GRIPPER_INTERVAL_SECONDS ? 0.0 : gap;
   }
   last_gripper_vel_time_ = now;
 

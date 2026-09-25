@@ -19,6 +19,7 @@
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 
@@ -75,6 +76,8 @@ private:
   // Publishers
   rclcpp::Publisher<explorer_msgs::msg::ControlFrameSelection>::SharedPtr frame_id_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr mode_name_pub_;
+  // True while the joystick is handled (as long as one button/joystick is used)
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr active_pub_;
 
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr retract_status_sub_;
@@ -96,6 +99,10 @@ private:
   // Raw joystick values (before smoothing)
   float axis_1_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
   float axis_2_raw_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = 0.0f;
+  bool button_pressed_ RCPPUTILS_TSA_GUARDED_BY(mutex_axis_) = false;
+
+  // Raw stick deflection above which the joystick counts as handled
+  float activity_deadzone_;
 
   // Smoothed joystick values (computed once per timer cycle)
   float axis_1_smoothed_ = 0.0f;

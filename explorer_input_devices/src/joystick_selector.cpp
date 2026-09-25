@@ -22,22 +22,29 @@ JoystickSelector::JoystickSelector(rclcpp::Node::SharedPtr node) : node_(std::mo
     "virtual_command_topic", "/explorer_input_devices/joystick/virtual/velocity/commands");
   node_->declare_parameter<std::string>(
     "selected_command_topic", "/command_node/robot/velocity/commands");
+  node_->declare_parameter<std::string>(
+    "physical_active_topic", "/explorer_input_devices/joystick/physical/active");
   node_->declare_parameter<double>("input_timeout_seconds", 0.5);
   node_->declare_parameter<double>("activity_threshold", 1e-3);
+  // Bridges gaps in the active flag and brief passes of the stick through its center
+  node_->declare_parameter<double>("physical_hold_seconds", 0.2);
   node_->declare_parameter<double>("watchdog_rate_hz", 20.0);
 
   input_timeout_seconds_ = node_->get_parameter("input_timeout_seconds").as_double();
   activity_threshold_ = node_->get_parameter("activity_threshold").as_double();
+  physical_hold_seconds_ = node_->get_parameter("physical_hold_seconds").as_double();
 
   // Init command time variables
   const rclcpp::Time start_time = node_->now();
   physical_joystick_.last_command_time = start_time;
   virtual_joystick_.last_command_time = start_time;
+  last_physical_active_time_ = start_time;
 
   // Topic(s) used
   const auto physical_topic = node_->get_parameter("physical_command_topic").as_string();
   const auto virtual_topic = node_->get_parameter("virtual_command_topic").as_string();
   const auto selected_topic = node_->get_parameter("selected_command_topic").as_string();
+  const auto physical_active_topic = node_->get_parameter("physical_active_topic").as_string();
 
   // Publisher(s)
   selected_command_pub_ =
@@ -53,6 +60,20 @@ JoystickSelector::JoystickSelector(rclcpp::Node::SharedPtr node) : node_(std::mo
     virtual_topic, 10,
     [this](const geometry_msgs::msg::TwistStamped& command)
     { on_command_(virtual_joystick_, SelectedInput::VIRTUAL, command); });
+
+  physical_active_sub_ = node_->create_subscription<std_msgs::msg::Bool>(
+    physical_active_topic, 10,
+    [this](const std_msgs::msg::Bool& msg)
+    {
+      if (!msg.data)
+      {
+        return;
+      }
+      const rclcpp::Time now = node_->now();
+      const std::lock_guard<std::mutex> lock(mutex_);
+      physical_active_seen_ = true;
+      last_physical_active_time_ = now;
+    });
 
   RCLCPP_INFO(
     node_->get_logger(), "Physical '%s' takes priority over virtual '%s', forwarded to '%s'",
@@ -100,8 +121,10 @@ void JoystickSelector::watchdog_callback_()
 
 JoystickSelector::SelectedInput JoystickSelector::select_input_(const rclcpp::Time& now) const
 {
-
-  if (!is_stale_(physical_joystick_, now) && is_moving_(physical_joystick_))
+  // Physical keeps control while handled, even when its command is zero (e.g. gripper mode).
+  if (
+    !is_stale_(physical_joystick_, now) &&
+    (is_moving_(physical_joystick_) || is_physical_in_use_(now)))
   {
     return SelectedInput::PHYSICAL;
   }
@@ -126,6 +149,12 @@ bool JoystickSelector::is_stale_(const InputState& input, const rclcpp::Time& no
 bool JoystickSelector::is_moving_(const InputState& input) const
 {
   return input.has_command && !is_zero_velocity_(input.last_command);
+}
+
+bool JoystickSelector::is_physical_in_use_(const rclcpp::Time& now) const
+{
+  return physical_active_seen_ &&
+         (now - last_physical_active_time_).seconds() <= physical_hold_seconds_;
 }
 
 bool JoystickSelector::is_zero_velocity_(const geometry_msgs::msg::TwistStamped& command) const

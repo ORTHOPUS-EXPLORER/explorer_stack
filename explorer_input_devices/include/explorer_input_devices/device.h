@@ -48,10 +48,11 @@ protected:
     * \brief Drive the gripper from a velocity.
     *
     * Speed scaling is done afterward, only publish unscaled velocities .
+    * Repeated zero velocities are dropped, only the stop is sent.
     *
     * \param velocity  Normalized gripper velocity; sign is open/close, magnitude is speed.
     */
-  void publish_gripper_velocity_(double velocity) const;
+  void publish_gripper_velocity_(double velocity);
 
 private:
   rclcpp::Node::SharedPtr n_;
@@ -62,6 +63,9 @@ private:
 
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr device_sub_;
+
+  // Last gripper velocity sent (needed to prevent repeated zeros)
+  double last_gripper_velocity_ = 0.0;
 };
 }  // namespace input_device
 

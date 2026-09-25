@@ -41,8 +41,16 @@ void Device::publish_cartesian_command_(const geometry_msgs::msg::TwistStamped& 
   cartesian_cmd_pub_->publish(cartesian_cmd);
 }
 
-void Device::publish_gripper_velocity_(double velocity) const
+void Device::publish_gripper_velocity_(double velocity)
 {
+  // Repeated zeros would collide with another gripper source (e.g. the virtual joystick), only
+  // the first one is sent to stop the gripper right away.
+  if (velocity == 0.0 && last_gripper_velocity_ == 0.0)
+  {
+    return;
+  }
+  last_gripper_velocity_ = velocity;
+
   gripper_velocity_pub_->publish(std_msgs::msg::Float64().set__data(velocity));
 }
 }  // namespace input_device

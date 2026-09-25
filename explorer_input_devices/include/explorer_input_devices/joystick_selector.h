@@ -11,6 +11,7 @@
 #include <string>
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 namespace input_device
 {
@@ -20,8 +21,9 @@ namespace input_device
   * Both joysticks publish a Cartesian velocity on their own topic; this class forwards
   * exactly one of them to the unified topic command_node listens to.
   *
-  * Priority is in favour of the hardware the user is holding. 
-  * Whenever the physical joystick asks for motion the virtual one is ignored.
+  * Priority is in favour of the hardware the user is holding.
+  * Whenever the physical joystick asks for motion, or is being handled (stick moved or
+  * button pressed), the virtual one is ignored.
   *
   * Commands are forwarded as they arrives but a stalled or disconnected joystick stops the arm.
   */
@@ -67,6 +69,9 @@ private:
   /// Indicates whether a given input is publishing non zero command
   [[nodiscard]] bool is_moving_(const InputState& input) const;
 
+  /// Indicates whether the physical joystick has been handled within the hold time
+  [[nodiscard]] bool is_physical_in_use_(const rclcpp::Time& now) const;
+
   [[nodiscard]] bool is_zero_velocity_(const geometry_msgs::msg::TwistStamped& command) const;
 
   void publish_zero_velocity_();
@@ -80,6 +85,7 @@ private:
 
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr physical_command_sub_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr virtual_command_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr physical_active_sub_;
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr selected_command_pub_;
 
   rclcpp::TimerBase::SharedPtr watchdog_timer_;
@@ -88,11 +94,15 @@ private:
   double input_timeout_seconds_;
   // Velocity magnitude above which an input counts as being used.
   double activity_threshold_;
+  // How long the physical joystick keeps priority after it was last handled.
+  double physical_hold_seconds_;
 
   // Guards everything below: written from both subscriptions and the watchdog timer.
   mutable std::mutex mutex_;
   InputState physical_joystick_;
   InputState virtual_joystick_;
+  bool physical_active_seen_ = false;
+  rclcpp::Time last_physical_active_time_;
   SelectedInput selected_input_ = SelectedInput::NONE;
 };
 }  // namespace input_device
