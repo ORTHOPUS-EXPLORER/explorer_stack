@@ -97,8 +97,9 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     "joint_trajectory_controller/joint_trajectory", 10);
   reset_qp_solving_pub_ =
     n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
-  retract_status_pub_ =
-    n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
+  // Latched: only published on change, late subscribers still get the current status
+  retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>(
+    "command_node/retract_status", rclcpp::QoS(1).transient_local());
   // Latched: only published on change, late subscribers still get the current level
   speed_level_pub_ = n_->create_publisher<std_msgs::msg::Int32>(
     "command_node/speed_level", rclcpp::QoS(1).transient_local());
@@ -115,7 +116,7 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
 
   param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(n_, "qp_solving");
 
-  retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+  publish_retract_status_();
   speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
 
   // Timer callback
@@ -213,6 +214,17 @@ void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
   position = std::clamp(position + msg.data * speed_factor_() * dt, 0.0, 1.0);
 
   gripper_command_pub_->publish(gripper_command_);
+}
+
+void CommandNode::publish_retract_status_()
+{
+  if (last_retract_status_ == trajectory_manager_.get_status())
+  {
+    return;
+  }
+  last_retract_status_ = trajectory_manager_.get_status();;
+
+  retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
 }
 
 void CommandNode::callback_set_speed_level_(
@@ -514,7 +526,7 @@ void CommandNode::update_trajectory_()
   if (trajectory)
   {
     trajectory_pub_->publish(trajectory.value());
-    retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+    publish_retract_status_();
   }
 }
 

@@ -84,8 +84,9 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
   x_current_sub_ = get_node_()->create_subscription<geometry_msgs::msg::Pose>(
     get_node_()->get_parameter("end_effector_pose_topic").as_string(), 10,
     [this](const geometry_msgs::msg::Pose& msg) { callback_x_current_(msg); });
+  // Latch topic
   retract_status_sub_ = get_node_()->create_subscription<std_msgs::msg::String>(
-    "command_node/retract_status", 10,
+    "command_node/retract_status", rclcpp::QoS(1).transient_local(),
     [this](const std_msgs::msg::String& msg) { callback_retract_status_(msg); });
 
   frame_id_pub_ = get_node_()->create_publisher<explorer_msgs::msg::ControlFrameSelection>(

@@ -107,6 +107,9 @@ private:
 
   std::atomic<bool> switch_in_progress_{false};
 
+  // Last retract status published, empty until the first publication
+  std::optional<RetractStatus> last_retract_status_;
+
   // Speed level, the speed factor applied to relayed commands is multiplier * level
   int min_speed_level_;
   int max_speed_level_;
@@ -157,6 +160,9 @@ private:
   void callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg);
 
   void callback_gripper_velocity_(const std_msgs::msg::Float64& msg);
+
+  // Publish the retract status, only when it changed (the topic is latched)
+  void publish_retract_status_();
 
   void callback_trajectory_velocity_(const std_msgs::msg::Float64& msg);
 

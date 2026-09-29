@@ -32,9 +32,9 @@ QOS_JOINT_STATE = QoSProfile(
     durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
 )
 
-# Must match command_node's speed_level_pub_ QoS (transient-local, depth 1),
-# the level is only published on change.
-QOS_SPEED_LEVEL = QoSProfile(
+# Must match command_node's latched publishers QoS (transient-local, depth 1): speed level and
+# retract status are only published on change.
+QOS_COMMAND_NODE_LATCH_PROFILE = QoSProfile(
     depth=1,
     history=QoSHistoryPolicy.KEEP_LAST,
     durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
@@ -74,12 +74,15 @@ class RosBridge:
             Int32,
             "/command_node/speed_level",
             self.speed_level_callback,
-            QOS_SPEED_LEVEL,
+            QOS_COMMAND_NODE_LATCH_PROFILE,
         )
 
         # Retract status subscriber - string topic
         self.retract_status_subscriber = self.node.create_subscription(
-            String, "/command_node/retract_status", self.retract_status_callback, 10
+            String,
+            "/command_node/retract_status",
+            self.retract_status_callback,
+            QOS_COMMAND_NODE_LATCH_PROFILE,
         )
 
         # Joint state subscribers - one per joint, published only on actual change
