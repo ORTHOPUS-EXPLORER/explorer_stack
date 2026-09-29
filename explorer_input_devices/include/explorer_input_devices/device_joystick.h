@@ -20,8 +20,8 @@
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "std_srvs/srv/set_bool.hpp"
 
 namespace input_device
 {
@@ -45,13 +45,11 @@ private:
   // Internal timer callback
   void timer_callback_();
 
-  // Ask command_node to hold or release the joint_trajectory_controller.
-  void request_trajectory_mode_(bool enable);
-
   // Ask command_node to shift its speed level by delta.
   void request_speed_level_change_(int delta);
 
-  bool mode_has_trajectory_control_(const std::string& mode_name) const;
+  // Publish the trajectory velocity.
+  void publish_trajectory_velocity_(double velocity);
 
   // Execute behavior based on axis information
   void execute_behavior_(const AxisInfo& axis);
@@ -78,11 +76,12 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr mode_name_pub_;
   // True while the joystick is handled (as long as one button/joystick is used)
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr active_pub_;
+  // Drive the trajectory retract/home mode
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr trajectory_velocity_pub_;
 
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr retract_status_sub_;
 
-  rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr set_trajectory_mode_client_;
   rclcpp::Client<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_client_;
 
   rclcpp::TimerBase::SharedPtr timer_;
@@ -126,6 +125,9 @@ private:
   geometry_msgs::msg::TwistStamped cartesian_vel_;
   // Gripper velocity for the current cycle, relayed to command_node
   double gripper_vel_ = 0.0;
+  // Trajectory velocity for the current cycle, and the last one sent (prevent repeated zeros)
+  double trajectory_vel_ = 0.0;
+  double last_trajectory_vel_ = 0.0;
 
   explorer_msgs::msg::ControlFrameSelection frame_id_;
 

@@ -22,7 +22,6 @@
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "std_msgs/msg/int32.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "std_srvs/srv/set_bool.hpp"
 
 using namespace std::chrono;
 
@@ -31,9 +30,10 @@ namespace space_control
 /**
  * \brief Robot-side command executor
  *
- * Owns the trajectory manager and deals with the controller switch:
- *   - command_node/set_trajectory_mode enable/disable the joint_trajectory_controller;
- *   - command_node/retract_status reports trajectory progress
+ * Owns the trajectory manager and deals with the controller switch, driven by the inputs:
+ *   - [topic] command_node/trajectory/velocity/commands moves along the trajectory (hold-to-run,
+ *     falls back to hold when not refreshed); a non-zero value switches to the joint_trajectory_controller.
+ *   - [topic] command_node/retract_status reports trajectory progress
  *
  * Also acts as the gateway between input devices and the robot, owning the speed level:
  *   - [service] command_node/set_speed_level sets or shifts the speed level;
@@ -59,10 +59,12 @@ private:
   // Subscribers
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr q_current_sub_;
   // Cartesian velocity command input
-  // While trajectory mode is on, twist.linear.z carries the retract rate
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_sub_;
   // Normalized gripper velocity input; sign is open/close, magnitude is speed
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_vel_sub_;
+  // Normalized trajectory velocity input; sign is deploy (+) / retract (-), magnitude is speed.
+  // A non-zero value switches to trajectory mode on its own.
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr trajectory_vel_sub_;
 
   // Publishers
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
@@ -74,7 +76,6 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
   // Services
-  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_trajectory_mode_srv_;
   rclcpp::Service<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_srv_;
 
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
@@ -99,8 +100,10 @@ private:
   // Is trajectory mode enabled, only changed by setTrajectoryMode_()
   std::atomic<bool> trajectory_mode_{false};
 
-  // Trajectory movement input, taken from twist.linear.z of the active Cartesian command.
+  // Trajectory movement input, speed-scaled value of the trajectory velocity topic.
   std::atomic<double> trajectory_velocity_input_{0.0};
+  // Reception time of the last trajectory velocity, the input falls back to 0 (hold) when stale
+  rclcpp::Time last_trajectory_vel_time_;
 
   std::atomic<bool> switch_in_progress_{false};
 
@@ -155,9 +158,7 @@ private:
 
   void callback_gripper_velocity_(const std_msgs::msg::Float64& msg);
 
-  void callback_set_trajectory_mode_(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response);
+  void callback_trajectory_velocity_(const std_msgs::msg::Float64& msg);
 
   void callback_set_speed_level_(
     const std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Request> request,

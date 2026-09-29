@@ -1,6 +1,7 @@
 #include "explorer_user_interfaces_cpp/command_node.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace space_control
@@ -10,6 +11,13 @@ namespace
 // Longest gap between two gripper velocity messages to be considered "continuous".
 // If this value is reached we considers it's a new "set" of gripper inputs.
 constexpr double MAX_GRIPPER_INTERVAL_SECONDS = 0.1;
+
+// A trajectory velocity not refreshed within this delay falls back to 0 (hold position), so a
+// source that vanishes while moving do not stays on last command sent.
+constexpr double TRAJECTORY_VELOCITY_TIMEOUT_SECONDS = 0.3;
+
+// Cartesian velocity magnitude above which a command asks for motion (same as joystick_selector)
+constexpr double CARTESIAN_ACTIVITY_THRESHOLD = 1e-3;
 }  // namespace
 
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
@@ -80,6 +88,10 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   gripper_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
     "command_node/gripper/velocity/commands", 10,
     std::bind(&CommandNode::callback_gripper_velocity_, this, std::placeholders::_1));
+  trajectory_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+    "command_node/trajectory/velocity/commands", 10,
+    std::bind(&CommandNode::callback_trajectory_velocity_, this, std::placeholders::_1));
+  last_trajectory_vel_time_ = n_->now();
 
   trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "joint_trajectory_controller/joint_trajectory", 10);
@@ -95,11 +107,6 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   gripper_command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
-  set_trajectory_mode_srv_ = n_->create_service<std_srvs::srv::SetBool>(
-    "command_node/set_trajectory_mode",
-    std::bind(
-      &CommandNode::callback_set_trajectory_mode_, this, std::placeholders::_1,
-      std::placeholders::_2));
   set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
     "command_node/set_speed_level",
     std::bind(
@@ -129,6 +136,28 @@ double CommandNode::speed_factor_() const { return speed_level_multiplier_ * spe
 
 void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg)
 {
+  const bool moving = std::fabs(msg.twist.linear.x) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.linear.y) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.linear.z) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.x) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.y) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.z) > CARTESIAN_ACTIVITY_THRESHOLD;
+
+  // Cartesian motion needs the default controller, switch back to it on demand
+  if (moving)
+  {
+    setTrajectoryMode_(false);
+  }
+
+  // Until the default controller is back, hold
+  if (trajectory_mode_ || controller_state_ != ControllerState::DEFAULT_CONTROLLER)
+  {
+    geometry_msgs::msg::TwistStamped hold;
+    hold.header = msg.header;
+    cartesian_vel_pub_->publish(hold);
+    return;
+  }
+
   const double factor = speed_factor_();
 
   geometry_msgs::msg::TwistStamped scaled = msg;
@@ -140,7 +169,20 @@ void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistSt
   scaled.twist.angular.z *= factor;
 
   cartesian_vel_pub_->publish(scaled);
-  trajectory_velocity_input_.store(scaled.twist.linear.z);
+}
+
+void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& msg)
+{
+  last_trajectory_vel_time_ = n_->now();
+  trajectory_velocity_input_.store(msg.data * speed_factor_());
+
+  // Moving along the trajectory needs joint_trajectory_controller, switch to it on demand.
+  // Releasing the input only holds the position, the switch back is left to the next Cartesian
+  // command.
+  if (msg.data != 0.0)
+  {
+    setTrajectoryMode_(true);
+  }
 }
 
 void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
@@ -154,6 +196,18 @@ void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
     dt = gap > MAX_GRIPPER_INTERVAL_SECONDS ? 0.0 : gap;
   }
   last_gripper_vel_time_ = now;
+
+  // Ensure default controller is enabled
+  if (msg.data != 0.0)
+  {
+    setTrajectoryMode_(false);
+  }
+
+  // Until gripper_controller is back, hold
+  if (trajectory_mode_ || controller_state_ != ControllerState::DEFAULT_CONTROLLER)
+  {
+    return;
+  }
 
   double& position = gripper_command_.data[0];
   position = std::clamp(position + msg.data * speed_factor_() * dt, 0.0, 1.0);
@@ -183,24 +237,6 @@ void CommandNode::callback_set_speed_level_(
                         : "Requested speed level " + std::to_string(requested) +
                             " clamped to [" + std::to_string(min_speed_level_) + ", " +
                             std::to_string(max_speed_level_) + "]";
-}
-
-void CommandNode::callback_set_trajectory_mode_(
-  const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-  std::shared_ptr<std_srvs::srv::SetBool::Response> response)
-{
-  if (!trajectory_manager_.is_enabled())
-  {
-    response->success = false;
-    response->message = "Trajectory control is not configured (active_trajectory is false)";
-    RCLCPP_WARN(n_->get_logger(), "%s", response->message.c_str());
-    return;
-  }
-
-  setTrajectoryMode_(request->data);
-
-  response->success = true;
-  response->message = request->data ? "Trajectory mode requested" : "Trajectory mode released";
 }
 
 void CommandNode::setTrajectoryMode_(bool enable)
@@ -484,6 +520,13 @@ void CommandNode::update_trajectory_()
 
 void CommandNode::timer_callback_()
 {
+  // Check if last trajectory velocity input is older than timeout
+  if ((n_->now() - last_trajectory_vel_time_).seconds() > TRAJECTORY_VELOCITY_TIMEOUT_SECONDS)
+  {
+    // Force stationary (input seems not active anymore for now)
+    trajectory_velocity_input_.store(0.0);
+  }
+
   // TODO delete when deleting old QP (confusing)
   if (!use_qp_inria_)
   {

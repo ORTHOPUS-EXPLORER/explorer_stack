@@ -94,8 +94,8 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     get_node_()->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
   active_pub_ = get_node_()->create_publisher<std_msgs::msg::Bool>(
     get_node_()->get_parameter("active_topic").as_string(), 10);
-  set_trajectory_mode_client_ =
-    get_node_()->create_client<std_srvs::srv::SetBool>("command_node/set_trajectory_mode");
+  trajectory_velocity_pub_ = get_node_()->create_publisher<std_msgs::msg::Float64>(
+    "command_node/trajectory/velocity/commands", 10);
   set_speed_level_client_ =
     get_node_()->create_client<explorer_msgs::srv::SetSpeedLevel>("command_node/set_speed_level");
 
@@ -139,32 +139,16 @@ void DeviceJoystick::callback_retract_status_(const std_msgs::msg::String& msg)
   locked_.store(msg.data != "ready");
 }
 
-void DeviceJoystick::request_trajectory_mode_(bool enable)
+void DeviceJoystick::publish_trajectory_velocity_(double velocity)
 {
-  if (!set_trajectory_mode_client_->service_is_ready())
+  // Do not sent repeated zero velocity on release
+  if (velocity == 0.0 && last_trajectory_vel_ == 0.0)
   {
-    RCLCPP_ERROR(
-      get_node_()->get_logger(),
-      "command_node/set_trajectory_mode unavailable, cannot %s trajectory mode",
-      enable ? "request" : "release");
     return;
   }
+  last_trajectory_vel_ = velocity;
 
-  auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
-  request->data = enable;
-
-  set_trajectory_mode_client_->async_send_request(
-    request,
-    [this, enable](rclcpp::Client<std_srvs::srv::SetBool>::SharedFuture future)
-    {
-      const auto& response = future.get();
-      if (!response->success)
-      {
-        RCLCPP_ERROR(
-          get_node_()->get_logger(), "Failed to %s trajectory mode: %s",
-          enable ? "request" : "release", response->message.c_str());
-      }
-    });
+  trajectory_velocity_pub_->publish(std_msgs::msg::Float64().set__data(velocity));
 }
 
 void DeviceJoystick::request_speed_level_change_(int delta)
@@ -192,24 +176,6 @@ void DeviceJoystick::request_speed_level_change_(int delta)
           response->message.c_str());
       }
     });
-}
-
-bool DeviceJoystick::mode_has_trajectory_control_(const std::string& mode_name) const
-{
-  const auto mode_it = data_.button_modes_map.find(mode_name);
-  if (mode_it == data_.button_modes_map.end())
-  {
-    return false;
-  }
-
-  for (const auto& axis : mode_it->second.axes)
-  {
-    if (axis.control_name == ControlName::TRAJECTORY_CONTROL)
-    {
-      return true;
-    }
-  }
-  return false;
 }
 
 void DeviceJoystick::timer_callback_()
@@ -266,7 +232,6 @@ void DeviceJoystick::timer_callback_()
   frame_id_pub_->publish(frame_id_);
 
   // Handle mode switching based on button clicks
-  const std::string previous_mode_name = current_mode_name_;
   if (button_handler_.is_short_click() && mode.buttons.short_click != "")
   {
     current_mode_name_ = mode.buttons.short_click;
@@ -282,20 +247,12 @@ void DeviceJoystick::timer_callback_()
     axis_2_smoothed_ = 0.0f;
   }
 
-  if (current_mode_name_ != previous_mode_name)
-  {
-    const bool was_trajectory = mode_has_trajectory_control_(previous_mode_name);
-    const bool is_trajectory = mode_has_trajectory_control_(current_mode_name_);
-    if (was_trajectory != is_trajectory)
-    {
-      request_trajectory_mode_(is_trajectory);
-    }
-  }
-
   mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name_));
   // Device only forwards it while non-zero (plus the stop), so other gripper sources are not
   // flooded with zeros
   publish_gripper_velocity_(gripper_vel_);
+  // Same for the trajectory, command_node switches to trajectory mode on its own when non-zero velocity is published
+  publish_trajectory_velocity_(trajectory_vel_);
 }
 
 void DeviceJoystick::execute_behavior_(const AxisInfo& axis)
@@ -356,6 +313,7 @@ void DeviceJoystick::reset_velocities_()
   cartesian_vel_.twist.linear = geometry_msgs::msg::Vector3();
   cartesian_vel_.twist.angular = geometry_msgs::msg::Vector3();
   gripper_vel_ = 0.0;
+  trajectory_vel_ = 0.0;
 }
 
 void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
@@ -538,7 +496,7 @@ void DeviceJoystick::complex_(const AxisInfo& axis_info)
 
 void DeviceJoystick::trajectory_control_(const AxisInfo& axis_info)
 {
-  cartesian_vel_.twist.linear.z = read_axis_value_(axis_info);
+  trajectory_vel_ = read_axis_value_(axis_info);
 }
 }  // namespace input_device
 

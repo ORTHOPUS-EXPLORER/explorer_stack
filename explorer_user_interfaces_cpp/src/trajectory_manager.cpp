@@ -135,10 +135,10 @@ std::optional<trajectory_msgs::msg::JointTrajectory> TrajectoryManager::get_traj
       if (new_direction_ || are_point_almost_equal_(q_current_, init_points_[current_point_index_]))
       {
         current_point_index_++;
-        RCLCPP_INFO(
+        RCLCPP_DEBUG(
           rclcpp::get_logger("trajectory_manager"), "Current Point Index: %ld",
           current_point_index_);
-        RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "axe_value_: %f", axe_value_);
+        RCLCPP_DEBUG(rclcpp::get_logger("trajectory_manager"), "axe_value_: %f", axe_value_);
       }
     }
   }
