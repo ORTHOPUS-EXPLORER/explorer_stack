@@ -2,9 +2,11 @@
 #include <fstream>
 #include <functional>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 #include "atomic"
+#include "explorer_joint_utils/joint_mode_resolver.h"
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_user_interfaces_cpp/button_handler.h"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
@@ -70,6 +72,7 @@ class CommandNode
 {
 public:
   CommandNode(rclcpp::Node::SharedPtr n);
+  ~CommandNode();
 
 protected:
 private:
@@ -148,10 +151,14 @@ private:
     RESTORING_DEFAULT_CONTROLLER
   };
 
-  ControlState control_state_ = ControlState::DEFAULT_CONTROLLER;
+  // Written from main thread and the detached switch_thread_
+  std::atomic<ControlState> control_state_{ControlState::DEFAULT_CONTROLLER};
 
   bool trajectory_requested_ = false;
-  bool switch_in_progress_ = false;
+  std::atomic<bool> switch_in_progress_{false};
+
+  // Holds the controller-switch thread spawned in handle_controller_state_()
+  std::thread switch_thread_;
 
   sensor_msgs::msg::JointState current_state_;
 
@@ -168,24 +175,20 @@ private:
 
   sensor_msgs::msg::JointState current_pos_;
 
-  bool init_;
-  bool wheelchair_;
-  bool first_use_;
+  bool init_{false};
 
-  enum class Mode
-  {
-    INVALID,
-    EXPLORER,
-    FULL
-  };
+  space_control::JointModeResolver joint_mode_resolver_;
 
   std::vector<size_t> joint_order_;
-  Mode mode_;
+  space_control::JointMode mode_;
+  // Index of the first joint of Explorer robot (> 0 in case of wheelchair stack)
+  size_t explorer_joint_offset_ = 0;
 
   std::optional<double> j2_max_cached_;
   std::optional<double> j2_operational_max_cached_;
   std::optional<double> j3_max_cached_;
   std::optional<double> j3_operational_max_cached_;
+  std::vector<std::string> parameter_name_list_in_pending_;
 
   double j2_max_;
   double j2_operational_max_;

@@ -15,7 +15,7 @@
 
 from typing import Literal
 
-from launch.actions import GroupAction
+from launch.actions import GroupAction, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import (
     PathJoinSubstitution,
@@ -25,8 +25,18 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.optional_parameters import (
+    get_parameter_camera_device,
+    get_parameter_camera_format,
+    get_parameter_camera_height,
+    get_parameter_camera_info_url,
+    get_parameter_camera_orientation,
+    get_parameter_camera_role,
+    get_parameter_camera_use_node_time,
+    get_parameter_camera_width,
     get_parameter_input_device,
+    get_parameter_joy_backend,
     get_parameter_spacenav,
+    get_parameter_use_camera,
 )
 
 
@@ -42,6 +52,14 @@ def declare_joy_node(unique_device: Literal["movis", "xbox"] | None = None) -> N
     device_config_map = {
         "movis": "movis_joystick_settings.yaml",
         "xbox": "xbox_gamepad_settings.yaml",
+    }
+    joy_backend_package_map = {
+        "joy": "joy",
+        "joy_linux": "joy_linux",
+    }
+    joy_backend_executable_map = {
+        "joy": "joy_node",
+        "joy_linux": "joy_linux_node",
     }
 
     # Select device config based on unique_device (if provided) (fallback to launch param 'input_device parameter')
@@ -61,9 +79,14 @@ def declare_joy_node(unique_device: Literal["movis", "xbox"] | None = None) -> N
         ]
     )
 
+    # Select joy driver backend (package/executable) based on launch param 'joy_backend'
+    joy_backend = get_parameter_joy_backend()
+
     return Node(
-        package="joy",
-        executable="joy_node",
+        package=PythonExpression([f'{joy_backend_package_map}["', joy_backend, '"]']),
+        executable=PythonExpression(
+            [f'{joy_backend_executable_map}["', joy_backend, '"]']
+        ),
         output="screen",
         parameters=[device_yaml_file_path],
     )
@@ -107,4 +130,37 @@ def declare_xbox_gamepad_joint_node():
                 "/explorer_controllers/qp_solving/dq_output",
             ),
         ],
+    )
+
+
+def declare_camera_node():
+    def inner_opaque_function(context, *args, **kwargs):
+        parameters = [
+            {"camera": get_parameter_camera_device()},
+            {"role": get_parameter_camera_role()},
+            {"format": get_parameter_camera_format()},
+            {"orientation": get_parameter_camera_orientation()},
+            {"camera_info_url": get_parameter_camera_info_url()},
+            {"use_node_time": get_parameter_camera_use_node_time()},
+        ]
+
+        width = get_parameter_camera_width().perform(context)
+        if width:
+            parameters.append({"width": int(width)})
+
+        height = get_parameter_camera_height().perform(context)
+        if height:
+            parameters.append({"height": int(height)})
+
+        return [
+            Node(
+                package="camera_ros",
+                executable="camera_node",
+                parameters=parameters,
+            )
+        ]
+
+    return OpaqueFunction(
+        function=inner_opaque_function,
+        condition=IfCondition(get_parameter_use_camera()),
     )

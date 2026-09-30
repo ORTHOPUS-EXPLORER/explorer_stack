@@ -20,6 +20,8 @@ from explorer_bringup.launch.hardware import declare_hardware_node_group
 from explorer_bringup.launch.hardware_parameters import declare_hardware_argument_list
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_debug,
+    get_parameter_gui,
     get_parameter_use_sim_time,
 )
 from explorer_bringup.launch.simulation import declare_simulation_node_group
@@ -27,6 +29,7 @@ from explorer_bringup.launch.simulation_parameters import (
     declare_simulation_argument_list,
 )
 from launch import LaunchDescription
+from launch.conditions import IfCondition
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -66,8 +69,9 @@ def generate_launch_description():
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": "/explorer_custom_controller/position/commands",
                 "controller_gripper_position_topic_name": "/gripper_controller/commands",
+                "debug": get_parameter_debug(),
             },
-        ]
+        ],
     )
 
     robot_controller_list = [
@@ -96,6 +100,7 @@ def generate_launch_description():
                 "/explorer_controllers/qp_solving/dq_output",
             ),
         ],
+        condition=IfCondition(get_parameter_gui()),
     )
 
     nodes = [

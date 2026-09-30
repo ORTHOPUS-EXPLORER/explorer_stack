@@ -6,12 +6,12 @@
 #ifndef CARTESIAN_CONTROLLER_SPACE_BASE_H
 #define CARTESIAN_CONTROLLER_SPACE_BASE_H
 
-#include "rclcpp/rclcpp.hpp"
-
 #include "geometry_msgs/msg/pose.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 // Eigen
 #include <Eigen/Dense>
+#include <stdexcept>
 
 typedef Eigen::Matrix<double, 7, 1> Vector7d;
 
@@ -23,7 +23,7 @@ namespace space_control
 class SpaceBase
 {
 public:
-  SpaceBase() : position(0, 0, 0), orientation(0, 0, 0, 0){};
+  SpaceBase() : position(0, 0, 0), orientation(0, 0, 0, 0) {};
 
   SpaceBase(double (&raw_data)[7])
   {
@@ -50,31 +50,13 @@ public:
   {
   public:
     using Eigen::Vector3d::Vector3d;
-    inline double x(void) const
-    {
-      return m_storage.data()[0];
-    };
-    inline double y(void) const
-    {
-      return m_storage.data()[1];
-    };
-    inline double z(void) const
-    {
-      return m_storage.data()[2];
-    };
+    inline double x(void) const { return m_storage.data()[0]; };
+    inline double y(void) const { return m_storage.data()[1]; };
+    inline double z(void) const { return m_storage.data()[2]; };
 
-    inline double& x(void)
-    {
-      return m_storage.data()[0];
-    };
-    inline double& y(void)
-    {
-      return m_storage.data()[1];
-    };
-    inline double& z(void)
-    {
-      return m_storage.data()[2];
-    };
+    inline double& x(void) { return m_storage.data()[0]; };
+    inline double& y(void) { return m_storage.data()[1]; };
+    inline double& z(void) { return m_storage.data()[2]; };
   };
 
   class Orientationd : public Eigen::Quaterniond
@@ -83,53 +65,60 @@ public:
     mutable Eigen::Matrix3d rotation_matrix_;
     mutable bool matrix_valid_;
     mutable bool quat_valid_;
-    
+
   public:
     using Eigen::Quaterniond::Quaterniond;
-    
+
     // Constructor from rotation matrix (preferred internal representation)
-    Orientationd(const Eigen::Matrix3d& R) : rotation_matrix_(R), matrix_valid_(true), quat_valid_(false) {
+    Orientationd(const Eigen::Matrix3d& R)
+    : rotation_matrix_(R), matrix_valid_(true), quat_valid_(false)
+    {
       updateQuaternionFromMatrix();
     }
-    
+
     // Override assignment operators to maintain matrix representation
-    Orientationd& operator=(const Eigen::Quaterniond& q) {
+    Orientationd& operator=(const Eigen::Quaterniond& q)
+    {
       Eigen::Quaterniond::operator=(q);
       quat_valid_ = true;
       matrix_valid_ = false;
       updateMatrixFromQuaternion();
       return *this;
     }
-    
+
     // Get rotation matrix (always continuous, no discontinuities)
-    const Eigen::Matrix3d& toRotationMatrix() const {
-      if (!matrix_valid_) {
+    const Eigen::Matrix3d& toRotationMatrix() const
+    {
+      if (!matrix_valid_)
+      {
         updateMatrixFromQuaternion();
       }
       return rotation_matrix_;
     }
-    
+
     // Set from rotation matrix (preferred method)
-    void setRotationMatrix(const Eigen::Matrix3d& R) {
+    void setRotationMatrix(const Eigen::Matrix3d& R)
+    {
       rotation_matrix_ = R;
       matrix_valid_ = true;
       quat_valid_ = false;
       updateQuaternionFromMatrix();
     }
-    
+
     // Continuous quaternion update (maintains sign consistency)
-    void updateQuaternionContinuous(const Eigen::Quaterniond& prev_quat) {
-      if (!quat_valid_) {
+    void updateQuaternionContinuous(const Eigen::Quaterniond& prev_quat)
+    {
+      if (!quat_valid_)
+      {
         updateQuaternionFromMatrix();
       }
-      
+
       // Ensure quaternion continuity using dot product
-      double dot_product = this->w() * prev_quat.w() + 
-                          this->x() * prev_quat.x() + 
-                          this->y() * prev_quat.y() + 
-                          this->z() * prev_quat.z();
-      
-      if (dot_product < 0.0) {
+      double dot_product = this->w() * prev_quat.w() + this->x() * prev_quat.x() +
+                           this->y() * prev_quat.y() + this->z() * prev_quat.z();
+
+      if (dot_product < 0.0)
+      {
         // Flip quaternion for continuity
         this->w() = -this->w();
         this->x() = -this->x();
@@ -137,7 +126,7 @@ public:
         this->z() = -this->z();
       }
     }
-    
+
     Eigen::Vector4d toVector() const
     {
       Eigen::Vector4d vec;
@@ -147,26 +136,28 @@ public:
       vec(3) = z();
       return vec;
     }
-    
+
   private:
-    void updateMatrixFromQuaternion() const {
+    void updateMatrixFromQuaternion() const
+    {
       if (!quat_valid_) return;
       rotation_matrix_ = this->toRotationMatrix();
       matrix_valid_ = true;
     }
-    
-    void updateQuaternionFromMatrix() const {
+
+    void updateQuaternionFromMatrix() const
+    {
       if (!matrix_valid_) return;
-      
+
       // Convert rotation matrix to quaternion using Eigen's method
       Eigen::Quaterniond q(rotation_matrix_);
-      
+
       // Update quaternion components (const_cast needed for mutable update)
       const_cast<Orientationd*>(this)->w() = q.w();
       const_cast<Orientationd*>(this)->x() = q.x();
       const_cast<Orientationd*>(this)->y() = q.y();
       const_cast<Orientationd*>(this)->z() = q.z();
-      
+
       quat_valid_ = true;
     }
   };
@@ -185,24 +176,12 @@ public:
     return ret;
   };
 
-  Positiond getPosition() const
-  {
-    return position;
-  };
-  void setPosition(const Positiond& p)
-  {
-    position = p;
-  };
+  Positiond getPosition() const { return position; };
+  void setPosition(const Positiond& p) { position = p; };
 
-  Orientationd getOrientation() const
-  {
-    return orientation;
-  };
+  Orientationd getOrientation() const { return orientation; };
 
-  void setOrientation(const Orientationd& q)
-  {
-    orientation = q;
-  };
+  void setOrientation(const Orientationd& q) { orientation = q; };
 
   Vector7d getRawVector() const
   {
@@ -251,6 +230,7 @@ public:
     {
       return orientation.z();
     }
+    throw std::out_of_range("Unsupported operator[] called with index > 6.");
   };
 
   /* Read raw data operator */
@@ -285,13 +265,14 @@ public:
   /* ostream << operator */
   friend std::ostream& operator<<(std::ostream& os, const SpaceBase& sp)
   {
-    return os << "position : [" << sp.position(0) << ", " << sp.position(1) << ", " << sp.position(2)
-              << "] orientation :[" << sp.orientation.w() << ", " << sp.orientation.x() << ", " << sp.orientation.y()
-              << ", " << sp.orientation.z() << "]";
+    return os << "position : [" << sp.position(0) << ", " << sp.position(1) << ", "
+              << sp.position(2) << "] orientation :[" << sp.orientation.w() << ", "
+              << sp.orientation.x() << ", " << sp.orientation.y() << ", " << sp.orientation.z()
+              << "]";
   };
 
   Positiond position;
   Orientationd orientation;
 };
-}
+}  // namespace space_control
 #endif

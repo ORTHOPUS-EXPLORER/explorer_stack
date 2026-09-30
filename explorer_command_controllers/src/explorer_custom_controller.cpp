@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "explorer_command_controllers/explorer_custom_controller.hpp"
-
 #include <controller_interface/controller_interface_base.hpp>
+#include <explorer_command_controllers/explorer_custom_controller.hpp>
 #include <hardware_interface/loaned_state_interface.hpp>
+#include <orthopus_vesc_interfaces/srv/cmd.hpp>
 
 #include "orthopus_vesc_interfaces/msg/config.hpp"
 
@@ -81,7 +81,7 @@ bool CustomController::set_joint_mode_(const std::string& joint_name, const std:
 }
 
 bool CustomController::set_impedance_config_(
-  const std::string& joint_name, float damping, float stiffness) const
+  const std::string& joint_name, float damping, float stiffness)
 {
   auto service_name = "/explorer_" + joint_name + "/config";
   auto config_publisher =
@@ -97,17 +97,6 @@ bool CustomController::set_impedance_config_(
 
 controller_interface::CallbackReturn CustomController::on_init()
 {
-  if (
-    rcutils_logging_set_logger_level(
-      get_node()->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG))
-    RCLCPP_DEBUG(get_node()->get_logger(), "Set LOG_LEVEL to Debug");
-
-  RCLCPP_DEBUG(get_node()->get_logger(), "on_init");
-  print_joint_srv_ = get_node()->create_service<std_srvs::srv::Empty>(
-    "~/printJoints", [this](
-                       const std::shared_ptr<std_srvs::srv::Empty::Request>,
-                       std::shared_ptr<std_srvs::srv::Empty::Response>) { this->print_joints_(); });
-
   try
   {
     param_listener_ = std::make_shared<ParamListener>(get_node());
@@ -116,6 +105,17 @@ controller_interface::CallbackReturn CustomController::on_init()
   {
     std::cerr << "Exception thrown during init stage with message: " << e.what() << std::endl;
     return controller_interface::CallbackReturn::ERROR;
+  }
+
+  // Enable debug
+  if (params_.debug)
+  {
+    if (
+      rcutils_logging_set_logger_level(
+        get_node()->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+    {
+      throw std::runtime_error("Couldn't set logger level to DEBUG.");
+    }
   }
 
   // Config : check if joints are given
@@ -202,7 +202,7 @@ void CustomController::init_ros_subscribers_()
     "~/position/commands", subscribers_qos,
     [this, is_command_finite, is_command_size_supported](const SubscriptionMsg::SharedPtr msg)
     {
-      if (!is_chained_.load()) return;
+      if (is_chained_.load()) return;
 
       auto command_type = orthopus::JointVariableType::POSITION;
       if (
@@ -233,6 +233,11 @@ void CustomController::init_ros_subscribers_()
 controller_interface::CallbackReturn CustomController::on_configure(const rclcpp_lifecycle::State&)
 {
   init_ros_subscribers_();
+
+  print_joint_srv_ = get_node()->create_service<std_srvs::srv::Empty>(
+    "~/printJoints", [this](
+                       const std::shared_ptr<std_srvs::srv::Empty::Request>,
+                       std::shared_ptr<std_srvs::srv::Empty::Response>) { this->print_joints_(); });
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -266,7 +271,7 @@ controller_interface::InterfaceConfiguration CustomController::command_interface
       auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
       auto interface_name = build_interface_name(joint_name, interface_joint_type);
       interface_config.names.emplace_back(interface_name);
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         get_node()->get_logger(), "command_interface_configuration: Will try to claim '%s'",
         interface_name.c_str());
     }
@@ -289,7 +294,7 @@ controller_interface::InterfaceConfiguration CustomController::state_interface_c
       auto interface_joint_type = orthopus::JointVariableType_from_string(interface_joint_type_str);
       auto interface_name = build_interface_name(joint_name, interface_joint_type);
       interface_config.names.emplace_back(interface_name);
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         get_node()->get_logger(), "state_interface_configuration: Will try to claim '%s'",
         interface_name.c_str());
     }
@@ -498,7 +503,7 @@ controller_interface::return_type CustomController::update_and_write_commands(
     }
     index++;
   }
-  return controller_interface::return_type::ERROR;
+  return controller_interface::return_type::OK;
 }
 
 bool CustomController::on_set_chained_mode(bool chained_mode)
@@ -583,7 +588,14 @@ void CustomController::write_effort_(ControllerJoint& joint)
   if (!is_command_ready_to_be_written_(joint, command_type)) return;
   auto joint_effort_command_control = joint.joint_command_map[command_type];
 
-  joint_effort_command_control.interface->set_value(joint_effort_command_control.command);
+  if (!joint_effort_command_control.interface->set_value(joint_effort_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint effort interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_effort_command_control.previous_command = joint_effort_command_control.command;
 }
 
@@ -615,7 +627,14 @@ void CustomController::write_position_(ControllerJoint& joint)
     }
   }
 
-  joint_position_command_control.interface->set_value(joint_position_command_control.command);
+  if (!joint_position_command_control.interface->set_value(joint_position_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint position interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_position_command_control.previous_command = joint_position_command_control.command;
 }
 
@@ -625,7 +644,14 @@ void CustomController::write_velocity_(ControllerJoint& joint)
   if (!is_command_ready_to_be_written_(joint, command_type)) return;
   auto joint_velocity_command_control = joint.joint_command_map[command_type];
 
-  joint_velocity_command_control.interface->set_value(joint_velocity_command_control.command);
+  if (!joint_velocity_command_control.interface->set_value(joint_velocity_command_control.command))
+  {
+    RCLCPP_ERROR_THROTTLE(
+      get_node()->get_logger(), *clock_, 5000,
+      "[%s][%s] Joint velocity interface: couldn't set value properly for this interface, unknown "
+      "reason.",
+      __FILE__, __FUNCTION__);
+  }
   joint_velocity_command_control.previous_command = joint_velocity_command_control.command;
 }
 

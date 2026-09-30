@@ -37,6 +37,7 @@ from explorer_bringup.launch.optional_parameters import (
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
+    get_parameter_debug,
     get_parameter_gui,
     get_parameter_robot_description,
     get_parameter_robot_semantic_srdf,
@@ -96,6 +97,7 @@ def declare_qp_solving_node_list(
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             },
         ],
         condition=IfCondition(
@@ -121,6 +123,7 @@ def declare_qp_solving_node_list(
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             },
         ],
         condition=IfCondition(
@@ -201,7 +204,12 @@ def declare_input_integrator_node(output: str = "log") -> Node:
         executable="input_integrator",
         name="input_integrator",
         output=output,
-        parameters=[{"use_sim_time": get_parameter_use_sim_time()}],
+        parameters=[
+            {
+                "use_sim_time": get_parameter_use_sim_time(),
+                "debug": get_parameter_debug(),
+            }
+        ],
         condition=UnlessCondition(get_parameter_use_qp_inria()),
     )
 
@@ -218,6 +226,7 @@ def declare_output_integrator_node(
             {
                 "use_sim_time": get_parameter_use_sim_time(),
                 "controller_position_topic_name": controller_position_topic_name,
+                "debug": get_parameter_debug(),
             }
         ],
         condition=UnlessCondition(get_parameter_use_qp_inria()),
@@ -257,6 +266,7 @@ def declare_command_node(
                         "active_trajectory": trajectory,
                         "default_controller_name_list": default_controller_name_list,
                         "use_qp_inria": get_parameter_use_qp_inria(),
+                        "debug": get_parameter_debug(),
                     }
                 ],
                 remappings=remappings,

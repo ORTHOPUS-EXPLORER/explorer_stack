@@ -1,60 +1,55 @@
 // Explorer Robot Web GUI JavaScript - Simplified Version
+// Depends on WebSocketWrapper (websocket_wrapper.js)
 
 class ExplorerWebGUI {
     constructor() {
-        this.ws = null;
-        this.connected = false;
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
-        
-        this.initializeWebSocket();
-    }
-    
-    initializeWebSocket() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-        
-        console.log('Connecting to WebSocket:', wsUrl);
-        
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-            console.log('WebSocket connected');
-            this.connected = true;
-            this.reconnectAttempts = 0;
-        };
-        
-        this.ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this.handleMessage(data);
-            } catch (e) {
-                console.error('Error parsing WebSocket message:', e);
-            }
-        };
-        
-        this.ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            this.connected = false;
-            this.scheduleReconnect();
-        };
-        
-        this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+        this.cameraObjectUrl = null;
+
+        this.sockets = {
+            data: new WebSocketWrapper('data', '/ws', {
+                onMessage: (event) => {
+                    try {
+                        this.handleMessage(JSON.parse(event.data));
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                },
+            }),
+            camera: new WebSocketWrapper('camera', '/ws/camera', {
+                binary_data: true,
+                onMessage: (event) => this.handleCameraFrame(event.data),
+            }),
         };
     }
-    
+
+    handleCameraFrame(arrayBuffer) {
+        const cameraImage = document.getElementById('camera-feed-image');
+        if (!cameraImage) return;
+
+        const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+        const newUrl = URL.createObjectURL(blob);
+
+        if (this.cameraObjectUrl) {
+            URL.revokeObjectURL(this.cameraObjectUrl);
+        }
+        this.cameraObjectUrl = newUrl;
+        cameraImage.src = newUrl;
+    }
+
     handleMessage(data) {
         console.log('Received message:', data);
-        if (data.type === 'drink_led_update') {
-            console.log('[DEBUG] Frontend: drink_led_update received:', data);
-            this.updateDrinkLED(data.active);
-        }
         switch (data.type) {
+            case 'drink_led_update':
+                this.updateDrinkLED(data.active);
+                break;
             case 'initial':
                 this.updateMode(data.mode);
                 this.updateSpeedLevel(data.speed_level);
                 this.updateRetractStatus(data.retract_status);
+                break;
+
+            case 'joint_state_update':
+                this.updateJointState(data);
                 break;
 
             case 'mode_update':
@@ -70,7 +65,7 @@ class ExplorerWebGUI {
                 break;
         }
     }
-    
+
     updateMode(mode) {
         const currentModeElement = document.getElementById('current-mode');
         console.log('[DEBUG] updateMode called with:', mode);
@@ -83,18 +78,12 @@ class ExplorerWebGUI {
             currentModeElement.style.display = "inline-block";
             currentModeElement.style.position = "relative";
             currentModeElement.style.transform = "translate(-5px, 0px)";
-            
-            // Add highlight animation
-            currentModeElement.classList.add('status-update');
-            setTimeout(() => {
-                currentModeElement.classList.remove('status-update');
-            }, 500);
         }
-        
+
         // Update mode image
         this.updateModeImage(mode);
     }
-    
+
     updateModeImage(mode) {
         const modeImageContainer = document.getElementById('mode-image-container');
         const noImageText = document.getElementById('no-image-text');
@@ -155,7 +144,7 @@ class ExplorerWebGUI {
             speedLevelElement.textContent = (level !== undefined && level !== null) ? level : '--';
         }
     }
-    
+
     updateDrinkLED(active) {
         const drinkLed = document.getElementById('drink-led');
         if (drinkLed) {
@@ -169,37 +158,47 @@ class ExplorerWebGUI {
 
     updateRetractStatus(status) {
         const statusLed = document.getElementById('status-led');
-        if (statusLed) {
-            // Remove all status classes
-            statusLed.classList.remove('status-ready', 'status-moving', 'status-retracted');
+        if (!statusLed) {
+            return;
+        }
+        // Remove all status classes
+        statusLed.classList.remove('status-green', 'status-orange', 'status-red');
 
-            // Map status string to CSS class
-            // "ready" -> green (deployed, ready to use)
-            // "in progress" -> orange (moving and not yet at ready position)
-            // "retracted"  -> red (retracted)
-            if (status === 'ready') {
-                statusLed.classList.add('status-ready');
-            } else if (status === 'in progress') {
-                statusLed.classList.add('status-moving');
-            } else {
-                // "retracted"
-                statusLed.classList.add('status-retracted');
-            }
+        // Map status string to CSS class
+        // "ready" -> green (deployed, ready to use)
+        // "in progress" -> orange (moving and not yet at ready position)
+        // "retracted"  -> red (retracted)
+        if (status === 'ready') {
+            statusLed.classList.add('status-green');
+        } else if (status === 'in progress') {
+            statusLed.classList.add('status-orange');
+        } else {
+            // "retracted"
+            statusLed.classList.add('status-red');
         }
     }
-    
-    scheduleReconnect() {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000); // Exponential backoff, max 10s
-            this.reconnectAttempts++;
-            
-            console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-            
-            setTimeout(() => {
-                this.initializeWebSocket();
-            }, delay);
-        } else {
-            console.error('Max reconnection attempts reached');
+
+    updateJointState(data) {
+        const jointLed = document.getElementById('joint-led-' + data.joint_index);
+        if (!jointLed) {
+            return;
+        }
+        // Remove previous status classes
+        jointLed.classList.remove('status-green', 'status-orange', 'status-red');
+
+        switch (data.state) {
+            case "Init": case "Idle": 
+                jointLed.classList.add('status-orange');
+                break;
+            case "Enable":
+                jointLed.classList.add('status-green');
+                break;
+            case "Hold":
+            case "Brake":
+            case "EStop":
+            case "unknown":
+                jointLed.classList.add('status-red');
+                break;
         }
     }
 }
@@ -212,8 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Handle page visibility changes
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && window.explorerGUI && !window.explorerGUI.connected) {
-        console.log('Page visible - Ensuring WebSocket connection');
-        window.explorerGUI.initializeWebSocket();
+    if (!document.hidden && window.explorerGUI) {
+        for (const socket of Object.values(window.explorerGUI.sockets)) {
+            socket.ensureConnected();
+        }
     }
 });

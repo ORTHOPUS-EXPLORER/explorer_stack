@@ -1,7 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/float64_multi_array.hpp>
-#include <std_msgs/msg/float64.hpp>
 #include <sensor_msgs/msg/joy.hpp>
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include "sensor_msgs/msg/joint_state.hpp"
 
@@ -10,108 +10,120 @@ using namespace std::chrono_literals;
 class JointControl final
 {
 public:
-  JointControl(rclcpp::Node::SharedPtr n)
-  : n_(n)
+  JointControl(rclcpp::Node::SharedPtr n) : n_(n)
+  {
+    auto debug_enabled = n_->get_parameter("debug").as_bool();
+    if (debug_enabled)
     {
-        rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG);
-
-        q_command_.data = {0.0};
-        dq_.data = 0.0;
-        q_init = 0.0;
-        x=0.0;
-
-        scale = 0.5;
-        init = false; 
-
-        sampling_period_ = 0.02;
-
-        command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/forward_position_controller/commands", 10);
-
-        joy_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>("/joy", 10, std::bind(&JointControl::joy_callback, this, std::placeholders::_1));
-        gui_sub_ = n_->create_subscription<std_msgs::msg::Float64>("/ros2_control_actuator/dq_output", 10, std::bind(&JointControl::gui_callback, this, std::placeholders::_1));
-
-        current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&JointControl::callback_current_pos_, this, std::placeholders::_1));
-
-        timer_ = n_->create_wall_timer(20ms, std::bind(&JointControl::timer_callback, this));
+      if (rcutils_logging_set_logger_level(n_->get_logger().get_name(), RCUTILS_LOG_SEVERITY_DEBUG) != RCUTILS_RET_OK)
+      {
+        throw std::runtime_error("Couldn't set logger level to DEBUG.");
+      }
     }
 
-    void joy_callback(sensor_msgs::msg::Joy msg){
+    q_command_.data = {0.0};
+    dq_.data = 0.0;
+    q_init = 0.0;
+    x = 0.0;
 
-       if(msg.axes[2] != 1){
-            dq_.data = -((msg.axes[2]-1)/2) * scale;
-        }
-        else if(msg.axes[5] != 1){
-            dq_.data =  ((msg.axes[5]-1)/2) * scale;
-        }
-        else{
-            dq_.data =  0.0;
-        }
-    }
+    scale = 0.5;
+    init = false;
 
-    void gui_callback(std_msgs::msg::Float64 msg){
+    sampling_period_ = 0.02;
 
-       dq_.data = msg.data * scale;
-    }
+    command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "/forward_position_controller/commands", 10);
 
-     void callback_current_pos_(const sensor_msgs::msg::JointState & msg)
-    {   
-        if(init ==false){
-            q_command_.data[0] = msg.position[0];
-            q_init = q_command_.data[0];
-            init = true;
-        }
-    }
+    joy_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>(
+      "/joy", 10, std::bind(&JointControl::joy_callback, this, std::placeholders::_1));
+    gui_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+      "/ros2_control_actuator/dq_output", 10,
+      std::bind(&JointControl::gui_callback, this, std::placeholders::_1));
 
-    void timer_callback()
+    current_pos_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>(
+      "/joint_states", 10,
+      std::bind(&JointControl::callback_current_pos_, this, std::placeholders::_1));
+
+    timer_ = n_->create_wall_timer(20ms, std::bind(&JointControl::timer_callback, this));
+  }
+
+  void joy_callback(sensor_msgs::msg::Joy msg)
+  {
+    if (msg.axes[2] != 1)
     {
-        if(init == true){
-            q_command_.data[0] = q_command_.data[0] + dq_.data * sampling_period_;
-            // q_command_.data[0]= 0.5*cos(x)+q_init;
-
-            // command_pub_->publish(q_command_);
-
-            // x = x + 0.04;
-            // if(x >= (3.14*2)){
-            //     x = 0.0;
-            // }
-            command_pub_->publish(q_command_);
-        }
+      dq_.data = -((msg.axes[2] - 1) / 2) * scale;
     }
+    else if (msg.axes[5] != 1)
+    {
+      dq_.data = ((msg.axes[5] - 1) / 2) * scale;
+    }
+    else
+    {
+      dq_.data = 0.0;
+    }
+  }
 
-    
-    rclcpp::Node::SharedPtr n_;
-    
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
+  void gui_callback(std_msgs::msg::Float64 msg) { dq_.data = msg.data * scale; }
 
-    rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
-    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gui_sub_;
-    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
+  void callback_current_pos_(const sensor_msgs::msg::JointState& msg)
+  {
+    if (init == false)
+    {
+      q_command_.data[0] = msg.position[0];
+      q_init = q_command_.data[0];
+      init = true;
+    }
+  }
 
-    rclcpp::TimerBase::SharedPtr timer_;
+  void timer_callback()
+  {
+    if (init == true)
+    {
+      q_command_.data[0] = q_command_.data[0] + dq_.data * sampling_period_;
+      // q_command_.data[0]= 0.5*cos(x)+q_init;
 
-    std_msgs::msg::Float64 dq_;
-    std_msgs::msg::Float64MultiArray q_command_;
+      // command_pub_->publish(q_command_);
 
-    double sampling_period_;
+      // x = x + 0.04;
+      // if(x >= (3.14*2)){
+      //     x = 0.0;
+      // }
+      command_pub_->publish(q_command_);
+    }
+  }
 
-    double scale;
-    bool init ;
-    double q_init;
-    double x;
+  rclcpp::Node::SharedPtr n_;
 
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
+
+  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gui_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
+
+  rclcpp::TimerBase::SharedPtr timer_;
+
+  std_msgs::msg::Float64 dq_;
+  std_msgs::msg::Float64MultiArray q_command_;
+
+  double sampling_period_;
+
+  double scale;
+  bool init;
+  double q_init;
+  double x;
 };
 
-int main(int argc, char * argv[])
+int main(int argc, char* argv[])
 {
-    rclcpp::init(argc, argv);
-    rclcpp::NodeOptions node_options;
-    node_options.automatically_declare_parameters_from_overrides(true);
-    
-    auto n = rclcpp::Node::make_shared("joint_controller", node_options);
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.automatically_declare_parameters_from_overrides(true);
 
-    JointControl joint_controller(n);
+  auto n = rclcpp::Node::make_shared("joint_controller", node_options);
 
-    rclcpp::spin(n);
-    rclcpp::shutdown();
-    return 0;
+  JointControl joint_controller(n);
+
+  rclcpp::spin(n);
+  rclcpp::shutdown();
+  return 0;
 }

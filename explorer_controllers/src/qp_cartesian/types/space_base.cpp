@@ -3,13 +3,11 @@
 *  Copyright (C) 2022 Orthopus
 *  All rights reserved.
 */
+#include "explorer_controllers/qp_cartesian/types/space_base.h"
+
 #include "rclcpp/rclcpp.hpp"
 
-#include "explorer_controllers/qp_cartesian/types/space_base.h"
- 
 namespace space_control
 {
-SpaceBase::~SpaceBase()
-{
-}
-}
+SpaceBase::~SpaceBase() {}
+}  // namespace space_control

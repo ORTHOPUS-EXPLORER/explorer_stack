@@ -1,6 +1,6 @@
 #pragma once
 
-#include <realtime_tools/realtime_publisher.h>
+#include <realtime_tools/realtime_publisher.hpp>
 
 #include <memory>
 
@@ -32,7 +32,7 @@ public:
   RCLCPP_SHARED_PTR_DEFINITIONS(VESCInterface)
 
   ORTHOPUS_ROS_PUBLIC
-  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo& info) override;
+  hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams& info) override;
 
   ORTHOPUS_ROS_PUBLIC
   hardware_interface::CallbackReturn on_configure(
@@ -83,6 +83,7 @@ private:
   void callback_config_(const orthopus_vesc_interfaces::msg::Config& msg);
   CallbackReturn wait_can_data_();
   void init_refs_();
+  void publish_joint_state_(const std::string& joint_name, uint16_t status);
 
   rclcpp::Time print_buf_start_{0};
   rclcpp::Duration print_buf_duration_ = rclcpp::Duration::from_seconds(0);
@@ -95,6 +96,8 @@ private:
   std::shared_ptr<orthopus::VESCTarget> vesc_dev_{nullptr};
   std::string default_mode_{
     "off"};  // Default mode to apply on activation (backward compatible: "off" if not specified)
+  unsigned int can_write_failures_threshold_{
+    5};  // Max consecutive CAN write failures allowed before write() reports an error
   std::string name_;
   bool is_virtual_can_used_ = false;
 

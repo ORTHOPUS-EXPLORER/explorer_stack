@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.8)
 project(explorer_user_interfaces_cpp)
 
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -16,6 +20,7 @@ set(INTERFACES_DEPENDENCIES
   geometry_msgs
   trajectory_msgs
   explorer_msgs
+  explorer_joint_utils
   joy
   controller_manager
   controller_manager_msgs
@@ -61,5 +66,23 @@ install(DIRECTORY
   bringup/config/
   DESTINATION share/${PROJECT_NAME}/config
 )
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_ros REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
+
+  ## Helper function
+  function(add_ros_isolated_launch_test path)
+    set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
+    add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
+  endfunction()
+
+  ## LAUNCH & E2E TESTS
+  add_ros_isolated_launch_test(test/launch/test_mode_0.py)
+  add_ros_isolated_launch_test(test/launch/test_mode_0_impedance.py)
+  
+endif()
 
 ament_package()

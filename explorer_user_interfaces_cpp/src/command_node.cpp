@@ -4,8 +4,7 @@
 
 namespace space_control
 {
-CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
-: n_(n), button_handler_(), trajectory_manager_(), controller_manager_wrapper_(n)
+CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
@@ -176,6 +175,14 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
   timer_ = n_->create_wall_timer(
     std::chrono::duration<double>(sampling_period_),
     std::bind(&CommandNode::timer_callback_, this));
+}
+
+CommandNode::~CommandNode()
+{
+  if (switch_thread_.joinable())
+  {
+    switch_thread_.join();
+  }
 }
 
 // Load mode configuration from YAML file
@@ -434,205 +441,23 @@ void CommandNode::callback_x_current_(const geometry_msgs::msg::Pose& msg) { x_c
 
 void CommandNode::callback_q_current_(const sensor_msgs::msg::JointState& msg)
 {
-  static const std::vector<std::string> expected_names_explorer = {
-    "joint_1",
-    "joint_2",
-    "joint_3",
-    "joint_4",
-    "joint_5",
-    "joint_6",
-    "left_external_rod_joint_mimic",
-    "left_fingertip_joint_mimic",
-    "left_finger_joint_mimic",
-    "right_external_rod_joint_mimic",
-    "right_fingertip_joint_mimic",
-    "right_finger_joint"};
-  static const std::vector<std::string> expected_names_wheelchair = {
-    "left_front_wheel_joint", "right_front_wheel_joint", "left_rear_wheel_joint",
-    "right_rear_wheel_joint", "left_wheel_joint",        "right_wheel_joint",
-    "left_right_head_joint",  "up_down_head_joint"};
-
-  if (!init_)
-  {
-    current_pos_ = msg;
-    // Check for explorer
-    bool valid_explorer = std::all_of(
-      expected_names_explorer.begin(), expected_names_explorer.end(),
-      [&](const std::string& name)
-      {
-        if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // allow them to be missing
-          return true;
-        }
-        return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end();
-      });
-
-    // Check for wheelchair
-    bool all_wheelchair = std::all_of(
-      expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // Check for any wheelchair joints present
-    bool any_wheelchair = std::any_of(
-      expected_names_wheelchair.begin(), expected_names_wheelchair.end(),
-      [&](const std::string& name)
-      { return std::find(msg.name.begin(), msg.name.end(), name) != msg.name.end(); });
-
-    // CASES:
-    if (valid_explorer && all_wheelchair)
-    {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
-    }
-    else
-    {
-      mode_ = Mode::INVALID;
-      RCLCPP_ERROR(
-        n_->get_logger(),
-        "[command_node] Invalid joint configuration detected! Initialization failed.");
-      // Optionally, handle the error (throw, return, etc)
-      // return;
-    }
-
-    if (valid_explorer && all_wheelchair)
-    {
-      mode_ = Mode::FULL;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Full robot (explorer + wheelchair) detected.");
-
-      // Build order: wheelchair first, then explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_wheelchair.size() + expected_names_explorer.size());
-      for (const auto& name : expected_names_wheelchair)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        joint_order_.push_back(std::distance(msg.name.begin(), it));
-      }
-      for (const auto& name : expected_names_explorer)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          // fallback to "right_finger_joint"
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[command_node] Joint %s missing, using right_finger_joint as fallback",
-              name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(n_->get_logger(), "[command_node] Joint %s not found!", name.c_str());
-        }
-      }
-      init_ = true;
-      return;
-    }
-    else if (valid_explorer && !any_wheelchair)
-    {
-      mode_ = Mode::EXPLORER;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Explorer-only configuration detected.");
-
-      // Build order: just the explorer
-      joint_order_.clear();
-      joint_order_.reserve(expected_names_explorer.size());
-      for (const auto& name : expected_names_explorer)
-      {
-        auto it = std::find(msg.name.begin(), msg.name.end(), name);
-        if (it != msg.name.end())
-        {
-          joint_order_.push_back(std::distance(msg.name.begin(), it));
-        }
-        else if (
-          name == "left_external_rod_joint_mimic" || name == "left_fingertip_joint_mimic" ||
-          name == "left_finger_joint_mimic" || name == "right_external_rod_joint_mimic" ||
-          name == "right_fingertip_joint_mimic")
-        {
-          auto fallback_it = std::find(msg.name.begin(), msg.name.end(), "right_finger_joint");
-          if (fallback_it != msg.name.end())
-          {
-            joint_order_.push_back(std::distance(msg.name.begin(), fallback_it));
-            RCLCPP_WARN(
-              n_->get_logger(),
-              "[command_node] Joint %s missing, using right_finger_joint as fallback",
-              name.c_str());
-          }
-          else
-          {
-            RCLCPP_ERROR(
-              n_->get_logger(),
-              "[command_node] Neither %s nor right_finger_joint found! Cannot initialize properly",
-              name.c_str());
-            return;
-          }
-        }
-        else
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(), "[command_node] Joint %s not found and no fallback defined",
-            name.c_str());
-          return;
-        }
-      }
-
-      // Debug: Print out sizes to check bounds
-      RCLCPP_INFO(n_->get_logger(), "joint_order.size() = %zu", joint_order_.size());
-      RCLCPP_INFO(n_->get_logger(), "current_pos_.name.size() = %zu", current_pos_.name.size());
-
-      // Decide safe upper bound
-      int safe_limit = std::min<int>(joint_order_.size(), current_pos_.name.size());
-      int n_to_print = std::min<int>(safe_limit, (wheelchair_ ? 20 : 12));
-
-      for (int i = 0; i < n_to_print; i++)
-      {
-        RCLCPP_INFO(
-          n_->get_logger(), "Joint order[%d]: %ld, Name: %s", i, joint_order_[i],
-          current_pos_.name[joint_order_[i]].c_str());
-      }
-      // If there's a mismatch, warn
-      if (
-        joint_order_.size() < static_cast<size_t>(n_to_print) ||
-        current_pos_.name.size() < static_cast<size_t>(n_to_print))
-      {
-        RCLCPP_WARN(
-          n_->get_logger(),
-          "WARNING: joint_order or current_pos_.name was smaller than expected! Potential config "
-          "problem.");
-      }
-      init_ = true;
-      RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
-      return;
-    }
-  }
-
   current_pos_ = msg;
+  if (init_) return;
+
+  mode_ = joint_mode_resolver_.detect_mode(msg.name, n_->get_logger(), "[command_node]");
+  if (
+    mode_ != space_control::JointMode::INVALID &&
+    joint_mode_resolver_.build_joint_order(
+      mode_, msg.name, joint_order_, n_->get_logger(), "[command_node]"))
+  {
+    // In FULL mode, wheelchair joints are added in first, so the Explorer robot joints range starts after them
+    // In EXPLORER mode it starts at 0
+    explorer_joint_offset_ = (mode_ == space_control::JointMode::FULL)
+                               ? joint_mode_resolver_.expected_names_wheelchair().size()
+                               : 0;
+    init_ = true;
+    RCLCPP_INFO(n_->get_logger(), "[command_node] Init done.");
+  }
 }
 
 void CommandNode::handle_controller_state_()
@@ -665,8 +490,12 @@ void CommandNode::handle_controller_state_()
         auto future = controller_manager_wrapper_.switch_controller_async(
           default_controller_name_list_, {"joint_trajectory_controller"});
 
+        if (switch_thread_.joinable())
+        {
+          switch_thread_.join();
+        }
         // Callback when the switch completes
-        std::thread(
+        switch_thread_ = std::thread(
           [this, future = std::move(future)]() mutable
           {
             try
@@ -689,8 +518,7 @@ void CommandNode::handle_controller_state_()
               control_state_ = ControlState::DEFAULT_CONTROLLER;
             }
             switch_in_progress_ = false;
-          })
-          .detach();  // détache le thread pour ne pas bloquer le main executor
+          });
       }
       break;
 
@@ -715,7 +543,11 @@ void CommandNode::handle_controller_state_()
         auto future = controller_manager_wrapper_.switch_controller_async(
           {"joint_trajectory_controller"}, default_controller_name_list_);
 
-        std::thread(
+        if (switch_thread_.joinable())
+        {
+          switch_thread_.join();
+        }
+        switch_thread_ = std::thread(
           [this, vec_string_to_string, future = std::move(future)]() mutable
           {
             try
@@ -742,8 +574,7 @@ void CommandNode::handle_controller_state_()
               control_state_ = ControlState::TRAJECTORY;
             }
             switch_in_progress_ = false;
-          })
-          .detach();
+          });
       }
       break;
   }
@@ -780,13 +611,32 @@ void CommandNode::modifyTargetNodeParameter_(
 
 void CommandNode::getDoubleParameter_(const std::string& param_name, std::optional<double>& value)
 {
+  // Check if parameters client is ready to accept requests
+  if (
+    !param_client_->service_is_ready() ||
+    // Check if this parameter name call is already in pending
+    std::find(
+      parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name) !=
+      parameter_name_list_in_pending_.end())
+  {
+    return;
+  }
   RCLCPP_INFO(n_->get_logger(), "Initializing %s from qp_solving (async)", param_name.c_str());
+
+  parameter_name_list_in_pending_.push_back(param_name);
 
   param_client_->get_parameters(
     {param_name},
     [this, param_name, &value](std::shared_future<std::vector<rclcpp::Parameter>> future)
     {
-      const auto params = future.get();
+      const auto& params = future.get();
+      // Delete this parameter from the parameter pending request list
+      auto parameter_it = std::find(
+        parameter_name_list_in_pending_.begin(), parameter_name_list_in_pending_.end(), param_name);
+      if (parameter_it != parameter_name_list_in_pending_.end())
+      {
+        parameter_name_list_in_pending_.erase(parameter_it);
+      }
 
       if (params.empty())
       {
@@ -937,8 +787,27 @@ void CommandNode::timer_callback_()
     }
     else if (trajectory_manager_.getStatusString() == "ready")
     {
+      if (!init_ || joint_order_.size() < explorer_joint_offset_ + 3)
+      {
+        RCLCPP_ERROR(
+          n_->get_logger(),
+          "[command_node] timer_callback_: joint_order_ not ready, skipping j2/j3 operational "
+          "limit update");
+        return;
+      }
+
+      size_t j2_index = joint_order_[explorer_joint_offset_ + 1];
+      size_t j3_index = joint_order_[explorer_joint_offset_ + 2];
+      if (j2_index >= current_pos_.position.size() || j3_index >= current_pos_.position.size())
+      {
+        RCLCPP_ERROR(
+          n_->get_logger(),
+          "[command_node] timer_callback_: joint index out of range, skipping j2/j3 "
+          "operational limit update");
+        return;
+      }
       if (
-        current_pos_.position[joint_order_[1]] < j2_operational_max_ &&
+        current_pos_.position[j2_index] < j2_operational_max_ &&
         actual_j2_limit_ != j2_operational_max_)
       {
         modifyTargetNodeParameter_("j2.max", rclcpp::ParameterValue(j2_operational_max_));
@@ -946,7 +815,7 @@ void CommandNode::timer_callback_()
       }
 
       if (
-        current_pos_.position[joint_order_[2]] < j3_operational_max_ &&
+        current_pos_.position[j3_index] < j3_operational_max_ &&
         actual_j3_limit_ != j3_operational_max_)
       {
         modifyTargetNodeParameter_("j3.max", rclcpp::ParameterValue(j3_operational_max_));
@@ -1261,9 +1130,27 @@ void CommandNode::trajectory_control_(const AxisInfo& axis_info)
     return;  // pas encore actif → on attend le switch
   }
 
+  if (!init_ || joint_order_.size() < explorer_joint_offset_ + 7)
+  {
+    RCLCPP_ERROR(
+      n_->get_logger(),
+      "[command_node] trajectory_control_ called before joint_order_ is ready, skipping cycle");
+    return;
+  }
   for (size_t i = 0; i < 7; ++i)
   {
-    q_current_[i] = current_pos_.position[joint_order_[i]];
+    size_t idx = joint_order_[explorer_joint_offset_ + i];
+    if (idx >= current_pos_.position.size())
+    {
+      RCLCPP_ERROR(
+        n_->get_logger(),
+        "[command_node] trajectory_control_: out of range joint index %zu (current_pos_ has %zu "
+        "positions), skipping this index",
+        idx, current_pos_.position.size());
+      // TODO continue even with partial joints or return ?
+      continue;
+    }
+    q_current_[i] = current_pos_.position[idx];
   }
 
   float value = readAxisValue_(axis_info);

@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(explorer_command_controllers LANGUAGES CXX)
 
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
 endif()

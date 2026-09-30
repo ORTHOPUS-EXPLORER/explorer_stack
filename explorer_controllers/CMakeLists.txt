@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.22)  # Add this line to specify the minimum CMake version
 project(explorer_controllers)
 
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)  
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -30,6 +35,7 @@ set(CONTROLLERS_DEPENDENCIES
   realtime_tools
   Eigen3
   qpoases_ros2
+  explorer_joint_utils
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
