@@ -161,18 +161,21 @@ ARG ROS_USER
 ENV ROS_USER=${ROS_USER}
 ENV ROS_WS=${ROS_WS}
 
-RUN useradd -m --no-log-init -r ${ROS_USER}
-
-# Copy colcon config (no need to reinstall mixins)
-RUN cp -r /root/.colcon /home/${ROS_USER}
-WORKDIR ${ROS_WS}
-
 # Setup passwordless sudoers for apt related commands
 RUN echo "${ROS_USER} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/aptitude, /usr/bin/apt-fast, /usr/bin/add-apt-repository, /usr/local/bin/set_device_permissions.sh" >> /etc/sudoers
 
-COPY --chmod=0666 --exclude=build --exclude=install --exclude=log . ${ROS_WS}
+RUN useradd -m --no-log-init -r ${ROS_USER}
+
+# Copy colcon config (no need to reinstall mixins)
+RUN cp -r /root/.colcon /home/${ROS_USER} && \
+    mkdir -p ${ROS_WS} && \
+    chown -R ${ROS_USER}:${ROS_USER} /home/${ROS_USER}/.colcon ${ROS_WS}
+
+WORKDIR ${ROS_WS}
+
+COPY --chown=${ROS_USER}:${ROS_USER} --exclude=build --exclude=install --exclude=log . ${ROS_WS}
+
+USER ${ROS_USER}
 
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build --symlink-install --continue-on-error --mixin release
-
-USER ${ROS_USER}
