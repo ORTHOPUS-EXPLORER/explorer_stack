@@ -3,76 +3,54 @@
  *  Copyright (C) 2022 Orthopus
  *  All rights reserved.
  */
-#include "rclcpp/rclcpp.hpp"
-
 #include "explorer_input_devices/device.h"
+
+#include <utility>
+
+#include "rclcpp/rclcpp.hpp"
 
 namespace input_device
 {
-Device::Device(rclcpp::Node::SharedPtr n) : n_(n)
+Device::Device(
+  rclcpp::Node::SharedPtr n, const std::string& joystick_topic, JoystickCallback joystick_callback)
+: n_(std::move(n))
 {
   RCLCPP_DEBUG(n_->get_logger(), "Device constructor");
 
-  cartesian_cmd_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>
-                        ("/explorer_user_interfaces/rqt_armcontrol/input_device_velocity", 1);
-  gripper_cmd_pub_ = n_->create_publisher<std_msgs::msg::Float64>
-                        ("/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 1);
-  //initializeServices_();
+  const auto cartesian_command_topic = n_->declare_parameter<std::string>(
+    "cartesian_command_topic", "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity");
+  RCLCPP_INFO(
+    n_->get_logger(), "Publishing cartesian command on '%s'", cartesian_command_topic.c_str());
+
+  cartesian_cmd_pub_ =
+    n_->create_publisher<geometry_msgs::msg::TwistStamped>(cartesian_command_topic, 1);
+  // command_node scales it by the speed factor and integrates it into the gripper position
+  gripper_velocity_pub_ =
+    n_->create_publisher<std_msgs::msg::Float64>("/command_node/gripper/velocity/commands", 10);
+
+  device_sub_ = n_->create_subscription<sensor_msgs::msg::Joy>(
+    joystick_topic, 10, std::move(joystick_callback));
 }
 
-Device::~Device()
-{
-}
-/*
-void Device::initializeServices_()
-{
-  ros::service::waitForService("/niryo_one/activate_learning_mode");
-  ros::service::waitForService("/niryo_one/change_tool");
-  ros::service::waitForService("/niryo_one/tools/open_gripper");
-  ros::service::waitForService("/niryo_one/tools/close_gripper");
+Device::~Device() {}
 
-  learning_mode_client_ = n_.serviceClient<niryo_one_msgs::SetInt>("/niryo_one/activate_learning_mode");
-  change_tool_srv_ = n_.serviceClient<niryo_one_msgs::SetInt>("niryo_one/change_tool");
-  open_gripper_srv_ = n_.serviceClient<niryo_one_msgs::OpenGripper>("niryo_one/tools/open_gripper");
-  close_gripper_srv_ = n_.serviceClient<niryo_one_msgs::CloseGripper>("niryo_one/tools/close_gripper");
+const rclcpp::Node::SharedPtr& Device::get_node_() const { return n_; }
+
+void Device::publish_cartesian_command_(const geometry_msgs::msg::TwistStamped& cartesian_cmd) const
+{
+  cartesian_cmd_pub_->publish(cartesian_cmd);
 }
 
-void Device::requestLearningMode(int state)
+void Device::publish_gripper_velocity_(double velocity)
 {
-  niryo_one_msgs::SetInt learning_mode;
-  learning_mode.request.value = state;
-  if (!learning_mode_client_.call(learning_mode))
+  // Repeated zeros would collide with another gripper source (e.g. the virtual joystick), only
+  // the first one is sent to stop the gripper right away.
+  if (velocity == 0.0 && last_gripper_velocity_ == 0.0)
   {
-    ROS_WARN("Could not set learning mode. Service call failed.");
+    return;
   }
-}
+  last_gripper_velocity_ = velocity;
 
-void Device::setGripperId_()
-{
-  niryo_one_msgs::SetInt gripper_id;
-  gripper_id.request.value = 12;
-  change_tool_srv_.call(gripper_id);  // gripper 2
+  gripper_velocity_pub_->publish(std_msgs::msg::Float64().set__data(velocity));
 }
-
-void Device::openGripper_()
-{
-  niryo_one_msgs::OpenGripper open_gripper;
-  open_gripper.request.id = 12;
-  open_gripper.request.open_position = 640;
-  open_gripper.request.open_speed = 300;
-  open_gripper.request.open_hold_torque = 128;
-  open_gripper_srv_.call(open_gripper);
-}
-
-void Device::closeGripper_()
-{
-  niryo_one_msgs::CloseGripper close_gripper;
-  close_gripper.request.id = 12;
-  close_gripper.request.close_position = 400;
-  close_gripper.request.close_speed = 300;
-  close_gripper.request.close_hold_torque = 128;
-  close_gripper.request.close_max_torque = 1023;
-  close_gripper_srv_.call(close_gripper);
-}
-*/
-}
+}  // namespace input_device

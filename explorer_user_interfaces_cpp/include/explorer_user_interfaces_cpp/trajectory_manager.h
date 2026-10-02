@@ -1,7 +1,8 @@
-#include "rclcpp/rclcpp.hpp"
 #include <chrono>
-#include <string>
 #include <functional>
+#include <string>
+
+#include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "yaml-cpp/yaml.h"
@@ -11,59 +12,82 @@ using namespace std::chrono;
 namespace space_control
 {
 
-    struct JointLimit {
-        bool enabled;
-        double min;
-        double max;
-    };
-    
-    class TrajectoryManager {
-        public:
-            TrajectoryManager();
+struct JointLimit
+{
+  bool enabled;
+  double min;
+  double max;
+};
 
-            bool loadTrajectory(const std::string& filename);
+// Indicates arm position according to deploy trajectory
+enum class RetractStatus
+{
+  RETRACTED,
+  IN_PROGRESS,
+  READY
+};
 
-            bool validateTrajectory() const;
+// Convert RetractStatus to string
+std::string to_string(RetractStatus status);
 
-            void update(std::array<double,7> q_current, float axe_value);
+class TrajectoryManager
+{
+public:
+  TrajectoryManager() = default;
 
-            bool getLock();
+  // Load and validate the trajectory file.
+  // Trajectory control is enabled only when this succeeds
+  bool load_trajectory(const std::string& filename);
 
-            trajectory_msgs::msg::JointTrajectory getTrajectory();
+  // Report trajectory control "readyness".
+  bool is_enabled() const;
 
-            void reset();
+  void update(std::array<double, 7> q_current, float axe_value);
 
-            std::string getStatusString();
+  std::optional<trajectory_msgs::msg::JointTrajectory> get_trajectory();
 
-        private:
+  void reset();
 
-        std::vector<JointLimit> joint_limits_;
+  // Get current RetractStatus
+  RetractStatus get_status() const;
 
-        YAML::Node traj;
+private:
+  bool enabled_ = false;
 
-        std::vector<std::array<double, 6>> init_points_;
-        std::size_t current_point_index_;
+  std::vector<JointLimit> joint_limits_;
 
-        std::array<double,6> q_current_;
-        std::array<double,6> q_hold_;  // Position to hold when joystick is released
-        bool q_hold_initialized_ = false;  // Track if q_hold_ has been initialized with actual position
-        double gripper_;
-        float axe_value_;
-        float axe_value_prev_;
-        bool newDirection_;
-        bool lock_;
-        
-        double traj_end_time_;
+  YAML::Node traj;
 
-        bool return_sequence_active_ = false;
-        bool needs_return_to_ready_ = false;
-        bool ready_just_reached_ = false;
-        bool trajectory_completed_ = false;
-        std::string status;
-        
-        static bool pointAlmostEqual(const std::array<double, 6>& p1, const std::array<double, 6>& p2, double epsilon = 3.5e-2); //2° tolerance
+  std::vector<std::array<double, 6>> init_points_;
+  std::size_t current_point_index_ = 0;
 
-        void updateStatusString();
-    };
+  std::array<double, 6> q_current_;
+  // Position to hold when joystick is released
+  std::array<double, 6> q_hold_ = {
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  };
+  // Track if q_hold_ has been initialized with actual position
+  bool q_hold_initialized_ = false;
+  double gripper_;
+  float axe_value_ = 0.0;
+  float axe_value_prev_ = axe_value_;
+  bool new_direction_ = false;
 
-}
+  double traj_end_time_ = 0.0;
+
+  bool return_sequence_active_ = false;
+  bool needs_return_to_ready_ = false;
+  bool ready_just_reached_ = false;
+  bool trajectory_completed_ = false;
+  RetractStatus status_ = RetractStatus::RETRACTED;
+
+  static bool are_point_almost_equal_(
+    const std::array<double, 6>& p1, const std::array<double, 6>& p2,
+    double epsilon = 3.5e-2);  //2° tolerance
+
+  bool validate_trajectory_() const;
+
+  void update_status_();
+};
+
+}  // namespace space_control

@@ -246,7 +246,6 @@ def declare_command_node(
         ## It was like this before refactor but it's weird mapping trajectory / force_deploy
         trajectory = LaunchConfiguration("force_deploy")
         pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
-        yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
         trajectory_yaml_file_path = os.path.join(
             pkg_share, "config", "config_trajectory.yaml"
         )
@@ -261,7 +260,6 @@ def declare_command_node(
                 output=output,
                 parameters=[
                     {
-                        "mode_file": yaml_file_path,
                         "trajectory_file": trajectory_yaml_file_path,
                         "active_trajectory": trajectory,
                         "default_controller_name_list": default_controller_name_list,
@@ -279,6 +277,52 @@ def declare_command_node(
             "default_controller_name_list": default_controller_name_list,
             "remappings": remappings,
         },
+    )
+
+
+def declare_joystick_device_node(output: str = "screen") -> OpaqueFunction:
+    """Joystick input device: manage joystick input.
+    """
+
+    def inner_opaque_function(context) -> List[Node]:
+        pkg_share = get_package_share_directory("explorer_input_devices")
+        mode_yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
+
+        use_qp_inria = get_parameter_use_qp_inria().perform(context).lower() == "true"
+
+        end_effector_pose_topic = (
+            "/qontrol_controller/x_current"
+            if use_qp_inria
+            else "/explorer_controllers/qp_solving/x_current"
+        )
+
+        return [
+            Node(
+                package="explorer_input_devices",
+                executable="device_joystick",
+                output=output,
+                parameters=[
+                    {
+                        "mode_file": mode_yaml_file_path,
+                        "end_effector_pose_topic": end_effector_pose_topic,
+                        # Publish to joystick_selector physical joy input topic
+                        "cartesian_command_topic": "/explorer_input_devices/joystick/physical/velocity/commands"
+                    }
+                ],
+            )
+        ]
+
+    return OpaqueFunction(function=inner_opaque_function)
+
+
+def declare_joystick_selector_node(output: str = "screen") -> Node:
+    """Forwards either the physical or the virtual joystick to the robot.
+    """
+    return Node(
+        package="explorer_input_devices",
+        executable="joystick_selector",
+        name="joystick_selector",
+        output=output,
     )
 
 
