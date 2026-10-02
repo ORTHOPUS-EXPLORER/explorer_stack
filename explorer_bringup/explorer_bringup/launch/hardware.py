@@ -30,21 +30,23 @@ from explorer_bringup.launch.shared import (
     get_robot_controller_config_path,
 )
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     get_parameter_debug,
     get_parameter_simulation,
 )
 
 
 def _declare_node_controller_manager_control_node(
-    controller_config_type: CONTROLLER_CONFIG_TYPE,
+    controller_config_file: str,
+    robot_controller_config_path: str,
 ) -> Node:
     """Declare controller manager control node (only needed in HW, gazebo launch it automatically in simulation)
 
     Returns:
         Node:
     """
-    controller_config_path = get_robot_controller_config_path(controller_config_type)
+    controller_config_path = get_robot_controller_config_path(
+        controller_config_file, robot_controller_config_path
+    )
 
     return Node(
         package="controller_manager",
@@ -66,7 +68,8 @@ def declare_hardware_node_group(
     robot_controller_list: List,
     launch_qp_solving: bool,
     qp_solving_post_start_list: List[Action] = [],
-    robot_controller_config_type: CONTROLLER_CONFIG_TYPE = "controller",
+    robot_controller_config_file: str = "explorer_controller",
+    robot_controller_config_path: str = "explorer_bringup",
     controller_position_topic_name: str = "",
 ) -> GroupAction:
     """Declare nodes needed when using hardware
@@ -76,7 +79,8 @@ def declare_hardware_node_group(
     """
     # Nodes
     controller_manager_node = _declare_node_controller_manager_control_node(
-        controller_config_type=robot_controller_config_type
+        controller_config_file=robot_controller_config_file,
+        robot_controller_config_path=robot_controller_config_path,
     )
     joint_state_broadcaster_spawner = declare_node_joint_state_broadcaster_spawner()
 

@@ -26,7 +26,6 @@ from explorer_bringup.launch.optional import (
 )
 from explorer_bringup.launch.optional_parameters import declare_parameter_joy_backend
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     get_parameter_use_sim_time,
 )
 from explorer_bringup.launch.simulation import declare_simulation_node_group
@@ -39,7 +38,7 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
-def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
+def _declare_arguments(robot_controller_config: str):
     return [
         *declare_simulation_argument_list(
             robot_controller_config=robot_controller_config
@@ -52,7 +51,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 
 
 def generate_launch_description():
-    robot_controller_config = "controller"
+    robot_controller_config = "explorer_controller"
 
     # Initialize Arguments
     declared_arguments = _declare_arguments(
@@ -91,7 +90,7 @@ def generate_launch_description():
     )
 
     robot_hardware = declare_hardware_node_group(
-        robot_controller_config_type=robot_controller_config,
+        robot_controller_config_file=robot_controller_config,
         robot_controller_list=robot_controller_list,
         launch_qp_solving=False,
     )

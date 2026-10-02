@@ -25,12 +25,11 @@ from launch.substitutions import (
 )
 from launch_ros.substitutions import FindPackageShare
 
-CONTROLLER_CONFIG_TYPE = Literal["controller", "custom_controller"]
-
 
 def declare_shared_argument_list(
+    robot_controller_config_path: str,
+    robot_controller_config: str,
     use_actuator_interface: bool = True,
-    robot_controller_config: CONTROLLER_CONFIG_TYPE = "controller",
 ) -> List[DeclareLaunchArgument]:
     """Declare all shared arguments to be used accross all launch files
 
@@ -108,6 +107,8 @@ def declare_shared_argument_list(
                     get_parameter_use_poc2(),
                     " robot_controller_config:=",
                     robot_controller_config,
+                    " robot_controller_config_path:=",
+                    robot_controller_config_path,
                     " debug:=",
                     get_parameter_debug()
                 ]

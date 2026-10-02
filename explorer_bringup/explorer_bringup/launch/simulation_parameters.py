@@ -22,18 +22,19 @@ from launch.substitutions import (
 )
 
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     declare_shared_argument_list,
 )
 
 
 def declare_simulation_argument_list(
-    robot_controller_config: CONTROLLER_CONFIG_TYPE,
+    robot_controller_config: str,
+    robot_controller_config_path: str = "explorer_bringup",
 ) -> List[DeclareLaunchArgument]:
     return [
         *declare_shared_argument_list(
             use_actuator_interface=False,
             robot_controller_config=robot_controller_config,
+            robot_controller_config_path=robot_controller_config_path,
         ),
         DeclareLaunchArgument(
             "world_file",

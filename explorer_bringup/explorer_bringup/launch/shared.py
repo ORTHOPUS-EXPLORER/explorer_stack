@@ -36,7 +36,6 @@ from explorer_bringup.launch.optional_parameters import (
     get_parameter_web_gui_port,
 )
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     get_parameter_debug,
     get_parameter_gui,
     get_parameter_robot_description,
@@ -183,16 +182,15 @@ def declare_rviz_node() -> Node:
     )
 
 
-def get_robot_controller_config_path(controller_type: CONTROLLER_CONFIG_TYPE) -> Path:
-    robot_controller_config_map = {
-        "controller": "controller",
-        "custom_controller": "custom_controller",
-    }
+def get_robot_controller_config_path(
+    controller_config_file: str,
+    robot_controller_config_path: str,
+) -> Path:
     controller_config_path = PathJoinSubstitution(
         [
-            FindPackageShare("explorer_bringup"),
+            FindPackageShare(robot_controller_config_path),
             "config",
-            "explorer_" + robot_controller_config_map[controller_type] + ".yaml",
+            controller_config_file + ".yaml",
         ]
     )
     return controller_config_path

@@ -72,14 +72,18 @@ def declare_node_forward_position_controller_spawner(output: str = "log") -> Nod
 
 
 def declare_custom_controller_spawner(
-    robot_controller_config: str, output: str = "log"
+    robot_controller_config: str,
+    robot_controller_config_path: str,
+    output: str = "log",
 ) -> List[Node]:
     # Python method called at launch time that create a temporary duplicate controller config file with simulation parameter properly set
-    def inner_opaque_function(context, robot_controller_config: str):
+    def inner_opaque_function(
+        context, robot_controller_config: str, robot_controller_config_path: str
+    ):
         config_path = os.path.join(
-            get_package_share_directory("explorer_bringup"),
+            get_package_share_directory(robot_controller_config_path),
             "config",
-            "explorer_" + robot_controller_config + ".yaml",
+            robot_controller_config + ".yaml",
         )
 
         # Load existing config
@@ -139,7 +143,10 @@ def declare_custom_controller_spawner(
     return [
         OpaqueFunction(
             function=inner_opaque_function,
-            kwargs={"robot_controller_config": robot_controller_config},
+            kwargs={
+                "robot_controller_config": robot_controller_config,
+                "robot_controller_config_path": robot_controller_config_path,
+            },
         )
     ]
 
