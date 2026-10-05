@@ -20,6 +20,8 @@
   <depend>std_srvs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>explorer_msgs</depend>
+  <depend>yaml-cpp</depend>
 
   <exec_depend>spacenav</exec_depend>
   <exec_depend>joy</exec_depend>

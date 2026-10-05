@@ -1,26 +1,35 @@
 #include "explorer_user_interfaces_cpp/command_node.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace space_control
 {
+namespace
+{
+// Longest gap between two gripper velocity messages to be considered "continuous".
+// If this value is reached we considers it's a new "set" of gripper inputs.
+constexpr double MAX_GRIPPER_INTERVAL_SECONDS = 0.1;
+
+// A trajectory velocity not refreshed within this delay falls back to 0 (hold position), so a
+// source that vanishes while moving do not stays on last command sent.
+constexpr double TRAJECTORY_VELOCITY_TIMEOUT_SECONDS = 0.3;
+
+// Cartesian velocity magnitude above which a command asks for motion (same as joystick_selector)
+constexpr double CARTESIAN_ACTIVITY_THRESHOLD = 1e-3;
+}  // namespace
+
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
-  n_->declare_parameter<int>("button_threshold_ms", 500);
-  n_->declare_parameter<double>("speed_change_threshold", 0.95);
-  n_->declare_parameter<double>("speed_level_multiplier", 0.25);
   n_->declare_parameter<double>("sampling_period", 0.01);
   n_->declare_parameter<std::vector<std::string>>(
     "default_controller_name_list", std::vector<std::string>());
 
-  button_threshold_ms_ = n_->get_parameter("button_threshold_ms").as_int();
-  speed_change_threshold_ = n_->get_parameter("speed_change_threshold").as_double();
-  speed_level_multiplier_ = n_->get_parameter("speed_level_multiplier").as_double();
   sampling_period_ = n_->get_parameter("sampling_period").as_double();
 
-  button_handler_.init(button_threshold_ms_);
   default_controller_name_list_ =
     n_->get_parameter("default_controller_name_list").as_string_array();
   if (default_controller_name_list_.empty())
@@ -28,148 +37,87 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     throw std::runtime_error("Parameter 'default_controller_name_list' is required");
   }
 
-  // Map control behaviors to corresponding functions
-  control_behaviors_ = {
-    {"cartesian_X", std::bind(&CommandNode::cartesian_linear_, this, std::placeholders::_1)},
-    {"cartesian_Y", std::bind(&CommandNode::cartesian_linear_, this, std::placeholders::_1)},
-    {"cartesian_Z", std::bind(&CommandNode::cartesian_linear_, this, std::placeholders::_1)},
-    {"rotation_X", std::bind(&CommandNode::cartesian_rotation_, this, std::placeholders::_1)},
-    {"rotation_Y", std::bind(&CommandNode::cartesian_rotation_, this, std::placeholders::_1)},
-    {"rotation_Z", std::bind(&CommandNode::cartesian_rotation_, this, std::placeholders::_1)},
-    {"joint_1", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"joint_2", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"joint_3", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"joint_4", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"joint_5", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"joint_6", std::bind(&CommandNode::joint_direct_, this, std::placeholders::_1)},
-    {"change_speed", std::bind(&CommandNode::change_speed_, this, std::placeholders::_1)},
-    {"drink", std::bind(&CommandNode::drink_, this, std::placeholders::_1)},
-    {"gripper", std::bind(&CommandNode::gripper_, this, std::placeholders::_1)},
-    {"complex_X", std::bind(&CommandNode::complex_, this, std::placeholders::_1)},
-    {"complex_Y", std::bind(&CommandNode::complex_, this, std::placeholders::_1)},
-    {"trajectory_control",
-     std::bind(&CommandNode::trajectory_control_, this, std::placeholders::_1)}};
-
-  n_->declare_parameter<std::string>("mode_file", "");
   n_->declare_parameter<std::string>("trajectory_file", "");
   n_->declare_parameter<bool>("active_trajectory", true);
   n_->declare_parameter<bool>("use_qp_inria", false);
 
-  // Get the value of the mode_file parameter
-  std::string mode_file;
-  n_->get_parameter("mode_file", mode_file);
-
-  // Load mode configuration from YAML file
-  data_ = loadModeData_(mode_file);
-
-  if (!validateModeData_(data_))
-  {
-    RCLCPP_FATAL(n_->get_logger(), "YAML configuration validation failed. Shutting down node.");
-    rclcpp::shutdown();
-    return;
-  }
-
-  n_->get_parameter("active_trajectory", active_trajectory_);
-
-  if (active_trajectory_)
+  if (n_->get_parameter("active_trajectory").as_bool())
   {
     RCLCPP_INFO(n_->get_logger(), "Active trajectory control mode enabled.");
-    bool exists = false;
 
-    for (const auto& [mode_name, mode] : data_.button_modes_map)
+    std::string trajectory_file;
+    n_->get_parameter("trajectory_file", trajectory_file);
+
+    if (!trajectory_manager_.load_trajectory(trajectory_file))
     {
-      for (const auto& axis : mode.axes)
-      {
-        if (axis.control_name == "trajectory_control")
-        {
-          exists = true;
-          break;
-        }
-      }
-      if (exists) break;
+      rclcpp::shutdown();
+      return;
     }
-
-    if (exists)
-    {
-      // Get the value of the trajectory_file parameter
-      std::string trajectory_file;
-      n_->get_parameter("trajectory_file", trajectory_file);
-
-      if (!trajectory_manager_.loadTrajectory(trajectory_file))
-      {
-        RCLCPP_FATAL(n_->get_logger(), "YAML trajectory configuration failed. Shutting down node.");
-        rclcpp::shutdown();
-        return;
-      }
-
-      if (!trajectory_manager_.validateTrajectory())
-      {
-        RCLCPP_FATAL(n_->get_logger(), "YAML trajectory validation failed. Shutting down node.");
-        rclcpp::shutdown();
-        return;
-      }
-
-      lock_ = true;
-    }
-    else
-    {
-      lock_ = false;
-    }
-  }
-  else
-  {
-    lock_ = false;
   }
 
   n_->get_parameter("use_qp_inria", use_qp_inria_);
 
+  n_->declare_parameter<int>("min_speed_level", 1);
+  n_->declare_parameter<int>("max_speed_level", 4);
+  n_->declare_parameter<int>("default_speed_level", 2);
+  n_->declare_parameter<double>("speed_level_multiplier", 0.25);
+  n_->declare_parameter<std::string>(
+    "cartesian_velocity_output_topic",
+    "/explorer_user_interfaces/rqt_armcontrol/input_device_velocity");
+
+  min_speed_level_ = static_cast<int>(n_->get_parameter("min_speed_level").as_int());
+  max_speed_level_ = static_cast<int>(n_->get_parameter("max_speed_level").as_int());
+  if (min_speed_level_ > max_speed_level_)
+  {
+    throw std::runtime_error("Parameter 'min_speed_level' must not exceed 'max_speed_level'");
+  }
+  speed_level_ = std::clamp(
+    static_cast<int>(n_->get_parameter("default_speed_level").as_int()), min_speed_level_,
+    max_speed_level_);
+  speed_level_multiplier_ = n_->get_parameter("speed_level_multiplier").as_double();
+
+  // Half open
+  gripper_command_.data = {0.5};
+
   // Initialize subscribers and publishers
-  joy_sub_ = n->create_subscription<sensor_msgs::msg::Joy>(
-    "joy", 10, std::bind(&CommandNode::callback_joystick_, this, std::placeholders::_1));
-  x_current_sub_ = n_->create_subscription<geometry_msgs::msg::Pose>(
-    "/explorer_controllers/qp_solving/x_current", 10,
-    std::bind(&CommandNode::callback_x_current_, this, std::placeholders::_1));
   q_current_sub_ = n_->create_subscription<sensor_msgs::msg::JointState>(
     "/joint_states", 10, std::bind(&CommandNode::callback_q_current_, this, std::placeholders::_1));
+  cartesian_vel_sub_ = n_->create_subscription<geometry_msgs::msg::TwistStamped>(
+    "command_node/robot/velocity/commands", 10,
+    std::bind(&CommandNode::callback_cartesian_velocity_, this, std::placeholders::_1));
+  gripper_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+    "command_node/gripper/velocity/commands", 10,
+    std::bind(&CommandNode::callback_gripper_velocity_, this, std::placeholders::_1));
+  trajectory_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
+    "command_node/trajectory/velocity/commands", 10,
+    std::bind(&CommandNode::callback_trajectory_velocity_, this, std::placeholders::_1));
+  last_trajectory_vel_time_ = n_->now();
 
-  joint_vel_pub_ = n->create_publisher<std_msgs::msg::Float64MultiArray>(
-    "command_node/joint_velocity_command", 10);
-  cartesian_vel_pub_ = n->create_publisher<geometry_msgs::msg::TwistStamped>(
-    "command_node/cartesian_velocity_command", 10);
-  mode_name_pub_ = n->create_publisher<std_msgs::msg::String>("command_node/mode_name", 10);
-  speed_level_pub_ = n->create_publisher<std_msgs::msg::Int32>("command_node/speed_level", 10);
-  frame_id_pub_ = n->create_publisher<explorer_msgs::msg::ControlFrameSelection>(
-    "/explorer_controllers/command_node/control_frame_selection", 10);
-  gripper_pub_ =
-    n->create_publisher<std_msgs::msg::Float64>("command_node/gripper_velocity_command", 10);
-  gripper_command_pub_ =
-    n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
   trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "joint_trajectory_controller/joint_trajectory", 10);
   reset_qp_solving_pub_ =
     n_->create_publisher<std_msgs::msg::Bool>("/command_node/reset_qp_solving", 10);
-  retract_status_pub_ =
-    n_->create_publisher<std_msgs::msg::String>("command_node/retract_status", 10);
+  // Latched: only published on change, late subscribers still get the current status
+  retract_status_pub_ = n_->create_publisher<std_msgs::msg::String>(
+    "command_node/retract_status", rclcpp::QoS(1).transient_local());
+  // Latched: only published on change, late subscribers still get the current level
+  speed_level_pub_ = n_->create_publisher<std_msgs::msg::Int32>(
+    "command_node/speed_level", rclcpp::QoS(1).transient_local());
+  cartesian_vel_pub_ = n_->create_publisher<geometry_msgs::msg::TwistStamped>(
+    n_->get_parameter("cartesian_velocity_output_topic").as_string(), 10);
+  gripper_command_pub_ =
+    n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
+
+  set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
+    "command_node/set_speed_level",
+    std::bind(
+      &CommandNode::callback_set_speed_level_, this, std::placeholders::_1,
+      std::placeholders::_2));
 
   param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(n_, "qp_solving");
 
-  // Initialize speed control variables
-  speed_factor_ = 1.0;
-  speed_level_ = 2;
-  joy_prec_ = 0.0;
-
-  complex_mode_ = false;
-  rotation_speed_scale_ = 1.0;
-
-  gripper_command_.data = {0.5};
-
-  // Initialize Cartesian and joint velocities to zero
-  resetVelocities_();
-
-  frame_id_.position_control_frame = 0;
-  frame_id_.orientation_control_frame = 0;
-
-  retract_status_pub_->publish(std_msgs::msg::String().set__data("retracted"));
+  publish_retract_status_();
+  speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
 
   // Timer callback
   timer_ = n_->create_wall_timer(
@@ -185,259 +133,140 @@ CommandNode::~CommandNode()
   }
 }
 
-// Load mode configuration from YAML file
-ModeData CommandNode::loadModeData_(const std::string& filename)
+double CommandNode::speed_factor_() const { return speed_level_multiplier_ * speed_level_; }
+
+void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg)
 {
-  auto getDefaultModeData = []() -> ModeData
-  {
-    ModeData default_data;
-    default_data.mode_info.name = "default";
-    default_data.mode_info.display_name = "Default Mode";
-    default_data.mode_info.description = "Fallback mode";
-    return default_data;
-  };
+  const bool moving = std::fabs(msg.twist.linear.x) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.linear.y) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.linear.z) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.x) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.y) > CARTESIAN_ACTIVITY_THRESHOLD ||
+                      std::fabs(msg.twist.angular.z) > CARTESIAN_ACTIVITY_THRESHOLD;
 
-  YAML::Node root;
-  try
+  // Cartesian motion needs the default controller, switch back to it on demand
+  if (moving)
   {
-    root = YAML::LoadFile(filename);
-  }
-  catch (const YAML::BadFile& e)
-  {
-    RCLCPP_ERROR(n_->get_logger(), "Cannot open mode_file: %s", filename.c_str());
-    return getDefaultModeData();
-  }
-  catch (const YAML::ParserException& e)
-  {
-    RCLCPP_ERROR(n_->get_logger(), "YAML parsing error in file %s: %s", filename.c_str(), e.what());
-    return getDefaultModeData();
+    setTrajectoryMode_(false);
   }
 
-  // Parse mode information
-  if (root["mode_info"])
+  // Until the default controller is back, hold
+  if (trajectory_mode_ || controller_state_ != ControllerState::DEFAULT_CONTROLLER)
   {
-    auto info = root["mode_info"];
-    data_.mode_info.name = info["name"].as<std::string>("");
-    data_.mode_info.display_name = info["display_name"].as<std::string>("");
-    data_.mode_info.description = info["description"].as<std::string>("");
-  }
-
-  // Parse button modes and their configurations
-  if (root["button_mappings"])
-  {
-    auto mappings = root["button_mappings"];
-    bool first = true;
-
-    for (auto it = mappings.begin(); it != mappings.end(); ++it)
-    {
-      ButtonMode mode;
-      mode.name = it->first.as<std::string>();
-      auto button_mode = it->second;
-
-      if (first)
-      {
-        current_mode_name_ = mode.name;
-        first = false;
-      }
-
-      // axes
-      if (button_mode["axes"])
-      {
-        for (auto axis_node : button_mode["axes"])
-        {
-          AxisInfo axis;
-          axis.control_name = axis_node["control_name"].as<std::string>("");
-          axis.joystick_axis = axis_node["joystick_axis"].as<std::string>("");
-          axis.direction = axis_node["direction"].as<int>(1);
-          axis.scale = axis_node["scale"].as<double>(1.0);
-
-          // Parse smoothing_alpha (default 1.0 = no smoothing)
-          axis.smoothing_alpha = axis_node["smoothing_alpha"].as<double>(1.0);
-          // Clamp alpha to valid range [0.0, 1.0]
-          axis.smoothing_alpha = std::max(0.0, std::min(1.0, axis.smoothing_alpha));
-
-          if (axis_node["params"])
-          {
-            for (auto p : axis_node["params"])
-            {
-              axis.params[p.first.as<std::string>()] = p.second.as<double>();
-            }
-          }
-          mode.axes.push_back(axis);
-        }
-      }
-
-      // buttons
-      if (button_mode["button"])
-      {
-        ButtonAction action;
-        for (auto button_action_node : button_mode["button"])
-        {
-          if (
-            button_action_node["long_click"] &&
-            !button_action_node["long_click"].as<std::string>().empty())
-            action.long_click = button_action_node["long_click"].as<std::string>();
-          if (
-            button_action_node["short_click"] &&
-            !button_action_node["short_click"].as<std::string>().empty())
-            action.short_click = button_action_node["short_click"].as<std::string>();
-        }
-        mode.buttons = action;
-      }
-
-      data_.button_modes_map[mode.name] = mode;
-    }
-  }
-
-  return data_;
-}
-
-bool CommandNode::validateModeData_(const ModeData& data)
-{
-  // --- mode_info verification ---
-  if (data.mode_info.name.empty() || data.mode_info.display_name.empty())
-  {
-    RCLCPP_ERROR(n_->get_logger(), "Invalid YAML: mode_info.name or display_name missing");
-    return false;
-  }
-  // --- button_modes_map verification ---
-  if (data.button_modes_map.empty())
-  {
-    RCLCPP_ERROR(n_->get_logger(), "Invalid YAML: button_mappings must contain at least one mode");
-    return false;
-  }
-
-  // Valid control names
-  std::unordered_set<std::string> valid_control_names;
-  for (const auto& kv : control_behaviors_) valid_control_names.insert(kv.first);
-
-  // Valid joystick axes
-  std::unordered_set<std::string> valid_axes = {"ax1", "ax2"};
-
-  // --- Validate each button mode ---
-  for (auto& [name, mode] : data.button_modes_map)
-  {
-    // Axes check
-    for (const auto& axis : mode.axes)
-    {
-      // Special case: empty control_name means inactive axis
-      if (axis.control_name.empty())
-      {
-        if (axis.direction != 0)
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(),
-            "Invalid axis in mode '%s': direction must be 0 when control_name is empty",
-            name.c_str());
-          return false;
-        }
-        if (axis.scale != 0.0)
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(),
-            "Invalid axis in mode '%s': scale must be 0 when control_name is empty", name.c_str());
-          return false;
-        }
-        if (!axis.joystick_axis.empty())
-        {
-          RCLCPP_ERROR(
-            n_->get_logger(),
-            "Invalid axis in mode '%s': joystick_axis must be empty when control_name is empty",
-            name.c_str());
-          return false;
-        }
-        // skip the rest of validation for this axis
-        continue;
-      }
-
-      // Normal validations
-      // control_name verification
-      if (!valid_control_names.count(axis.control_name))
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "Invalid control_name '%s' in mode '%s'", axis.control_name.c_str(),
-          name.c_str());
-        return false;
-      }
-      // joystick_axis verification
-      if (!valid_axes.count(axis.joystick_axis))
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "Invalid joystick_axis '%s' in mode '%s' (must be ax1 or ax2)",
-          axis.joystick_axis.c_str(), name.c_str());
-        return false;
-      }
-      // direction verification
-      if (axis.direction != 1 && axis.direction != -1)
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "direction must be 1 or -1 in mode '%s' axis '%s'", name.c_str(),
-          axis.control_name.c_str());
-        return false;
-      }
-      // scale verification
-      if (axis.scale <= 0)
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "scale must be > 0 in mode '%s' axis '%s'", name.c_str(),
-          axis.control_name.c_str());
-        return false;
-      }
-    }
-
-    // Buttons validity
-    if (!mode.buttons.short_click.empty())
-    {
-      if (!data.button_modes_map.count(mode.buttons.short_click))
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "Invalid short_click reference '%s' from mode '%s'",
-          mode.buttons.short_click.c_str(), name.c_str());
-        return false;
-      }
-    }
-
-    if (!mode.buttons.long_click.empty())
-    {
-      if (!data.button_modes_map.count(mode.buttons.long_click))
-      {
-        RCLCPP_ERROR(
-          n_->get_logger(), "Invalid long_click reference '%s' from mode '%s'",
-          mode.buttons.long_click.c_str(), name.c_str());
-        return false;
-      }
-    }
-  }
-
-  RCLCPP_INFO(n_->get_logger(), "YAML mode configuration validated successfully");
-  return true;
-}
-
-void CommandNode::callback_joystick_(const sensor_msgs::msg::Joy& msg)
-{
-  if (msg.axes.size() < 2)
-  {
-    RCLCPP_WARN_THROTTLE(
-      n_->get_logger(), *n_->get_clock(), 1000, "Joystick has insufficient axes");
+    geometry_msgs::msg::TwistStamped hold;
+    hold.header = msg.header;
+    cartesian_vel_pub_->publish(hold);
     return;
   }
-  else if (msg.buttons.size() < 1)
-  {
-    RCLCPP_WARN_THROTTLE(
-      n_->get_logger(), *n_->get_clock(), 1000, "Joystick has insufficient buttons");
-    return;
-  }
-  {
-    std::lock_guard<std::mutex> lock_axis(mutex_axis_);
-    // Store raw joystick values (smoothing is applied per-axis in readAxisValue)
-    axis_1_raw_ = msg.axes[0];
-    axis_2_raw_ = msg.axes[1];
-  }
 
-  button_handler_.update(msg.buttons[0]);
+  const double factor = speed_factor_();
+
+  geometry_msgs::msg::TwistStamped scaled = msg;
+  scaled.twist.linear.x *= factor;
+  scaled.twist.linear.y *= factor;
+  scaled.twist.linear.z *= factor;
+  scaled.twist.angular.x *= factor;
+  scaled.twist.angular.y *= factor;
+  scaled.twist.angular.z *= factor;
+
+  cartesian_vel_pub_->publish(scaled);
 }
 
-void CommandNode::callback_x_current_(const geometry_msgs::msg::Pose& msg) { x_current_ = msg; }
+void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& msg)
+{
+  last_trajectory_vel_time_ = n_->now();
+  trajectory_velocity_input_.store(msg.data * speed_factor_());
+
+  // Moving along the trajectory needs joint_trajectory_controller, switch to it on demand.
+  // Releasing the input only holds the position, the switch back is left to the next Cartesian
+  // command.
+  if (msg.data != 0.0)
+  {
+    setTrajectoryMode_(true);
+  }
+}
+
+void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
+{
+  const rclcpp::Time now = n_->now();
+  double dt = 0.0;
+  if (last_gripper_vel_time_)
+  {
+    // Computes time gap for "continuous" input or set to 0.0 for a new set of inputs
+    const double gap = (now - *last_gripper_vel_time_).seconds();
+    dt = gap > MAX_GRIPPER_INTERVAL_SECONDS ? 0.0 : gap;
+  }
+  last_gripper_vel_time_ = now;
+
+  // Ensure default controller is enabled
+  if (msg.data != 0.0)
+  {
+    setTrajectoryMode_(false);
+  }
+
+  // Until gripper_controller is back, hold
+  if (trajectory_mode_ || controller_state_ != ControllerState::DEFAULT_CONTROLLER)
+  {
+    return;
+  }
+
+  double& position = gripper_command_.data[0];
+  position = std::clamp(position + msg.data * speed_factor_() * dt, 0.0, 1.0);
+
+  gripper_command_pub_->publish(gripper_command_);
+}
+
+void CommandNode::publish_retract_status_()
+{
+  if (last_retract_status_ == trajectory_manager_.get_status())
+  {
+    return;
+  }
+  last_retract_status_ = trajectory_manager_.get_status();;
+
+  retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+}
+
+void CommandNode::callback_set_speed_level_(
+  const std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Request> request,
+  std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Response> response)
+{
+  const int requested = request->relative ? speed_level_ + request->level : request->level;
+  const int previous = speed_level_;
+
+  speed_level_ = std::clamp(requested, min_speed_level_, max_speed_level_);
+
+  if (speed_level_ != previous)
+  {
+    RCLCPP_INFO(n_->get_logger(), "Speed level changed to %d", speed_level_);
+    speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
+  }
+
+  response->success = true;
+  response->level = speed_level_;
+  response->message = requested == speed_level_
+                        ? "Speed level set"
+                        : "Requested speed level " + std::to_string(requested) +
+                            " clamped to [" + std::to_string(min_speed_level_) + ", " +
+                            std::to_string(max_speed_level_) + "]";
+}
+
+void CommandNode::setTrajectoryMode_(bool enable)
+{
+  // Nothing to do if trajectory disabled or no transition
+  if (!trajectory_manager_.is_enabled() || trajectory_mode_.exchange(enable) == enable)
+  {
+    return;
+  }
+
+  if (!enable)
+  {
+    // Do not carry a stale rate into the next retract.
+    trajectory_velocity_input_.store(0.0);
+  }
+
+  RCLCPP_INFO(n_->get_logger(), "Trajectory mode %s", enable ? "requested" : "released");
+}
 
 void CommandNode::callback_q_current_(const sensor_msgs::msg::JointState& msg)
 {
@@ -472,18 +301,18 @@ void CommandNode::handle_controller_state_()
     return output_str.str();
   };
 
-  switch (control_state_)
+  switch (controller_state_)
   {
-    case ControlState::DEFAULT_CONTROLLER:
+    case ControllerState::DEFAULT_CONTROLLER:
       reset_qp_solving_pub_->publish(std_msgs::msg::Bool().set__data(false));
-      if (trajectory_requested_)
+      if (trajectory_mode_)
       {
         RCLCPP_INFO(n_->get_logger(), "→ SWITCHING TO TRAJECTORY MODE");
-        control_state_ = ControlState::SWITCHING_TO_TRAJ;
+        controller_state_ = ControllerState::SWITCHING_TO_TRAJ;
       }
       break;
 
-    case ControlState::SWITCHING_TO_TRAJ:
+    case ControllerState::SWITCHING_TO_TRAJ:
       if (!switch_in_progress_)
       {
         switch_in_progress_ = true;
@@ -504,35 +333,35 @@ void CommandNode::handle_controller_state_()
               if (success)
               {
                 RCLCPP_INFO(n_->get_logger(), "Switched to joint_trajectory_controller");
-                control_state_ = ControlState::TRAJECTORY;
+                controller_state_ = ControllerState::TRAJECTORY;
               }
               else
               {
                 RCLCPP_ERROR(n_->get_logger(), "Failed to switch to joint_trajectory_controller");
-                control_state_ = ControlState::DEFAULT_CONTROLLER;
+                controller_state_ = ControllerState::DEFAULT_CONTROLLER;
               }
             }
             catch (const std::exception& e)
             {
               RCLCPP_ERROR(n_->get_logger(), "Exception during controller switch: %s", e.what());
-              control_state_ = ControlState::DEFAULT_CONTROLLER;
+              controller_state_ = ControllerState::DEFAULT_CONTROLLER;
             }
             switch_in_progress_ = false;
           });
       }
       break;
 
-    case ControlState::TRAJECTORY:
-      if (!trajectory_requested_)
+    case ControllerState::TRAJECTORY:
+      if (!trajectory_mode_)
       {
         RCLCPP_INFO(
           n_->get_logger(), "→ RESTORING DEFAULT CONTROLLER(S): %s",
           vec_string_to_string(default_controller_name_list_).c_str());
-        control_state_ = ControlState::RESTORING_DEFAULT_CONTROLLER;
+        controller_state_ = ControllerState::RESTORING_DEFAULT_CONTROLLER;
       }
       break;
 
-    case ControlState::RESTORING_DEFAULT_CONTROLLER:
+    case ControllerState::RESTORING_DEFAULT_CONTROLLER:
       if (!switch_in_progress_)
       {
         switch_in_progress_ = true;
@@ -555,7 +384,7 @@ void CommandNode::handle_controller_state_()
               bool success = future.get();
               if (success)
               {
-                control_state_ = ControlState::DEFAULT_CONTROLLER;
+                controller_state_ = ControllerState::DEFAULT_CONTROLLER;
                 RCLCPP_INFO(
                   n_->get_logger(), "→ DEFAULT CONTROLLER(S) RESTORED: Switched to %s",
                   vec_string_to_string(default_controller_name_list_).c_str());
@@ -565,13 +394,13 @@ void CommandNode::handle_controller_state_()
                 RCLCPP_WARN(
                   n_->get_logger(), "Failed to switch to %s",
                   vec_string_to_string(default_controller_name_list_).c_str());
-                control_state_ = ControlState::TRAJECTORY;
+                controller_state_ = ControllerState::TRAJECTORY;
               }
             }
             catch (const std::exception& e)
             {
               RCLCPP_ERROR(n_->get_logger(), "Exception during controller switch: %s", e.what());
-              control_state_ = ControlState::TRAJECTORY;
+              controller_state_ = ControllerState::TRAJECTORY;
             }
             switch_in_progress_ = false;
           });
@@ -656,8 +485,61 @@ void CommandNode::getDoubleParameter_(const std::string& param_name, std::option
     });
 }
 
+void CommandNode::update_trajectory_()
+{
+  // Nothing to do if :
+  // - trajectory disabled
+  // - not in trajectory_mode
+  // - joint_trajectory_controller not active
+  if (!trajectory_manager_.is_enabled() || !trajectory_mode_ || controller_state_ != ControllerState::TRAJECTORY)
+  {
+    return;
+  }
+
+  if (!init_ || joint_order_.size() < explorer_joint_offset_ + 7)
+  {
+    RCLCPP_ERROR_THROTTLE(
+      n_->get_logger(), *n_->get_clock(), 1000,
+      "[command_node] update_trajectory_ called before joint_order_ is ready, skipping cycle");
+    return;
+  }
+
+  for (size_t i = 0; i < 7; ++i)
+  {
+    size_t idx = joint_order_[explorer_joint_offset_ + i];
+    if (idx >= current_pos_.position.size())
+    {
+      RCLCPP_ERROR_THROTTLE(
+        n_->get_logger(), *n_->get_clock(), 1000,
+        "[command_node] update_trajectory_: out of range joint index %zu (current_pos_ has %zu "
+        "positions), skipping this index",
+        idx, current_pos_.position.size());
+      // TODO continue even with partial joints or return ?
+      continue;
+    }
+    q_current_[i] = current_pos_.position[idx];
+  }
+
+  trajectory_manager_.update(q_current_, static_cast<float>(trajectory_velocity_input_.load()));
+
+  auto trajectory = trajectory_manager_.get_trajectory();
+  if (trajectory)
+  {
+    trajectory_pub_->publish(trajectory.value());
+    publish_retract_status_();
+  }
+}
+
 void CommandNode::timer_callback_()
 {
+  // Check if last trajectory velocity input is older than timeout
+  if ((n_->now() - last_trajectory_vel_time_).seconds() > TRAJECTORY_VELOCITY_TIMEOUT_SECONDS)
+  {
+    // Force stationary (input seems not active anymore for now)
+    trajectory_velocity_input_.store(0.0);
+  }
+
+  // TODO delete when deleting old QP (confusing)
   if (!use_qp_inria_)
   {
     if (!j2_max_cached_ || !j2_operational_max_cached_)
@@ -686,92 +568,14 @@ void CommandNode::timer_callback_()
     }
   }
 
-  // Step 1: Get the current mode to know which smoothing alphas to use
-  ButtonMode mode = data_.button_modes_map[current_mode_name_];
-
-  // Step 2: Read raw values and apply smoothing for each axis ONCE
-  // Find the smoothing alpha for each joystick axis from the current mode config
-  float alpha_ax1 = 1.0f;  // default: no smoothing
-  float alpha_ax2 = 1.0f;
-  for (const auto& axis : mode.axes)
-  {
-    if (axis.joystick_axis == "ax1")
-    {
-      alpha_ax1 = axis.smoothing_alpha;
-    }
-    else if (axis.joystick_axis == "ax2")
-    {
-      alpha_ax2 = axis.smoothing_alpha;
-    }
-  }
-
-  // Step 3: Atomically read raw values and apply smoothing
-  {
-    std::lock_guard<std::mutex> lock_axis(mutex_axis_);
-    axis_1_smoothed_ = alpha_ax1 * axis_1_raw_ + (1.0f - alpha_ax1) * axis_1_smoothed_;
-    axis_2_smoothed_ = alpha_ax2 * axis_2_raw_ + (1.0f - alpha_ax2) * axis_2_smoothed_;
-  }
-
-  // Debug: log both smoothed values periodically
-  RCLCPP_DEBUG_THROTTLE(
-    n_->get_logger(), *n_->get_clock(), 500,
-    "Smoothed axes: ax1=%.3f, ax2=%.3f (alphas: %.2f, %.2f)", axis_1_smoothed_, axis_2_smoothed_,
-    alpha_ax1, alpha_ax2);
-
-  // Step 4: Reset velocities
-  resetVelocities_();
-
-  complex_mode_ = false;
-
-  trajectory_requested_ = false;
-
-  // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
-  for (const auto& axis : mode.axes)
-  {
-    executeBehavior_(axis);
-  }
-
-  if (complex_mode_ && !lock_)
-  {
-    complex_calculation_(rotation_speed_scale_);
-  }
-
   handle_controller_state_();
 
-  // Step 6: Publish the computed velocities
-  RCLCPP_DEBUG_THROTTLE(
-    n_->get_logger(), *n_->get_clock(), 500, "Publishing velocities: linear(%.3f, %.3f, %.3f)",
-    cartesian_vel_.twist.linear.x, cartesian_vel_.twist.linear.y, cartesian_vel_.twist.linear.z);
-  cartesian_vel_pub_->publish(cartesian_vel_);
-  joint_vel_pub_->publish(joint_vel_);
-  frame_id_pub_->publish(frame_id_);
+  update_trajectory_();
 
-  // Handle mode switching based on button clicks
-  if (button_handler_.isShortClick() && mode.buttons.short_click != "")
+  // TODO delete when deleting old QP (confusing)
+  if (!use_qp_inria_ && trajectory_manager_.is_enabled())
   {
-    current_mode_name_ = mode.buttons.short_click;
-    // Reset smoothed values when switching modes to avoid artifacts
-    axis_1_smoothed_ = 0.0f;
-    axis_2_smoothed_ = 0.0f;
-  }
-  else if (button_handler_.isLongClick() && mode.buttons.long_click != "")
-  {
-    current_mode_name_ = mode.buttons.long_click;
-    // Reset smoothed values when switching modes to avoid artifacts
-    axis_1_smoothed_ = 0.0f;
-    axis_2_smoothed_ = 0.0f;
-  }
-
-  mode_name_pub_->publish(std_msgs::msg::String().set__data(current_mode_name_));
-  speed_level_pub_->publish(std_msgs::msg::Int32().set__data(speed_level_));
-  gripper_pub_->publish(gripper_vel_);
-  gripper_command_pub_->publish(gripper_command_);
-  retract_status_pub_->publish(
-    std_msgs::msg::String().set__data(trajectory_manager_.getStatusString()));
-
-  if (!use_qp_inria_)
-  {
-    if (trajectory_manager_.getStatusString() != "ready")
+    if (trajectory_manager_.get_status() != RetractStatus::READY)
     {
       if (actual_j2_limit_ != j2_max_)
       {
@@ -785,7 +589,7 @@ void CommandNode::timer_callback_()
         actual_j3_limit_ = j3_max_;
       }
     }
-    else if (trajectory_manager_.getStatusString() == "ready")
+    else if (trajectory_manager_.get_status() == RetractStatus::READY)
     {
       if (!init_ || joint_order_.size() < explorer_joint_offset_ + 3)
       {
@@ -823,344 +627,6 @@ void CommandNode::timer_callback_()
       }
     }
   }
-}
-
-void CommandNode::executeBehavior_(const AxisInfo& axis)
-{
-  if (control_behaviors_.count(axis.control_name))
-  {
-    control_behaviors_[axis.control_name](axis);
-  }
-}
-
-// Read joystick axis value (smoothing already applied at start of timer)
-float CommandNode::readAxisValue_(const AxisInfo& axis_info)
-{
-  float smoothed_value = 0.0f;
-
-  // Simply return the pre-smoothed value for the requested axis
-  if (axis_info.joystick_axis == "ax1")
-  {
-    smoothed_value = axis_1_smoothed_;
-  }
-  else if (axis_info.joystick_axis == "ax2")
-  {
-    smoothed_value = axis_2_smoothed_;
-  }
-
-  double deadzone = 0.0;
-  if (axis_info.params.count("deadzone"))
-  {
-    deadzone = axis_info.params.at("deadzone");
-  }
-
-  if (std::abs(smoothed_value) < deadzone)
-  {
-    smoothed_value = 0.0f;  // Zero out values within the deadzone
-  }
-  else
-  {
-    // Rescale values outside the deadzone to the range [0, 1]
-    if (smoothed_value > 0)
-    {
-      smoothed_value = (smoothed_value - deadzone) / (1.0 - deadzone);
-    }
-    else
-    {
-      smoothed_value = (smoothed_value + deadzone) / (1.0 - deadzone);
-    }
-  }
-
-  // Apply direction, scale and speed factor
-  float value = smoothed_value * axis_info.direction * axis_info.scale * speed_factor_;
-
-  return value;
-}
-
-// Reset Cartesian and joint velocities to zero
-void CommandNode::resetVelocities_()
-{
-  cartesian_vel_.twist.linear = geometry_msgs::msg::Vector3();
-  cartesian_vel_.twist.angular = geometry_msgs::msg::Vector3();
-  joint_vel_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  gripper_vel_.data = 0.0;
-}
-
-void CommandNode::complex_calculation_(const double rotation_speed_scale)
-{
-  double omega_z = 0.0;
-  double x_E = x_current_.position.x;
-  double y_E = x_current_.position.y;
-  double denom = x_E * x_E + y_E * y_E;
-  if (denom > 1e-6)
-  {
-    omega_z = (x_E * v_y_ - y_E * v_x_) / denom;
-  }
-  cartesian_vel_.twist.angular.z = omega_z * rotation_speed_scale;
-}
-
-// Behavior implementations
-void CommandNode::cartesian_linear_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Determine joystick axis value
-    float value = 0.0;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to the appropriate Cartesian linear velocity component
-    if (axis_info.control_name == "cartesian_X")
-    {
-      cartesian_vel_.twist.linear.x = value;
-    }
-    else if (axis_info.control_name == "cartesian_Y")
-    {
-      cartesian_vel_.twist.linear.y = value;
-    }
-    else if (axis_info.control_name == "cartesian_Z")
-    {
-      cartesian_vel_.twist.linear.z = value;
-    }
-  }
-}
-
-void CommandNode::cartesian_rotation_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Determine joystick axis value
-    float value = 0.0;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to the appropriate Cartesian angular velocity component
-    if (axis_info.control_name == "rotation_X")
-    {
-      cartesian_vel_.twist.angular.x = value;
-    }
-    else if (axis_info.control_name == "rotation_Y")
-    {
-      cartesian_vel_.twist.angular.y = value;
-    }
-    else if (axis_info.control_name == "rotation_Z")
-    {
-      cartesian_vel_.twist.angular.z = value;
-    }
-
-    frame_id_.orientation_control_frame = 1;
-  }
-}
-
-void CommandNode::joint_direct_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Determine joystick axis value
-    float value = 0.0;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to the appropriate joint velocity component
-    if (axis_info.control_name == "joint_1")
-    {
-      joint_vel_.data[0] = value;
-    }
-    else if (axis_info.control_name == "joint_2")
-    {
-      joint_vel_.data[1] = value;
-    }
-    else if (axis_info.control_name == "joint_3")
-    {
-      joint_vel_.data[2] = value;
-    }
-    else if (axis_info.control_name == "joint_4")
-    {
-      joint_vel_.data[3] = value;
-    }
-    else if (axis_info.control_name == "joint_5")
-    {
-      joint_vel_.data[4] = value;
-    }
-    else if (axis_info.control_name == "joint_6")
-    {
-      cartesian_vel_.twist.angular.x = value;
-      // Set control frame to end-effector for joint 6 control
-      frame_id_.orientation_control_frame = 1;
-    }
-  }
-}
-
-void CommandNode::change_speed_(const AxisInfo& axis_info)
-{
-  // Get min/max speed levels from params (default: 1 to 4)
-  int min_level = 1;
-  int max_level = 4;
-  if (axis_info.params.count("min_speed_level"))
-  {
-    min_level = static_cast<int>(axis_info.params.at("min_speed_level"));
-  }
-  if (axis_info.params.count("max_speed_level"))
-  {
-    max_level = static_cast<int>(axis_info.params.at("max_speed_level"));
-  }
-
-  // Determine joystick axis value (use raw values for instant threshold detection)
-  float value = 0.0;
-  std::lock_guard<std::mutex> lock_axis(mutex_axis_);
-  if (axis_info.joystick_axis == "ax1")
-  {
-    value = axis_1_raw_;
-  }
-  else if (axis_info.joystick_axis == "ax2")
-  {
-    value = axis_2_raw_;
-  }
-
-  value *= axis_info.direction * axis_info.scale;
-
-  // Change speed level based on joystick movement
-  if (value > speed_change_threshold_ && joy_prec_ <= speed_change_threshold_)
-  {
-    speed_level_ += 1;
-    if (speed_level_ > max_level)
-    {
-      speed_level_ = max_level;
-    }
-  }
-  else if (value < -speed_change_threshold_ && joy_prec_ >= -speed_change_threshold_)
-  {
-    speed_level_ -= 1;
-    if (speed_level_ < min_level)
-    {
-      speed_level_ = min_level;
-    }
-  }
-
-  joy_prec_ = value;
-  speed_factor_ = speed_level_multiplier_ * speed_level_;
-}
-
-void CommandNode::drink_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Determine joystick axis value
-    float value = 0.0;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to the appropriate joint velocity component for drinking action
-    cartesian_vel_.twist.angular.x = value;
-
-    // Set control frame to end-effector for drinking action
-    frame_id_.orientation_control_frame = 3;
-  }
-}
-
-void CommandNode::gripper_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Determine joystick axis value
-    float value = 0.0;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to gripper velocity
-    gripper_vel_.data = value;
-
-    gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
-    if (gripper_command_.data[0] <= 0.0)
-    {
-      gripper_command_.data[0] = 0.0;
-    }
-    else if (gripper_command_.data[0] >= 1.0)
-    {
-      gripper_command_.data[0] = 1.0;
-    }
-  }
-}
-
-void CommandNode::complex_(const AxisInfo& axis_info)
-{
-  if (!lock_)
-  {
-    // Placeholder for complex behavior implementation
-    float value = 0.0;
-
-    complex_mode_ = true;
-
-    value = readAxisValue_(axis_info);
-
-    // Assign to appropriate complex mode variables
-    if (axis_info.control_name == "complex_X")
-    {
-      v_x_ = value;
-      cartesian_vel_.twist.linear.x = value;
-    }
-    if (axis_info.control_name == "complex_Y")
-    {
-      v_y_ = value;
-      cartesian_vel_.twist.linear.y = value;
-    }
-
-    if (axis_info.params.count("rotation_speed_scale"))
-    {
-      rotation_speed_scale_ = static_cast<double>(axis_info.params.at("rotation_speed_scale"));
-    }
-
-    frame_id_.orientation_control_frame = 0;
-  }
-}
-
-void CommandNode::trajectory_control_(const AxisInfo& axis_info)
-{
-  if (!active_trajectory_)
-  {
-    return;
-  }
-
-  trajectory_requested_ = true;
-
-  trajectory_msgs::msg::JointTrajectory traj_msg;
-
-  if (control_state_ != ControlState::TRAJECTORY)
-  {
-    return;  // pas encore actif → on attend le switch
-  }
-
-  if (!init_ || joint_order_.size() < explorer_joint_offset_ + 7)
-  {
-    RCLCPP_ERROR(
-      n_->get_logger(),
-      "[command_node] trajectory_control_ called before joint_order_ is ready, skipping cycle");
-    return;
-  }
-  for (size_t i = 0; i < 7; ++i)
-  {
-    size_t idx = joint_order_[explorer_joint_offset_ + i];
-    if (idx >= current_pos_.position.size())
-    {
-      RCLCPP_ERROR(
-        n_->get_logger(),
-        "[command_node] trajectory_control_: out of range joint index %zu (current_pos_ has %zu "
-        "positions), skipping this index",
-        idx, current_pos_.position.size());
-      // TODO continue even with partial joints or return ?
-      continue;
-    }
-    q_current_[i] = current_pos_.position[idx];
-  }
-
-  float value = readAxisValue_(axis_info);
-  trajectory_manager_.update(q_current_, value);
-
-  lock_ = trajectory_manager_.getLock();
-
-  traj_msg = trajectory_manager_.getTrajectory();
-
-  trajectory_pub_->publish(traj_msg);
 }
 
 }  // namespace space_control

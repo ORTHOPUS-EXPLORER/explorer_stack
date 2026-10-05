@@ -84,7 +84,7 @@ def declare_parameter_list_web_gui_settings() -> List[DeclareLaunchArgument]:
             "mode_config_path",
             default_value=PathJoinSubstitution(
                 [
-                    FindPackageShare("explorer_user_interfaces_cpp"),
+                    FindPackageShare("explorer_input_devices"),
                     "config",
                     "config_mode_0.yaml",
                 ]
