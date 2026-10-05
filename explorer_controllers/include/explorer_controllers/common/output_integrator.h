@@ -10,7 +10,6 @@
 
 #include "explorer_msgs/srv/float64.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
 using namespace std::chrono_literals;
@@ -26,7 +25,6 @@ private:
   rclcpp::Node::SharedPtr n_;
 
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr dq_output_sub_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr gripper_pos_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr home_pressed_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr zero_pressed_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr J1_zero_pressed_sub_;
@@ -38,16 +36,13 @@ private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr reset_sub_;
 
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr command_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
 
   rclcpp::Client<explorer_msgs::srv::Float64>::SharedPtr q_init_client_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 
   std_msgs::msg::Float64MultiArray q_command_;
-  std_msgs::msg::Float64MultiArray gripper_command_;
   std_msgs::msg::Float64MultiArray dq_output_;
-  std_msgs::msg::Float64 gripper_vel_;
 
   std::vector<double> q_init_;
 
@@ -65,7 +60,6 @@ private:
   std::string controller_position_topic_name_;
 
   void callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg);
-  void callback_gripper_vel_(const std_msgs::msg::Float64& msg);
   void callback_home_(const std_msgs::msg::Bool& msg);
   void callback_zero_(const std_msgs::msg::Bool& msg);
   void callback_J1_zero_(const std_msgs::msg::Bool& msg);

@@ -109,7 +109,9 @@ fi
 EOT
 
 # Control how far ROS nodes will try to discover each other: SUBNET|LOCALHOST|OFF|SYSTEM_DEFAULT
-ENV ROS_AUTOMATIC_DISCOVERY_RANGE="LOCALHOST"
+# Do not set LOCALHOST: issue about node seeing each other but message never arrives (in a case where multiple ros containers were launched).
+# Rely on different DOMAIN_ID to not collides with people on the same network
+ENV ROS_AUTOMATIC_DISCOVERY_RANGE="SUBNET"
 
 RUN sed --in-place \
     # Source build (if exists) automatically

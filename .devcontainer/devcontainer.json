@@ -32,13 +32,14 @@
         // "--device-cgroup-rule=c 81:* rw",
         // Whitelist devices :  GPU
         // "--device-cgroup-rule=c 226:* rw"
-
-        // "--pid=host", // DDS discovery with host, without --network=host
+        // Per-machine ROS_DOMAIN_ID, written by initializeCommand.
+        "--env-file=${localWorkspaceFolder}/.devcontainer/.env",
+        "--pid=host" // DDS discovery with host, without --network=host
         // "--gpus=all" // access to all GPUs, e.g. for GPU-accelerated applications
     ],
     "workspaceFolder": "/root/explorer_ws/explorer_stack",
     "workspaceMount": "source=${localWorkspaceFolder}/..,target=${containerWorkspaceFolder}/..,type=bind",
-    "initializeCommand": "",
+    "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/ros_domain_id.sh",
     "postCreateCommand": ".devcontainer/build.sh && git config --global --add safe.directory ${containerWorkspaceFolder}/..",
     "postStartCommand": "set_device_permissions.sh",
     "remoteEnv": {
@@ -53,18 +54,13 @@
             "type": "bind"
         },
         {
-            "source": "${localEnv:XAUTHORITY}",
+            "source": "${localWorkspaceFolder}/.devcontainer/.xauthority",
             "target": "/root/.Xauthority",
             "type": "bind"
         },
         {
-            "source": "/dev/input",
-            "target": "/dev/input",
-            "type": "bind"
-        },
-        {
-            "source": "/dev/dri",
-            "target": "/dev/dri",
+            "source": "/dev",
+            "target": "/dev",
             "type": "bind"
         }
     ],

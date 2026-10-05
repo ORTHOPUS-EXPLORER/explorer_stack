@@ -121,9 +121,6 @@ button_mappings:
         direction: 1
         scale: 1.0
         image: "change_speed.png"
-        params:
-          min_speed_level: 1
-          max_speed_level: 4
     button:
       - long_click: ""
       - short_click: "B1"

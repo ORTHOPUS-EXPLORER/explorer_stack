@@ -1,0 +1,9 @@
+# Set the speed level, or shift it by `level` when `relative` is true.
+# The resulting level is clamped to the configured [min, max] range.
+int32 level
+bool relative
+---
+bool success
+# Speed level in effect after the request
+int32 level
+string message

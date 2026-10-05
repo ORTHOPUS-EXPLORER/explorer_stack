@@ -1,3 +1,5 @@
 Dockerfile*
 .dockerignore
 build/*/.cache
+**/.cache
+.cache
