@@ -13,6 +13,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(backward_ros REQUIRED)
 
+# CMake's FindBoost (used by pinocchioConfig) defaults this to TRUE in our scope, which makes
+# Boost's own config reject the release-only Ubuntu libs when moveit_core/random_numbers look for boost_random.
+set(Boost_USE_DEBUG_RUNTIME OFF)
 find_package(pinocchio QUIET)
 if(NOT pinocchio_FOUND)
   if(DEFINED ENV{PINOCCHIO_DIR})
