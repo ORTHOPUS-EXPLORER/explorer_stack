@@ -38,6 +38,14 @@ if(NOT pinocchio_FOUND)
   endif()
 endif()
 
+# Prefer the imported target: unlike pinocchio_LIBRARIES (plain library paths), it carries the
+# compile definitions Pinocchio needs
+if(TARGET pinocchio::pinocchio)
+  set(PINOCCHIO_LINK_TARGETS pinocchio::pinocchio)
+else()
+  set(PINOCCHIO_LINK_TARGETS ${pinocchio_LIBRARIES})
+endif()
+
 # find dependencies
 set(CONTROLLERS_DEPENDENCIES
   pluginlib
@@ -122,6 +130,10 @@ ament_target_dependencies(gravity_compensation_node
   ${CONTROLLERS_DEPENDENCIES}
 )
 
+target_link_libraries(gravity_compensation_node
+  ${PINOCCHIO_LINK_TARGETS}
+)
+
 add_executable(joint_output_integrator
   src/qp_cartesian/joint_output_integrator.cpp
 )
@@ -144,6 +156,7 @@ ament_target_dependencies(joint_output_integrator
 
 target_link_libraries(joint_output_integrator
   controllers
+  ${PINOCCHIO_LINK_TARGETS}
 )
 
 add_executable(qp_solving

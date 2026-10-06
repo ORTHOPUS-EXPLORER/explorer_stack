@@ -21,8 +21,7 @@
 // Pinocchio (same library used by gravity_compensation_node.cpp) is used here to compute the
 // cartesian position of the end effector corresponding to the position command this node just
 // published, see publish_controlled_point_marker_().
-#include <pinocchio/multibody/data.hpp>
-#include <pinocchio/multibody/model.hpp>
+#include <pinocchio/multibody.hpp>
 
 using namespace std::chrono_literals;
 
