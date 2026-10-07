@@ -13,6 +13,37 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(backward_ros REQUIRED)
 
+# FindBoost (via pinocchioConfig) defaults it to TRUE, rejecting Ubuntu's release-only boost_random
+set(Boost_USE_DEBUG_RUNTIME OFF)
+find_package(pinocchio QUIET)
+if(NOT pinocchio_FOUND)
+  if(DEFINED ENV{PINOCCHIO_DIR})
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{PINOCCHIO_DIR}")
+    find_package(pinocchio QUIET)
+  endif()
+  if(NOT pinocchio_FOUND)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+      pkg_check_modules(PINOCCHIO QUIET pinocchio)
+      if(PINOCCHIO_FOUND)
+        set(pinocchio_FOUND TRUE)
+        set(pinocchio_INCLUDE_DIRS ${PINOCCHIO_INCLUDE_DIRS})
+        set(pinocchio_LIBRARIES ${PINOCCHIO_LIBRARIES})
+      endif()
+    endif()
+  endif()
+  if(NOT pinocchio_FOUND)
+    message(FATAL_ERROR "Pinocchio could not be found. Install Pinocchio (for example via apt or from source) and set PINOCCHIO_DIR/pinocchio_DIR or PKG_CONFIG_PATH accordingly.")
+  endif()
+endif()
+
+# Imported target carries Pinocchio's compile definitions (pinocchio_LIBRARIES doesn't)
+if(TARGET pinocchio::pinocchio)
+  set(PINOCCHIO_LINK_TARGETS pinocchio::pinocchio)
+else()
+  set(PINOCCHIO_LINK_TARGETS ${pinocchio_LIBRARIES})
+endif()
+
 # find dependencies
 set(CONTROLLERS_DEPENDENCIES
   pluginlib
@@ -36,6 +67,9 @@ set(CONTROLLERS_DEPENDENCIES
   Eigen3
   qpoases_ros2
   explorer_joint_utils
+  pinocchio
+  orthopus_vesc_interfaces
+  visualization_msgs
 )
 foreach(Dependency IN ITEMS ${CONTROLLERS_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
@@ -51,6 +85,7 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_controllers>
   ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(input_integrator
@@ -70,10 +105,31 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_controllers>
   ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(output_integrator
   ${CONTROLLERS_DEPENDENCIES}
+)
+
+add_executable(gravity_compensation_node
+  src/common/gravity_compensation_node.cpp
+)
+
+target_include_directories(gravity_compensation_node
+PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+  $<INSTALL_INTERFACE:include/explorer_controllers>
+  ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
+)
+
+ament_target_dependencies(gravity_compensation_node
+  ${CONTROLLERS_DEPENDENCIES}
+)
+
+target_link_libraries(gravity_compensation_node
+  ${PINOCCHIO_LINK_TARGETS}
 )
 
 add_executable(joint_output_integrator
@@ -89,6 +145,7 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_controllers>
   ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(joint_output_integrator
@@ -97,6 +154,7 @@ ament_target_dependencies(joint_output_integrator
 
 target_link_libraries(joint_output_integrator
   controllers
+  ${PINOCCHIO_LINK_TARGETS}
 )
 
 add_executable(qp_solving
@@ -108,6 +166,7 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_controllers>
   ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(qp_solving
@@ -121,6 +180,7 @@ target_link_libraries(qp_solving
 
 install(TARGETS input_integrator
                 output_integrator
+                gravity_compensation_node
                 joint_output_integrator
                 qp_solving
         DESTINATION lib/explorer_controllers
@@ -138,6 +198,7 @@ PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_controllers>
   ${EIGEN3_INCLUDE_DIRS}
+  ${pinocchio_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(controllers
