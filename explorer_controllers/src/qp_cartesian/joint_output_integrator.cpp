@@ -14,8 +14,7 @@ namespace space_control
 {
 namespace
 {
-// Only these joints are actuated; every other joint found in the URDF (gripper, tool frames,
-// etc.) is locked out of the Pinocchio model, same convention as gravity_compensation_node.cpp.
+// Other URDF joints (gripper...) are locked out of the model
 const std::vector<std::string> kControlledPointControlledJointNames = {
   "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
 
@@ -77,9 +76,7 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     throw std::runtime_error("Parameter 'controller_gripper_position_topic_name' is required");
   }
 
-  // Position error saturation: disabled by default so behaviour is unchanged unless explicitly enabled.
-  // Params may already be auto-declared from overrides (see automatically_declare_parameters_from_overrides
-  // in main()), so only declare them here (with their default) if that didn't happen.
+  // Params may already be declared from overrides (see main())
   if (!n_->has_parameter("position_error_saturation_enable"))
   {
     n_->declare_parameter<bool>("position_error_saturation_enable", false);
@@ -96,7 +93,7 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     n_->get_parameter("position_error_saturation_threshold").as_double();
 
   // Persistent mode: off by default (i.e. "spring back" to the original setpoint once the
-  // error goes back under the threshold), matching the behaviour before this param existed.
+  // error goes back under the threshold).
   if (!n_->has_parameter("position_error_saturation_persistent"))
   {
     n_->declare_parameter<bool>("position_error_saturation_persistent", false);
@@ -105,9 +102,7 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
     n_->get_parameter("position_error_saturation_persistent").as_bool();
 
   // "Controlled point" marker: the cartesian tool0 position corresponding to the position
-  // command this node publishes (see publish_controlled_point_marker_()). Not gated by an
-  // enable flag (unlike the other visualization features on gravity_compensation_node) since
-  // it's cheap and has no side effect beyond publishing a marker.
+  // command this node publishes (see publish_controlled_point_marker_()).
   if (!n_->has_parameter("controlled_point_urdf_path"))
   {
     n_->declare_parameter<std::string>(
@@ -123,7 +118,7 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
   controlled_point_end_effector_frame_ =
     n_->get_parameter("controlled_point_end_effector_frame").as_string();
 
-  // Must match the root of the URDF above (explorer.urdf.xacro's root link is "world").
+  // Must match the URDF root link
   if (!n_->has_parameter("controlled_point_marker_frame_id"))
   {
     n_->declare_parameter<std::string>("controlled_point_marker_frame_id", "world");
@@ -145,8 +140,7 @@ JointOutputIntegrator::JointOutputIntegrator(rclcpp::Node::SharedPtr n)
   controlled_point_kinematics_ready_ = false;
   controlled_point_kinematics_load_attempted_ = false;
 
-  // Allow all three position_error_saturation_* params above to be changed live (e.g.
-  // `ros2 param set`) without restarting the node.
+  // Allow all three position_error_saturation_* params above to be changed live without restarting the node.
   on_set_parameters_callback_handle_ = n_->add_on_set_parameters_callback(
     std::bind(&JointOutputIntegrator::on_parameter_change_, this, std::placeholders::_1));
 
@@ -298,13 +292,7 @@ void JointOutputIntegrator::timer_callback()
   gripper_q_command_.data[0] =
     std::clamp(gripper_q_command_.data[0], q_lower_limit_[6], q_upper_limit_[6]);
 
-  // By default q_command_ itself is left untouched above (unchanged behaviour): only the
-  // published command is offset, and only on joints/cycles where the error actually
-  // exceeds the threshold, so the desired position never gets farther than the threshold
-  // away from the measured one. If position_error_saturation_persistent_ is set, the
-  // clamped value is also written back into q_command_ so the offset "sticks" instead of
-  // springing back once the error goes back under the threshold.
-  // The gripper is published separately and is not concerned by this saturation.
+  // Position error saturation (gripper excluded)
   std_msgs::msg::Float64MultiArray q_command_out = q_command_;
   if (position_error_saturation_enable_)
   {

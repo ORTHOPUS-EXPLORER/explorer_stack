@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Copy the host X11 authority cookie next to this script so the container can open windows
-# on the host display (rviz, plotjuggler...).
-#
-# Runs on the host, from devcontainer.json's initializeCommand. The file is always created
-# (empty when no cookie is found) because devcontainer.json bind-mounts it.
+# Copies the host X11 cookie for container GUIs (run on host by initializeCommand).
+# Always creates the file even when nothing inside because devcontainer.json bind-mounts it.
 set -eu
 xauth_file="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.xauthority"
 

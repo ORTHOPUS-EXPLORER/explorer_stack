@@ -32,9 +32,7 @@
 
 namespace
 {
-// Only these joints are actuated by the effort controller; every other joint found in the
-// URDF (gripper, tool frames, etc.) is locked out of the model so Pinocchio never computes
-// gravity terms for them.
+// Other URDF joints (gripper...) are locked out of the model
 const std::vector<std::string> kControlledJointNames = {
   "joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"
 };
@@ -96,30 +94,20 @@ public:
     this->declare_parameter("external_wrench_topic", std::string("/explorer_controllers/gravity_compensation/external_wrench"));
     this->declare_parameter("default_external_wrench_frame", std::string("tool0"));
 
-    // Cartesian impedance -> per-joint stiffness/damping (see publish_cartesian_impedance_()).
-    // Disabled by default so behaviour is unchanged unless explicitly enabled.
+    // Cartesian impedance -> per-joint stiffness/damping (see publish_cartesian_impedance_())
     this->declare_parameter("cartesian_impedance_publish_enable", false);
-    // damping = cartesian_impedance_damping_ratio_ * stiffness for every joint. 0.75 matches the
-    // rough damping/stiffness ratio of the previous fixed per-joint values in
-    // explorer_custom_controller.yaml.
+    // damping = ratio * stiffness; 0.75 ~ ratio of explorer_custom_controller.yaml values
     this->declare_parameter("cartesian_impedance_damping_ratio", 0.75);
-    // Target cartesian stiffness driving every joint's computed stiffness. Defaults to ~1.4, the
-    // average of the fixed per-joint impedance_stiffness values in explorer_custom_controller.yaml
-    // (2.0, 2.5, 2.0, 1.0, 0.8, 0.3), so that at the reference configuration the computed per-joint
-    // stiffnesses are close to the previous fixed ones.
+    // ~ mean value of all explorer_custom_controller.yaml impedance_stiffness values
     this->declare_parameter("cartesian_impedance_stiffness", 1.4);
-    // Frame the cartesian stiffness is expressed at / the Jacobian is computed for. Not
-    // reconfigurable at runtime (only read once here).
+    // Not reconfigurable at runtime
     this->declare_parameter("cartesian_impedance_end_effector_frame", std::string("tool0"));
 
     // --- Visualization (see publish_visualization_markers_()) ---------------------------------
-    // TF frame the markers are expressed/drawn in; must match the root of the URDF used to build
-    // the Pinocchio model (explorer.urdf.xacro's root link is "world").
+    // Must match the URDF root link
     this->declare_parameter("cartesian_impedance_marker_frame_id", std::string("world"));
     this->declare_parameter("cartesian_impedance_marker_topic", std::string("/explorer_controllers/gravity_compensation/cartesian_impedance_markers"));
-    // This is a real force estimate in Newtons (see publish_visualization_markers_()'s comment),
-    // so a smaller default scale (5cm/N) is more likely to fit the arm's workspace for typical
-    // light-payload forces; tune by eye in rviz.
+    // This is a real force estimate in Newtons m/N
     this->declare_parameter("cartesian_impedance_external_force_marker_scale", 0.05);
 
     std::string urdf_path;
@@ -219,8 +207,6 @@ private:
     pinocchio::Model full_model;
     pinocchio::urdf::buildModel(urdf_path, full_model, false);
 
-    // Lock every joint that is not one of joint_1..joint_6 (e.g. the gripper) so Pinocchio
-    // only keeps and computes gravity terms for the 6 controlled joints.
     std::vector<pinocchio::JointIndex> joints_to_lock;
     for (pinocchio::JointIndex joint_id = 1; joint_id < static_cast<pinocchio::JointIndex>(full_model.njoints); ++joint_id) {
       const bool is_controlled = std::find(
@@ -253,7 +239,6 @@ private:
       for (Eigen::Index i = 0; i < count; ++i) {
         latest_q_[i] = msg->position[static_cast<std::size_t>(i)];
       }
-      // No names to match effort against either; fall back the same way, if present.
       const Eigen::Index effort_count = std::min<Eigen::Index>(model_.nq, static_cast<Eigen::Index>(msg->effort.size()));
       for (Eigen::Index i = 0; i < effort_count; ++i) {
         latest_effort_[i] = msg->effort[static_cast<std::size_t>(i)];
@@ -272,8 +257,7 @@ private:
 
       const auto it = std::find(msg->name.begin(), msg->name.end(), joint_name);
       if (it != msg->name.end()) {
-        // position/velocity/effort share the same index as name for a given joint, per the
-        // sensor_msgs/JointState convention.
+        // position/velocity/effort share the same index as name for a given joint
         const std::size_t index = std::distance(msg->name.begin(), it);
         if (index < msg->position.size()) {
           latest_q_[static_cast<Eigen::Index>(q_index)] = msg->position[index];
@@ -296,9 +280,7 @@ private:
     }
   }
 
-  // A WrenchStamped's header.frame_id names the frame the wrench is applied at (defaulting to
-  // "tool0" when left empty); force/torque are expressed in that frame with axes aligned to the
-  // world (LOCAL_WORLD_ALIGNED), so e.g. a hanging payload of mass m is simply force.z = -m*9.81.
+  // Wrench applied ON the robot at header.frame_id, world-aligned axes (payload m: force.z = -m*9.81)
   // The wrench is the force exerted ON the robot by the environment, so it works equally for a
   // payload weight or any other virtual Cartesian force.
   void external_wrench_callback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
@@ -321,9 +303,7 @@ private:
 
     pinocchio::computeGeneralizedGravity(model_, data_, latest_q_);
     Eigen::VectorXd tau = data_.g;
-    // Pristine copy, taken before the (optional, known) external_wrench_topic adjustment below --
-    // publish_visualization_markers_() needs pure gravity torque to estimate an *unknown* external
-    // force from the residual against the measured effort, see its comment.
+    // Gravity only, used to estimate the unknown external force
     const Eigen::VectorXd gravity_torque = tau;
 
     if (has_external_wrench_) {
@@ -358,8 +338,7 @@ private:
 
     publish_visualization_markers_(tau, gravity_torque);
 
-    // model_.names[0] is the implicit "universe" root joint (no torque associated with it);
-    // skip it so the printed names line up 1:1 with the published torques.
+    // Skip names[0] ("universe")
     std::ostringstream joint_names_stream;
     for (std::size_t i = 1; i < model_.names.size(); ++i) {
       if (i > 1) {
@@ -448,25 +427,9 @@ private:
     }
   }
 
-  // --- RViz visualization: measured external force, per-joint effort ---------------------------
-  //
-  // - "measured external force" (magenta arrow, real Newtons): assuming, quasi-statically, that
-  //   the only unmodeled torque is a wrench applied at cartesian_impedance_end_effector_frame_,
-  //   tau_measured = gravity_torque - J^T * F_ext, so F_ext = pinv(J^T) * (gravity_torque -
-  //   tau_measured), solved at the actual tool position. Requires real measured effort (see
-  //   joint_state_callback()); does nothing if only the "(cmd)" fallback is available, since the
-  //   residual would then trivially be ~0 (or just re-derive the known external_wrench_topic input,
-  //   if any -- this estimates an *unknown* wrench, independent of that topic).
-  // - per-joint effort: one sphere (sized by |effort_i|, blue = positive / orange = negative, text
-  //   always shows the sign too) and one text label per joint, placed at that joint's origin.
-  //   Prefers the *measured* effort from /joint_states (msg->effort) when the driver populates it;
-  //   otherwise falls back to the gravity(+external wrench) compensation torque this node commands
-  //   (labelled "(cmd)" so the two aren't confused), computed above in publish_gravity_torque().
-  //
-  // Note: the "controlled point" (where the tool should be given the last position command) is
-  // published directly by joint_output_integrator.cpp instead of from here, since it already has
-  // that command and doesn't need to depend on another node guessing the right topic to read it
-  // back from; see its publish_controlled_point_marker_().
+  // RViz markers:
+  // - external force estimate (needs measured effort): F_ext = pinv(J^T) * (gravity - tau_measured)
+  // - per-joint effort: measured, else commanded torque labelled "(cmd)"
   void publish_visualization_markers_(const Eigen::VectorXd& tau, const Eigen::VectorXd& gravity_torque)
   {
     if (!has_received_joint_state_ || !model_.existFrame(cartesian_impedance_end_effector_frame_)) {
@@ -624,10 +587,7 @@ private:
   pinocchio::Data data_;
   Eigen::VectorXd latest_q_;
   bool has_received_joint_state_;
-  /*!< Measured effort from /joint_states (msg->effort), aligned to model_.names/latest_q_ the same
-       way latest_q_ is. Used for the per-joint effort markers when available (see
-       publish_visualization_markers_()); some hardware/sim interfaces never populate this field,
-       hence has_received_effort_. */
+  /*!< Measured effort, ordered like latest_q_ (not always published) */
   Eigen::VectorXd latest_effort_;
   bool has_received_effort_;
   Eigen::Matrix<double, 6, 1> latest_wrench_;
@@ -639,9 +599,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr external_wrench_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr torque_pub_;
 
-  /*!< Publishes updated per-joint stiffness/damping on /explorer_joint_1/config ..
-       /explorer_joint_6/config every publish_gravity_torque() cycle when true. Disabled by
-       default so behaviour is unchanged unless explicitly enabled. */
+  /*!< Publish per-joint stiffness/damping on /explorer_joint_N/config */
   bool cartesian_impedance_enable_;
   /*!< damping = cartesian_impedance_damping_ratio_ * stiffness for every joint. */
   double cartesian_impedance_damping_ratio_;
@@ -654,8 +612,7 @@ private:
        normalize the computed stiffness. */
   double cartesian_impedance_reference_mean_lever_arm_sq_;
   bool cartesian_impedance_reference_captured_;
-  /*!< Computed per-joint stiffness is clamped to this range before being published, as a safety
-       net independent of cartesian_impedance_stiffness_. */
+  /*!< Safety clamp on computed joint stiffness */
   static constexpr double kJointStiffnessMin_ = 0.5;
   static constexpr double kJointStiffnessMax_ = 10.0;
   std::array<rclcpp::Publisher<orthopus_vesc_interfaces::msg::Config>::SharedPtr, 6> cartesian_impedance_config_pub_;

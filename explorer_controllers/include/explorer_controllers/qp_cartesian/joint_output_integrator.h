@@ -18,9 +18,6 @@
 #include "std_msgs/msg/string.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 
-// Pinocchio (same library used by gravity_compensation_node.cpp) is used here to compute the
-// cartesian position of the end effector corresponding to the position command this node just
-// published, see publish_controlled_point_marker_().
 #include <pinocchio/multibody.hpp>
 
 using namespace std::chrono_literals;
@@ -59,7 +56,7 @@ private:
   JointPosition q_upper_limit_; /*!< Joint upper limit used in upper constraints bound vector ubA */
   std::vector<int> q_has_limit_;
 
-  /*!< Latest measured joint positions (from /joint_states), reordered to match joint_name/joint_order */
+  /*!< Measured joint positions, ordered like joint_name */
   std::array<double, 7> q_measured_;
 
   /*!< When true, the published command is clamped so it never gets farther than
@@ -75,9 +72,6 @@ private:
      position_error_saturation_enable_ is true. */
   bool position_error_saturation_persistent_;
 
-  /*!< Handle for the dynamic parameter callback (must be kept alive) allowing
-     position_error_saturation_enable_/_threshold_/_persistent_ to be changed at runtime,
-     e.g. via `ros2 param set`, without restarting the node. */
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
     on_set_parameters_callback_handle_;
 
@@ -88,15 +82,12 @@ private:
   // guessing the right topic name -- it's derived directly from the command this node sends.
   pinocchio::Model controlled_point_model_;
   pinocchio::Data controlled_point_data_;
-  /*!< True once controlled_point_model_/_data_ were successfully built. */
   bool controlled_point_kinematics_ready_;
-  /*!< Set once model loading has been tried (whether it succeeded or not) so a failure (e.g.
-       bad urdf_path) is only logged/attempted once instead of every control cycle. */
+  /*!< Load is attempted only once */
   bool controlled_point_kinematics_load_attempted_;
   std::string controlled_point_urdf_path_;
   std::string controlled_point_end_effector_frame_;
-  /*!< TF frame the marker is expressed/drawn in; must match the root of the URDF used to
-       build controlled_point_model_ (explorer.urdf.xacro's root link is "world"). */
+  /*!< Must match the URDF root link */
   std::string controlled_point_marker_frame_id_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr controlled_point_marker_pub_;
 
