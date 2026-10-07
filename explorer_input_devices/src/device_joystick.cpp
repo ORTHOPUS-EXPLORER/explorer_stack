@@ -48,6 +48,9 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::GRIPPER, [this](const AxisInfo& axis) { gripper_(axis); }},
     {ControlName::COMPLEX_X, [this](const AxisInfo& axis) { complex_(axis); }},
     {ControlName::COMPLEX_Y, [this](const AxisInfo& axis) { complex_(axis); }},
+    {ControlName::GRIPPER_X, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
+    {ControlName::GRIPPER_Y, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
+    {ControlName::GRIPPER_Z, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
     {ControlName::TRAJECTORY_CONTROL,
      [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
 
@@ -355,6 +358,7 @@ void DeviceJoystick::cartesian_linear_(const AxisInfo& axis_info)
   {
     cartesian_vel_.twist.linear.z = value;
   }
+  frame_id_.position_control_frame = 0;
 }
 
 void DeviceJoystick::cartesian_rotation_(const AxisInfo& axis_info)
@@ -492,8 +496,36 @@ void DeviceJoystick::complex_(const AxisInfo& axis_info)
     rotation_speed_scale_ = static_cast<double>(axis_info.params.at("rotation_speed_scale"));
   }
 
-  frame_id_.orientation_control_frame = 0;
+  frame_id_.orientation_control_frame = 1;
 }
+
+void DeviceJoystick::cartesian_linear_gripper_(const AxisInfo& axis_info)
+{
+  if (locked_)
+  {
+    return;
+  }
+  // Determine joystick axis value
+  float value = 0.0;
+
+  value = read_axis_value_(axis_info);
+
+  // Assign to the appropriate Cartesian linear velocity component
+  if (axis_info.control_name == ControlName::GRIPPER_X)
+  {
+    cartesian_vel_.twist.linear.x = value;
+  }
+  else if (axis_info.control_name == ControlName::GRIPPER_Y)
+  {
+    cartesian_vel_.twist.linear.y = value;
+  }
+  else if (axis_info.control_name == ControlName::GRIPPER_Z)
+  {
+    cartesian_vel_.twist.linear.z = value;
+  }
+  frame_id_.position_control_frame = 1;
+}
+
 
 void DeviceJoystick::trajectory_control_(const AxisInfo& axis_info)
 {

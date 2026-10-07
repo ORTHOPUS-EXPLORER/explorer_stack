@@ -30,6 +30,9 @@ constexpr std::pair<const char*, ControlName> control_names[] = {
   {"gripper", ControlName::GRIPPER},
   {"complex_X", ControlName::COMPLEX_X},
   {"complex_Y", ControlName::COMPLEX_Y},
+  {"gripper_X", ControlName::GRIPPER_X},
+  {"gripper_Y", ControlName::GRIPPER_Y},
+  {"gripper_Z", ControlName::GRIPPER_Z},
   {"trajectory_control", ControlName::TRAJECTORY_CONTROL},
 };
 
