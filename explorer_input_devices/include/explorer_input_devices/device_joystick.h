@@ -69,6 +69,7 @@ private:
   void drink_(const AxisInfo& axis_info);
   void gripper_(const AxisInfo& axis_info);
   void complex_(const AxisInfo& axis_info);
+  void cartesian_linear_gripper_(const AxisInfo& axis_info);
   void trajectory_control_(const AxisInfo& axis_info);
 
   // Publishers
