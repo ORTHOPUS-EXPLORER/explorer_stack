@@ -71,13 +71,12 @@ private:
   double gripper_;
   float axe_value_ = 0.0;
   float axe_value_prev_ = axe_value_;
+  // Sign of the last non-zero input (0 = none yet), a direction change is a sign change of it
+  int last_direction_ = 0;
   bool new_direction_ = false;
 
   double traj_end_time_ = 0.0;
 
-  bool return_sequence_active_ = false;
-  bool needs_return_to_ready_ = false;
-  bool ready_just_reached_ = false;
   bool trajectory_completed_ = false;
   RetractStatus status_ = RetractStatus::RETRACTED;
 

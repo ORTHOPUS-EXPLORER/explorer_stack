@@ -118,8 +118,22 @@ std::optional<trajectory_msgs::msg::JointTrajectory> TrajectoryManager::get_traj
 
   double dq = 0.0;
 
-  new_direction_ =
-    (axe_value_ > 0 && axe_value_prev_ <= 0) || (axe_value_ < 0 && axe_value_prev_ >= 0);
+  // Only a sign change counts as a new direction: releasing then pushing the same way again must
+  // not move on to the next waypoint
+  int direction = 0;
+  if (axe_value_ > 0.0)
+  {
+    direction = 1;
+  }
+  else if (axe_value_ < 0.0)
+  {
+    direction = -1;
+  }
+  new_direction_ = direction != 0 && direction != last_direction_;
+  if (direction != 0)
+  {
+    last_direction_ = direction;
+  }
 
   // Capture hold position when joystick is released (transition from moving to zero)
   bool joystick_just_released = (axe_value_ == 0.0 && axe_value_prev_ != 0.0);
@@ -128,59 +142,28 @@ std::optional<trajectory_msgs::msg::JointTrajectory> TrajectoryManager::get_traj
     q_hold_ = q_current_;
   }
 
-  if (axe_value_ > 0.0 && !trajectory_completed_)
+  const std::size_t last_index = init_points_.size() - 1;
+  if (axe_value_ < 0.0 && new_direction_ && trajectory_completed_)
   {
-    if (current_point_index_ < init_points_.size() - 1)
-    {
-      if (new_direction_ || are_point_almost_equal_(q_current_, init_points_[current_point_index_]))
-      {
-        current_point_index_++;
-        RCLCPP_DEBUG(
-          rclcpp::get_logger("trajectory_manager"), "Current Point Index: %ld",
-          current_point_index_);
-        RCLCPP_DEBUG(rclcpp::get_logger("trajectory_manager"), "axe_value_: %f", axe_value_);
-      }
-    }
+    // Retracting from READY: the arm may have been moved in cartesian since, so target READY first.
+    // The step below moves on to the previous waypoint once READY is reached
+    current_point_index_ = last_index;
+    RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "Retracting: rejoining READY first");
   }
-  else if (axe_value_ < 0.0)
+  else if (
+    new_direction_ || are_point_almost_equal_(q_current_, init_points_[current_point_index_]))
   {
-    if (trajectory_completed_ && !return_sequence_active_)
+    // Step to the next waypoint in the requested direction
+    if (axe_value_ > 0.0 && current_point_index_ < last_index)
     {
-      return_sequence_active_ = true;
-      needs_return_to_ready_ = true;
-      ready_just_reached_ = false;
-      current_point_index_ = init_points_.size() - 1;
-
-      RCLCPP_INFO(
-        rclcpp::get_logger("trajectory_manager"), "Entering return sequence: forcing READY");
+      current_point_index_++;
     }
-    if (needs_return_to_ready_)
+    else if (axe_value_ < 0.0 && current_point_index_ > 0)
     {
-      if (are_point_almost_equal_(q_current_, init_points_.back()))
-      {
-        needs_return_to_ready_ = false;
-        ready_just_reached_ = true;
-        RCLCPP_INFO(
-          rclcpp::get_logger("trajectory_manager"), "READY reached, continuing to retract");
-      }
+      current_point_index_--;
     }
-    else
-    {
-      if (ready_just_reached_)
-      {
-        if (current_point_index_ > 0) current_point_index_--;
-
-        ready_just_reached_ = false;
-      }
-      else if (current_point_index_ > 0)
-      {
-        if (
-          new_direction_ || are_point_almost_equal_(q_current_, init_points_[current_point_index_]))
-        {
-          current_point_index_--;
-        }
-      }
-    }
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("trajectory_manager"), "Current Point Index: %ld", current_point_index_);
   }
 
   // RCLCPP_INFO(rclcpp::get_logger("trajectory_manager"), "Current Point Index: %d", current_point_index_);
@@ -249,6 +232,7 @@ bool TrajectoryManager::are_point_almost_equal_(
 void TrajectoryManager::reset()
 {
   axe_value_prev_ = 0.0;
+  last_direction_ = 0;
   new_direction_ = false;
   q_hold_ = q_current_;
   q_hold_initialized_ = false;  // Force reinitialization when re-entering trajectory mode
