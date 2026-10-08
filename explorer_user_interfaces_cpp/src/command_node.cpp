@@ -58,7 +58,7 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   n_->get_parameter("use_qp_inria", use_qp_inria_);
 
   n_->declare_parameter<int>("min_speed_level", 1);
-  n_->declare_parameter<int>("max_speed_level", 4);
+  n_->declare_parameter<int>("max_speed_level", 8);
   n_->declare_parameter<int>("default_speed_level", 2);
   n_->declare_parameter<double>("speed_level_multiplier", 0.25);
   n_->declare_parameter<std::string>(
