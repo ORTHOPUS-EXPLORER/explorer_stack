@@ -330,7 +330,7 @@ void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
   {
     omega_z = (x_E * v_y_ - y_E * v_x_) / denom;
   }
-  cartesian_vel_.twist.angular.z = omega_z * rotation_speed_scale;
+  cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_z * rotation_speed_scale;
 }
 
 // Behavior implementations
@@ -496,6 +496,7 @@ void DeviceJoystick::complex_(const AxisInfo& axis_info)
     rotation_speed_scale_ = static_cast<double>(axis_info.params.at("rotation_speed_scale"));
   }
 
+  frame_id_.position_control_frame = 0;
   frame_id_.orientation_control_frame = 1;
 }
 
