@@ -251,16 +251,28 @@
     <origin xyz="-0.002 0 0.101" rpy="0 -1.57 0"/>
   </joint>
 
+  <!-- right_finger_joint follows the real servo convention:
+         value 0 = gripper closed, value increases = gripper opens (positive velocity opens).
+
+       Prior: The original model used the opposite convention:
+         rpy="0 -1.57 0", axis="0 0 1", angle 0 = open, angle 1.05 = closed.
+
+       To reverse the direction while keeping the same physical range [0, 1.05],
+       the joint maps its value q to the original angle with: original_angle = 1.05 - q
+         - axis flipped to "0 0 -1"           -> gives the "-q" part
+         - origin rotated by 1.05 rad about z -> gives the "+1.05" part
+       New rpy = rpy(0, -1.57, 0) followed by a 1.05 rad rotation about the joint z axis.
+  -->
   <joint name="right_finger_joint" type="revolute">
     <parent link="structure"/>
     <child link="right_finger_first_phalanx"/>
-    <origin xyz="0.015 -0.038 0.1015" rpy="0 -1.57 0"/>
-    <axis xyz="0 0 1"/>
+    <origin xyz="0.015 -0.038 0.1015" rpy="-1.569878 -0.520796 1.570340"/>
+    <axis xyz="0 0 -1"/>
     <limit effort="1000.0" lower="0.0" upper="1.05" velocity="2.5"/>
   </joint>
 
   <joint name="right_external_rod_joint" type="revolute">
-    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <mimic joint="right_finger_joint" multiplier="1" offset="-1.05"/>
     <parent link="structure"/>
     <child link="right_external_rod"/>
     <origin xyz="0.012 -0.054 0.1069" rpy="3.14 -1.57 0"/>
@@ -269,7 +281,7 @@
   </joint>
 
   <joint name="right_fingertip_joint" type="revolute">
-    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <mimic joint="right_finger_joint" multiplier="1" offset="-1.05"/>
     <parent link="right_external_rod"/>
     <child link="right_finger_last_phalanx"/>
     <origin xyz="0.0433 0.025 0" rpy="3.14 0 0"/>
@@ -278,7 +290,7 @@
   </joint>
 
   <joint name="left_finger_joint" type="revolute">
-    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <mimic joint="right_finger_joint" multiplier="1" offset="-1.05"/>
     <parent link="structure"/>
     <child link="left_finger_first_phalanx"/>
     <origin xyz="0.015 0.038 0.1015" rpy="0 -1.57 0"/>
@@ -287,7 +299,7 @@
   </joint>
 
   <joint name="left_external_rod_joint" type="revolute">
-    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <mimic joint="right_finger_joint" multiplier="1" offset="-1.05"/>
     <parent link="structure"/>
     <child link="left_external_rod"/>
     <origin xyz="0.012 0.054 0.1069" rpy="0 -1.57 0"/>
@@ -296,7 +308,7 @@
   </joint>
 
   <joint name="left_fingertip_joint" type="revolute">
-    <mimic joint="right_finger_joint" multiplier="-1" offset="0"/>
+    <mimic joint="right_finger_joint" multiplier="1" offset="-1.05"/>
     <parent link="left_external_rod"/>
     <child link="left_finger_last_phalanx"/>
     <origin xyz="0.0433 0.025 0" rpy="3.14 0 0"/>
