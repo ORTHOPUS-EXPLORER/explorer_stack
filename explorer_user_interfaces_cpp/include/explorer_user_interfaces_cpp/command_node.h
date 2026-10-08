@@ -171,6 +171,7 @@ private:
     std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Response> response);
 
   [[nodiscard]] double speed_factor_() const;
+  [[nodiscard]] double trajectory_speed_factor_() const;
 
   // Enable/disable joint_trajectory_controller
   void setTrajectoryMode_(bool enable);

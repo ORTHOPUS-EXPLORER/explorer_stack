@@ -135,6 +135,9 @@ CommandNode::~CommandNode()
 
 double CommandNode::speed_factor_() const { return speed_level_multiplier_ * speed_level_; }
 
+// Fixed speed level for trajectory
+double CommandNode::trajectory_speed_factor_() const { return speed_level_multiplier_ * 4; }
+
 void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg)
 {
   const bool moving = std::fabs(msg.twist.linear.x) > CARTESIAN_ACTIVITY_THRESHOLD ||
@@ -175,7 +178,7 @@ void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistSt
 void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& msg)
 {
   last_trajectory_vel_time_ = n_->now();
-  trajectory_velocity_input_.store(msg.data * speed_factor_());
+  trajectory_velocity_input_.store(msg.data * trajectory_speed_factor_());
 
   // Moving along the trajectory needs joint_trajectory_controller, switch to it on demand.
   // Releasing the input only holds the position, the switch back is left to the next Cartesian
