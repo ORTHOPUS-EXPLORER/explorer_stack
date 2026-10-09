@@ -1,0 +1,162 @@
+mode_info:
+  name: "Mode 0"
+  display_name: "Mode 0"
+  description: "Mode similar to Jaco's control mode"
+  default_image: "Mode_0.png"
+
+# Smoothing alpha is now defined per-axis in button_mappings
+# smoothing_alpha: Exponential moving average factor (0.0 to 1.0)
+#   - 1.0 = no smoothing (instant response) [default if not specified]
+#   - 0.5 = moderate smoothing
+#   - 0.1 = heavy smoothing (slow response)
+
+button_mappings:
+  B1:
+    axes:
+      - control_name: "complex_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Y.png" 
+        params:
+          rotation_speed_scale: 0.04
+      - control_name: "complex_X"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_X.png"
+    button:
+      - long_click: "B1_BIS"
+      - short_click: "B2"
+    
+  B1_BIS:
+    axes:
+      - control_name: "complex_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Y.png" 
+        params:
+          rotation_speed_scale: 0.04
+      - control_name: "cartesian_Z"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Z.png"
+        params:
+          deadzone: 0.2
+    button:
+      - long_click: ""
+      - short_click: "B1"
+    
+  B2:
+    axes:
+      - control_name: "rotation_Z"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 0.75
+        smoothing_alpha: 0.1
+        image: "rotation_Z.png"
+      - control_name: "gripper_X"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_X.png"
+    button:
+      - long_click: "BOIRE"
+      - short_click: "B3"
+  
+  BOIRE:
+    axes:
+      - control_name: "drink"
+        joystick_axis: "ax1"
+        direction: -1
+        scale: 0.75
+        smoothing_alpha: 0.3
+        image: "joint_6.png"
+        params:
+          deadzone: 0.2
+      - control_name: "cartesian_Z"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Z.png"
+        params:
+          deadzone: 0.2
+    button:
+      - long_click: ""
+      - short_click: "B2"
+
+  B3:
+    axes:
+      - control_name: "joint_6"
+        joystick_axis: "ax1"
+        direction: -1
+        scale: 0.75
+        image: "joint_6.png" 
+        params:
+          deadzone: 0.2
+      - control_name: "rotation_Y"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 0.75
+        smoothing_alpha: 0.1
+        image: "rotation_Y.png" 
+    button:
+      - long_click: "VITESSE"
+      - short_click: "B4"
+
+  B4:
+    axes:
+      - control_name: "gripper"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 1.0
+        image: "gripper.png"  
+      - control_name: ""
+        joystick_axis: ""
+        direction: 0
+        scale: 0.0
+        image: ""
+    button:
+      - long_click: "DEPLIER"
+      - short_click: "B1"
+
+  VITESSE:
+    axes:
+      - control_name: ""
+        joystick_axis: ""
+        direction: 0
+        scale: 0.0
+        image: ""
+      - control_name: "change_speed"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 1.0
+        image: "change_speed.png"
+    button:
+      - long_click: ""
+      - short_click: "B3"
+
+  DEPLIER:
+    axes:
+      - control_name: ""
+        joystick_axis: ""
+        direction: 0
+        scale: 0.0
+        image: ""
+      - control_name: "trajectory_control"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 2.0
+        image: "trajectory_control.png"
+    button:
+      - long_click: ""
+      - short_click: "B4"
+

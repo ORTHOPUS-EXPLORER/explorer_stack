@@ -32,13 +32,13 @@ from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.optional_parameters import (
     get_parameter_web_gui_host,
-    get_parameter_web_gui_mode_config_path,
     get_parameter_web_gui_port,
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_debug,
     get_parameter_gui,
+    get_parameter_mode_config_path,
     get_parameter_robot_description,
     get_parameter_robot_semantic_srdf,
     get_parameter_use_poc2,
@@ -285,9 +285,6 @@ def declare_joystick_device_node(output: str = "screen") -> OpaqueFunction:
     """
 
     def inner_opaque_function(context) -> List[Node]:
-        pkg_share = get_package_share_directory("explorer_input_devices")
-        mode_yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
-
         use_qp_inria = get_parameter_use_qp_inria().perform(context).lower() == "true"
 
         end_effector_pose_topic = (
@@ -303,7 +300,8 @@ def declare_joystick_device_node(output: str = "screen") -> OpaqueFunction:
                 output=output,
                 parameters=[
                     {
-                        "mode_file": mode_yaml_file_path,
+                        # Shared with the web GUI so both use the same mode mapping
+                        "mode_file": get_parameter_mode_config_path(),
                         "end_effector_pose_topic": end_effector_pose_topic,
                         # Publish to joystick_selector physical joy input topic
                         "cartesian_command_topic": "/explorer_input_devices/joystick/physical/velocity/commands"
@@ -335,7 +333,7 @@ def declare_web_gui_node(output: str = "screen") -> Node:
             {
                 "port": get_parameter_web_gui_port(),
                 "host": get_parameter_web_gui_host(),
-                "mode_config_path": get_parameter_web_gui_mode_config_path(),
+                "mode_config_path": get_parameter_mode_config_path(),
             }
         ],
         output=output,

@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from typing import List, Literal
 
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchContext, Substitution
 from launch.actions import (
     DeclareLaunchArgument,
 )
@@ -109,7 +112,7 @@ def declare_shared_argument_list(
                     " robot_controller_config:=",
                     robot_controller_config,
                     " debug:=",
-                    get_parameter_debug()
+                    get_parameter_debug(),
                 ]
             ),
             description="Robot description (URDF) evaluated from xacro",
@@ -130,6 +133,12 @@ def declare_shared_argument_list(
                 ]
             ),
             description="Robot semantic (SRDF) evaluated from xacro",
+        ),
+        DeclareLaunchArgument(
+            "mode_config_path",
+            default_value="config_mode_0.yaml",
+            description="Mode configuration YAML file used by device_joystick and the web GUI: "
+            "a file name from explorer_input_devices/config, or an absolute path",
         ),
     ]
 
@@ -231,3 +240,30 @@ def get_parameter_robot_semantic_srdf() -> LaunchConfiguration:
         LaunchConfiguration: robot_semantic_srdf
     """
     return LaunchConfiguration("robot_semantic_srdf")
+
+
+class ModeConfigPathSubstitution(Substitution):
+    """Resolve the "mode_config_path" launch argument.
+
+    A bare file name is resolved from explorer_input_devices/config folder 
+    or an absolute path could be given.
+    """
+
+    def perform(self, context: LaunchContext) -> str:
+        value = os.path.expanduser(
+            LaunchConfiguration("mode_config_path").perform(context)
+        )
+        if os.path.dirname(value):
+            return os.path.abspath(value)
+        return os.path.join(
+            get_package_share_directory("explorer_input_devices"), "config", value
+        )
+
+
+def get_parameter_mode_config_path() -> Substitution:
+    """Get ros2 parameter "mode_config_path", resolved to the config path.
+
+    Returns:
+        Substitution: mode_config_path
+    """
+    return ModeConfigPathSubstitution()

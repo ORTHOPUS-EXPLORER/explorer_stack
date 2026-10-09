@@ -80,17 +80,6 @@ def declare_parameter_list_web_gui_settings() -> List[DeclareLaunchArgument]:
             default_value="0.0.0.0",
             description="Host address for the web GUI server",
         ),
-        DeclareLaunchArgument(
-            "mode_config_path",
-            default_value=PathJoinSubstitution(
-                [
-                    FindPackageShare("explorer_input_devices"),
-                    "config",
-                    "config_mode_0.yaml",
-                ]
-            ),
-            description="Path to the mode configuration YAML file",
-        ),
     ]
 
 
@@ -197,15 +186,6 @@ def get_parameter_web_gui_port() -> LaunchConfiguration:
         LaunchConfiguration: port
     """
     return LaunchConfiguration("port")
-
-
-def get_parameter_web_gui_mode_config_path() -> LaunchConfiguration:
-    """Get ros2 parameter "mode_config_path".
-
-    Returns:
-        LaunchConfiguration: mode_config_path
-    """
-    return LaunchConfiguration("mode_config_path")
 
 
 def get_parameter_use_camera() -> LaunchConfiguration:
