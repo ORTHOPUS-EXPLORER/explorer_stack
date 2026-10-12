@@ -12,6 +12,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <unordered_map>
+#include <cmath>
+#include <Eigen/Dense>
 
 #include "explorer_input_devices/button_handler.h"
 #include "explorer_input_devices/device.h"
@@ -61,6 +63,8 @@ private:
 
   void complex_calculation_(const double rotation_speed_scale);
 
+  void snake_calculation_(const double r2, const double k);
+
   // Behavior implementations
   void cartesian_linear_(const AxisInfo& axis_info);
   void cartesian_rotation_(const AxisInfo& axis_info);
@@ -70,6 +74,7 @@ private:
   void gripper_(const AxisInfo& axis_info);
   void complex_(const AxisInfo& axis_info);
   void cartesian_linear_gripper_(const AxisInfo& axis_info);
+  void snake_(const AxisInfo& axis_info);
   void trajectory_control_(const AxisInfo& axis_info);
 
   // Publishers
@@ -118,6 +123,12 @@ private:
   double v_x_ = 0.0;
   double v_y_ = 0.0;
   double rotation_speed_scale_ = 1.0;
+
+  bool snake_mode_ = false;
+  double ve_x_ = 0.0;
+  double ve_y_ = 0.0;
+  double r2_ = 1.0;
+  double k_ = 0.5;
 
   // Modified upon command_node's retract_status changes
   std::atomic<bool> locked_{true};

@@ -21,6 +21,7 @@ set(SPACENAV_DEPENDENCIES
   std_srvs
   geometry_msgs
   joy
+  Eigen3
 )
 foreach(Dependency IN ITEMS ${SPACENAV_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
@@ -65,6 +66,7 @@ target_include_directories(device_joystick
 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include/explorer_input_devices>
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(device_joystick

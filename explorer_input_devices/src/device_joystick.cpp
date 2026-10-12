@@ -51,6 +51,8 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::GRIPPER_X, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
     {ControlName::GRIPPER_Y, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
     {ControlName::GRIPPER_Z, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
+    {ControlName::SNAKE_X, [this](const AxisInfo& axis) { snake_(axis); }},
+    {ControlName::SNAKE_Y, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::TRAJECTORY_CONTROL,
      [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
 
@@ -230,6 +232,10 @@ void DeviceJoystick::timer_callback_()
   {
     complex_calculation_(rotation_speed_scale_);
   }
+  if (snake_mode_ && !locked_)
+  {
+    snake_calculation_(r2_, k_);
+  }
 
   // Step 6: Publish the computed velocities
   publish_cartesian_command_(cartesian_vel_);
@@ -331,6 +337,29 @@ void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
     omega_z = (x_E * v_y_ - y_E * v_x_) / denom;
   }
   cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_z * rotation_speed_scale;
+}
+
+void DeviceJoystick::snake_calculation_(const double r2, const double k)
+{
+  double x = x_current_.orientation.x;
+  double y = x_current_.orientation.y;
+  double z = x_current_.orientation.z;
+  double w = x_current_.orientation.w;
+
+
+  double ze_x = 1.0 - 2.0 * (y * y + z * z);
+  double ze_y = 2.0 * (x * y + w * z);
+  double ze_z = 2.0 * (x * z - w * y);
+ 
+  const Eigen::Vector3d ze(ze_x, ze_y, ze_z);
+
+  const Eigen::Vector3d ve(ve_x_, ve_y_, 0.0);
+
+  const Eigen::Vector3d coupling = ze.cross(ve);
+
+  const Eigen::Vector3d omega_e = r2 * k * coupling;
+
+  cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_e(2);
 }
 
 // Behavior implementations
@@ -494,6 +523,44 @@ void DeviceJoystick::complex_(const AxisInfo& axis_info)
   if (axis_info.params.count("rotation_speed_scale"))
   {
     rotation_speed_scale_ = static_cast<double>(axis_info.params.at("rotation_speed_scale"));
+  }
+
+  frame_id_.position_control_frame = 0;
+  frame_id_.orientation_control_frame = 1;
+}
+
+void DeviceJoystick::snake_(const AxisInfo& axis_info)
+{
+  if (locked_)
+  {
+    return;
+  }
+  // Placeholder for snake behavior implementation
+  float value = 0.0;
+
+  snake_mode_ = true;
+
+  value = read_axis_value_(axis_info);
+
+  // Assign to appropriate snake mode variables
+  if (axis_info.control_name == ControlName::SNAKE_X)
+  {
+    ve_x_ = value;
+    cartesian_vel_.twist.linear.x = value;
+  }
+  if (axis_info.control_name == ControlName::SNAKE_Y)
+  {
+    ve_y_ = value;
+    cartesian_vel_.twist.linear.y = value;
+  }
+  
+  if (axis_info.params.count("max_coupling_gain"))
+  {
+    k_ = static_cast<double>(axis_info.params.at("max_coupling_gain"));
+  }
+  if (axis_info.params.count("modulation_ratio"))
+  {
+    r2_ = static_cast<double>(axis_info.params.at("modulation_ratio"));
   }
 
   frame_id_.position_control_frame = 0;
