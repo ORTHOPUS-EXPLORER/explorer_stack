@@ -49,6 +49,7 @@ enum class ControlName
   GRIPPER_Z,
   SNAKE_X,
   SNAKE_Y,
+  SNAKE_Z,
   TRAJECTORY_CONTROL
 };
 

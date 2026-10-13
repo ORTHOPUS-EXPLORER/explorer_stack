@@ -127,6 +127,7 @@ private:
   bool snake_mode_ = false;
   double ve_x_ = 0.0;
   double ve_y_ = 0.0;
+  double ve_z_ = 0.0;
   double r2_ = 1.0;
   double k_ = 0.5;
 

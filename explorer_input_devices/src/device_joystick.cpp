@@ -53,6 +53,7 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::GRIPPER_Z, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
     {ControlName::SNAKE_X, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::SNAKE_Y, [this](const AxisInfo& axis) { snake_(axis); }},
+    {ControlName::SNAKE_Z, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::TRAJECTORY_CONTROL,
      [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
 
@@ -353,13 +354,14 @@ void DeviceJoystick::snake_calculation_(const double r2, const double k)
  
   const Eigen::Vector3d ze(ze_x, ze_y, ze_z);
 
-  const Eigen::Vector3d ve(ve_x_, ve_y_, 0.0);
+  const Eigen::Vector3d ve(ve_x_, ve_y_, ve_z_);
 
   const Eigen::Vector3d coupling = ze.cross(ve);
 
   const Eigen::Vector3d omega_e = r2 * k * coupling;
 
   cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_e(2);
+  cartesian_vel_.twist.angular.y = cartesian_vel_.twist.angular.y + omega_e(1);
 }
 
 // Behavior implementations
@@ -552,6 +554,11 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
   {
     ve_y_ = value;
     cartesian_vel_.twist.linear.y = value;
+  }
+    if (axis_info.control_name == ControlName::SNAKE_Z)
+  {
+    ve_z_ = value;
+    cartesian_vel_.twist.linear.z = value;
   }
   
   if (axis_info.params.count("max_coupling_gain"))
