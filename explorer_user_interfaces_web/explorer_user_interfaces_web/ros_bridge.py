@@ -111,7 +111,40 @@ class RosBridge:
             qos_profile_sensor_data,
         )
 
+        self.gripper_closure_direction_publisher = self.node.create_publisher(
+           String,
+           "/gripper/closure_direction",
+           10,
+        )
+
+
         self.node.get_logger().info("ROS Bridge initialized")
+
+
+    def set_gripper_closure_direction(self, direction: str):
+        """Publish the selected gripper closure direction."""
+
+
+        valid_directions = {"bas", "haut", "droite", "gauche"}
+
+
+        if direction not in valid_directions:
+            self.node.get_logger().warning(f"Invalid gripper direction: {direction}")
+            return False
+
+
+        msg = String()
+        msg.data = direction
+
+
+        self.gripper_closure_direction_publisher.publish(msg)
+
+
+        self.node.get_logger().info(f"Gripper closure direction published: {direction}")
+
+
+        return True
+
 
     def mode_callback(self, msg: String):
         """Callback for mode changes"""

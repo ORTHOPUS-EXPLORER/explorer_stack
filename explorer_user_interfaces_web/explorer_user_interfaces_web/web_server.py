@@ -101,7 +101,32 @@ def create_app(ros_node: Node) -> FastAPI:
 
                     # Wait a bit or for a client message
                     try:
-                        await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+                        message_text = await asyncio.wait_for(
+                           websocket.receive_text(),
+                           timeout=0.1,
+                        )
+
+
+                        try:
+                            message = json.loads(message_text)
+                        except json.JSONDecodeError:
+                            ros_node.get_logger().warning(
+                                "Invalid JSON received from WebSocket"
+                            )
+                            continue
+
+
+                       # Handle gripper direction selection
+                        if message.get("type") == "gripper_closure_direction":
+                            direction = message.get("direction")
+
+                            if isinstance(direction, str):
+                                ros_bridge.set_gripper_closure_direction(direction)
+                            else:
+                                ros_node.get_logger().warning(
+                                    "Invalid gripper direction message"
+                                )
+
                     except asyncio.TimeoutError:
                         # No message from client, continue checking for updates
                         pass

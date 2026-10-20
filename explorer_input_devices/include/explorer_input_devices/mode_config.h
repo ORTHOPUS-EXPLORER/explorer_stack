@@ -123,6 +123,9 @@ std::optional<ModeData> load_mode_data(const std::string& filename, std::string&
 bool validate_mode_data(
   const ModeData& data, const std::unordered_set<ControlName>& valid_control_names,
   std::string& error);
+
+ButtonMode* find_mode_by_control_name(ModeData& data, ControlName control_name);
+
 }  // namespace input_device
 
 #endif

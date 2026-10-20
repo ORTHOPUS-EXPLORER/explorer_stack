@@ -54,8 +54,7 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::SNAKE_X, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::SNAKE_Y, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::SNAKE_Z, [this](const AxisInfo& axis) { snake_(axis); }},
-    {ControlName::TRAJECTORY_CONTROL,
-     [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
+    {ControlName::TRAJECTORY_CONTROL, [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
 
   // Get the value of the mode_file parameter
   std::string mode_file;
@@ -90,6 +89,9 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
   x_current_sub_ = get_node_()->create_subscription<geometry_msgs::msg::Pose>(
     get_node_()->get_parameter("end_effector_pose_topic").as_string(), 10,
     [this](const geometry_msgs::msg::Pose& msg) { callback_x_current_(msg); });
+  gripper_closure_direction_sub_ = get_node_()->create_subscription<std_msgs::msg::String>(
+    "/gripper/closure_direction", 10,
+    std::bind(&DeviceJoystick::callback_gripper_closure_direction_, this, std::placeholders::_1));
   // Latch topic
   retract_status_sub_ = get_node_()->create_subscription<std_msgs::msg::String>(
     "command_node/retract_status", rclcpp::QoS(1).transient_local(),
@@ -140,6 +142,59 @@ void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
 
 void DeviceJoystick::callback_x_current_(const geometry_msgs::msg::Pose& msg) { x_current_ = msg; }
 
+void DeviceJoystick::callback_gripper_closure_direction_(const std_msgs::msg::String& msg)
+{
+  std::string closure_direction;
+  JoystickAxis gripper_axis;
+  int gripper_direction;
+
+  closure_direction = msg.data;
+
+  if (closure_direction == "bas")
+  {
+    gripper_axis = JoystickAxis::AX2;
+    gripper_direction = 1;
+  }
+  else if (closure_direction == "haut")
+  {
+    gripper_axis = JoystickAxis::AX2;
+    gripper_direction = -1;
+  }
+  else if (closure_direction == "droite")
+  {
+    gripper_axis = JoystickAxis::AX1;
+    gripper_direction = 1;
+  }
+  else if (closure_direction == "gauche")
+  {
+    gripper_axis = JoystickAxis::AX1;
+    gripper_direction = -1;
+  }
+
+  auto* gripper_mode = find_mode_by_control_name(data_, ControlName::GRIPPER);
+
+  if (gripper_mode == nullptr)
+  {
+    RCLCPP_WARN(
+      get_node_()->get_logger(),
+      "[GRIPPER DEBUG] Aucun mode contenant le controle GRIPPER trouve.");
+    return;
+  }
+
+  if (gripper_mode != nullptr)
+  {
+    for (auto& gripper_mode_axis : gripper_mode->axes)
+    {
+      if (gripper_mode_axis.control_name == ControlName::GRIPPER)
+      {
+        gripper_mode_axis.joystick_axis = gripper_axis;
+        gripper_mode_axis.direction = gripper_direction;
+        return;
+      }
+    }
+  }
+}
+
 void DeviceJoystick::callback_retract_status_(const std_msgs::msg::String& msg)
 {
   // "ready" is the only state in which the arm may be driven in Cartesian space.
@@ -179,8 +234,7 @@ void DeviceJoystick::request_speed_level_change_(int delta)
       if (!response->success)
       {
         RCLCPP_ERROR(
-          get_node_()->get_logger(), "Failed to change speed level: %s",
-          response->message.c_str());
+          get_node_()->get_logger(), "Failed to change speed level: %s", response->message.c_str());
       }
     });
 }
@@ -560,7 +614,7 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
     ve_z_ = value;
     cartesian_vel_.twist.linear.z = value;
   }
-  
+
   if (axis_info.params.count("max_coupling_gain"))
   {
     k_ = static_cast<double>(axis_info.params.at("max_coupling_gain"));

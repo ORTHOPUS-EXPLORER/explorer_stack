@@ -307,4 +307,20 @@ bool validate_mode_data(
 
   return true;
 }
+
+ButtonMode* find_mode_by_control_name(ModeData& data, ControlName control_name)
+{
+  for (auto& [mode_name, mode] : data.button_modes_map)
+  {
+    for (auto& axis : mode.axes)
+    {
+      if (axis.control_name == control_name)
+      {
+        return &mode;
+      }
+    }
+  }
+
+  return nullptr;
+}
 }  // namespace input_device
