@@ -6,14 +6,14 @@
 #ifndef EXPLORER_INPUT_DEVICES_DEVICE_JOYSTICK_H
 #define EXPLORER_INPUT_DEVICES_DEVICE_JOYSTICK_H
 
+#include <Eigen/Dense>
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <unordered_map>
-#include <cmath>
-#include <Eigen/Dense>
 
 #include "explorer_input_devices/button_handler.h"
 #include "explorer_input_devices/device.h"
@@ -21,6 +21,7 @@
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "mode_config.h"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -42,6 +43,7 @@ private:
   // ROS callbacks
   void callback_joy_(const sensor_msgs::msg::Joy& msg);
   void callback_x_current_(const geometry_msgs::msg::Pose& msg);
+  void callback_gripper_closure_direction_(const std_msgs::msg::String& msg);
   void callback_retract_status_(const std_msgs::msg::String& msg);
 
   // Internal timer callback
@@ -86,6 +88,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr trajectory_velocity_pub_;
 
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr gripper_closure_direction_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr retract_status_sub_;
 
   rclcpp::Client<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_client_;

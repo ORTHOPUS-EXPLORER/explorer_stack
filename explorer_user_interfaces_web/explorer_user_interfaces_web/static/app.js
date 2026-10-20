@@ -20,7 +20,68 @@ class ExplorerWebGUI {
                 onMessage: (event) => this.handleCameraFrame(event.data),
             }),
         };
+        this.initGripperControl();
     }
+
+
+    handleCameraFrame(arrayBuffer) {
+        const cameraImage = document.getElementById('camera-feed-image');
+        if (!cameraImage) return;
+
+
+        const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+        const newUrl = URL.createObjectURL(blob);
+
+
+        if (this.cameraObjectUrl) {
+            URL.revokeObjectURL(this.cameraObjectUrl);
+        }
+        this.cameraObjectUrl = newUrl;
+        cameraImage.src = newUrl;
+    }
+
+
+
+    initGripperControl() {
+        const gripperDirectionSelect = document.getElementById('gripper-direction');
+
+
+        if (!gripperDirectionSelect) {
+            console.warn('Menu gripper introuvable');
+            return;
+        }
+
+
+        console.log('Menu gripper initialisé');
+
+
+        gripperDirectionSelect.addEventListener('change', (event) => {
+            const direction = event.target.value;
+
+
+            // Ne rien envoyer si aucune direction n'est sélectionnée
+            if (!direction) {
+                return;
+            }
+
+
+            const message = {
+                type: 'gripper_closure_direction',
+                direction: direction
+            };
+
+
+            console.log('Direction sélectionnée :', direction);
+            console.log('État du WebSocket :', this.sockets.data.ws?.readyState);
+
+
+            const sent = this.sockets.data.send(JSON.stringify(message));
+
+
+            console.log('Résultat de l’envoi :', sent);
+        });
+    }
+
 
     handleCameraFrame(arrayBuffer) {
         const cameraImage = document.getElementById('camera-feed-image');
@@ -187,7 +248,7 @@ class ExplorerWebGUI {
         jointLed.classList.remove('status-green', 'status-orange', 'status-red');
 
         switch (data.state) {
-            case "Init": case "Idle": 
+            case "Init": case "Idle":
                 jointLed.classList.add('status-orange');
                 break;
             case "Enable":

@@ -13,65 +13,81 @@
     <div class="panels-row">
         <div class="panel">
             <div class="main-square">
-                <div class="left-col">
-                    <div class="image-cell">
-                        <div class="image-square" id="mode-image-container">
-                            <img id="mode-background-image"
-                                src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
-                                alt="Background Image" class="mode-background">
-                            <img id="mode-image"
-                                src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
-                                alt="Mode Image" class="mode-overlay" style="display: none;"
-                                onload="this.style.display='block'; this.parentNode.style.background='transparent';"
-                                onerror="this.style.display='none';">
-                            <span class="text-gray-500 text-sm" id="no-image-text"
-                                style="position: absolute; z-index: 3;">No Image</span>
+                <div class="main-content">
+                    <div class="left-col">
+                        <div class="image-cell">
+                            <div class="image-square" id="mode-image-container">
+                                <img id="mode-background-image"
+                                    src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
+                                    alt="Background Image" class="mode-background">
+                                <img id="mode-image"
+                                    src="/static/images/{{ mode_config.mode_info.default_image if mode_config and mode_config.mode_info else 'default.png' }}"
+                                    alt="Mode Image" class="mode-overlay" style="display: none;"
+                                    onload="this.style.display='block'; this.parentNode.style.background='transparent';"
+                                    onerror="this.style.display='none';">
+                                <span class="text-gray-500 text-sm" id="no-image-text"
+                                    style="position: absolute; z-index: 3;">No Image</span>
+                            </div>
+                        </div>
+                        <div class="bottom-row">
+                            <div class="mode-cell">
+                                <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="bottom-row">
-                        <div class="mode-cell">
-                            <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
+                    <div class="led-col">
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">Deployed</span>
+                            <div id="status-led" class="status-led" title="Deployment"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">Drink</span>
+                            <div id="drink-led" class="status-led" title="Drink"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">Speed</span>
+                            <span id="speed-level">{{ speed_level if speed_level is not none else '--' }}</span>
+                        </div>
+                        <div class="led-separator"></div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J1</span>
+                            <div id="joint-led-1" class="status-led" title="Joint 1"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J2</span>
+                            <div id="joint-led-2" class="status-led" title="Joint 2"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J3</span>
+                            <div id="joint-led-3" class="status-led" title="Joint 3"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J4</span>
+                            <div id="joint-led-4" class="status-led" title="Joint 4"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J5</span>
+                            <div id="joint-led-5" class="status-led" title="Joint 5"></div>
+                        </div>
+                        <div class="joint-led-row" style="margin-top: 4px;">
+                            <span class="led-label">J6</span>
+                            <div id="joint-led-6" class="status-led" title="Joint 6"></div>
                         </div>
                     </div>
                 </div>
-                <div class="led-col">
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">Deployed</span>
-                        <div id="status-led" class="status-led" title="Deployment"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">Drink</span>
-                        <div id="drink-led" class="status-led" title="Drink"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">Speed</span>
-                        <span id="speed-level">{{ speed_level if speed_level is not none else '--' }}</span>
-                    </div>
-                    <div class="led-separator"></div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J1</span>
-                        <div id="joint-led-1" class="status-led" title="Joint 1"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J2</span>
-                        <div id="joint-led-2" class="status-led" title="Joint 2"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J3</span>
-                        <div id="joint-led-3" class="status-led" title="Joint 3"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J4</span>
-                        <div id="joint-led-4" class="status-led" title="Joint 4"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J5</span>
-                        <div id="joint-led-5" class="status-led" title="Joint 5"></div>
-                    </div>
-                    <div class="joint-led-row" style="margin-top: 4px;">
-                        <span class="led-label">J6</span>
-                        <div id="joint-led-6" class="status-led" title="Joint 6"></div>
-                    </div>
+                <div class="gripper-control">
+                    <label for="gripper-direction" class="led-label">
+                        Fermeture gripper :
+                    </label>
+
+
+                    <select id="gripper-direction">
+                        <option value="" selected disabled>-- Sélectionner une direction --</option>
+                        <option value="bas">Bas</option>
+                        <option value="haut">Haut</option>
+                        <option value="droite">Droite</option>
+                        <option value="gauche">Gauche</option>
+                    </select>
                 </div>
             </div>
         </div>

@@ -87,9 +87,20 @@
     background: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     overflow: hidden;
-    border: black 1px solid;
+    border: 1px solid black;
+    box-sizing: border-box;
+}
+
+
+.main-content {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
 }
 
 .camera-square {
@@ -122,10 +133,11 @@
 }
 
 .left-col {
-    width: 80%;
+    width: 75%;
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .top-row {
@@ -189,7 +201,7 @@
 }
 
 .led-col {
-    min-width: 100px;
+    min-width: 0;
     width: 25%;
     height: 100%;
     display: flex;
@@ -197,7 +209,8 @@
     align-items: center;
     justify-content: flex-start;
     background: #eeeeee;
-    border-left: black 1px solid;
+    border-left: 1px solid black;
+    box-sizing: border-box;
 }
 
 .led-separator {
@@ -220,4 +233,34 @@
     font-size: 0.75rem;
     font-weight: bold;
     color: #374151;
+}
+
+.gripper-control {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    border-top: 1px solid black;
+    background: #eeeeee;
+    box-sizing: border-box;
+}
+
+.gripper-control label {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.gripper-control select {
+    flex: 1;
+    min-width: 0;
+    padding: 5px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    background: white;
+    font-size: 15px;
 }
