@@ -7,4 +7,13 @@
       Custom controller, manages joint_mode (impedance/position/velocity)
     </description>
   </class>
+  <class  name="explorer_command_controllers/PositionSaturationController"
+          type="explorer_command_controllers::PositionSaturationController"
+          base_class_type="controller_interface::ChainableControllerInterface"
+  >
+    <description>
+      Chainable controller clamping position commands around the measured joint position
+      (keeps an offset on the input in persistent mode)
+    </description>
+  </class>
 </library>

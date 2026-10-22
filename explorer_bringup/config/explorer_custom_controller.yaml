@@ -11,6 +11,9 @@ controller_manager:
     explorer_custom_controller:
       type: explorer_command_controllers/CustomController
 
+    explorer_position_saturation_controller:
+      type: explorer_command_controllers/PositionSaturationController
+
     joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
@@ -103,6 +106,24 @@ explorer_custom_controller:
         # ref_mult: 50.0,
       }
 
+# Chain: qontrol_explorer -> explorer_position_saturation_controller -> explorer_custom_controller
+explorer_position_saturation_controller:
+  ros__parameters:
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    chained_controller_name: explorer_custom_controller
+    command_interface_name: qp_position
+    reference_interface_name: qp_position
+    state_interface_name: position
+    position_error_saturation_enable: true
+    position_error_saturation_threshold: 0.2617993877991494  # 15 degrees
+    position_error_saturation_persistent: false
+
 gripper_controller:
   ros__parameters:
     joints:
@@ -148,7 +169,7 @@ qontrol_explorer:
       - effort
 
     robot_command: qp_position
-    chainable_controller_name: explorer_custom_controller
+    chainable_controller_name: explorer_position_saturation_controller
     reference_interface_name: velocity
 
     # Velocity parameters
