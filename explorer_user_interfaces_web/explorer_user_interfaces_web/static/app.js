@@ -124,6 +124,9 @@ class ExplorerWebGUI {
             case 'retract_status_update':
                 this.updateRetractStatus(data.retract_status);
                 break;
+            case 'gripper_lock_led_update':
+                this.updateGripperLockLED(data.active);
+                break;
         }
     }
 
@@ -261,6 +264,23 @@ class ExplorerWebGUI {
                 jointLed.classList.add('status-red');
                 break;
         }
+    }
+
+    updateGripperLockLED(active) {
+        const gripperLockLed = document.getElementById('gripper-lock-led');
+
+        console.log('[GRIPPER LED] active reçu :', active);
+        console.log('[GRIPPER LED] élément :', gripperLockLed);
+
+        if (!gripperLockLed) {
+            console.warn('[GRIPPER LED] Élément introuvable');
+            return;
+        }
+
+        gripperLockLed.classList.toggle('active', Boolean(active));
+
+        console.log('[GRIPPER LED] classes après modification :',
+                    gripperLockLed.className);
     }
 }
 
