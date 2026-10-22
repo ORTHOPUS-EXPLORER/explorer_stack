@@ -37,6 +37,13 @@
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
 }
 
+#gripper-lock-led.active {
+    background-color: #f63b3b !important;
+    /* Active: blue */
+    box-shadow: 0 0 8px rgba(246, 59, 59, 0.6);
+}
+
+
 :root {
     --panel-size: min(80vh, 42vw);
 }

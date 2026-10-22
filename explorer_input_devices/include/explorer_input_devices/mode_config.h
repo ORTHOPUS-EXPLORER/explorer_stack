@@ -42,6 +42,7 @@ enum class ControlName
   CHANGE_SPEED,
   DRINK,
   GRIPPER,
+  LOCK_GRIPPER,
   COMPLEX_X,
   COMPLEX_Y,
   GRIPPER_X,

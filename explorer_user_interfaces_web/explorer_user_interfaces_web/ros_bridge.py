@@ -17,7 +17,7 @@ from rclpy.qos import (
     qos_profile_sensor_data,
 )
 from sensor_msgs.msg import CompressedImage
-from std_msgs.msg import Int32, String
+from std_msgs.msg import Bool, Int32, String
 
 from orthopus_vesc_interfaces.msg import State
 
@@ -51,6 +51,7 @@ class RosBridge:
         self.retract_status = (
             "retracted"  # Retract status: ready, in progress, retracted
         )
+        self.gripper_lock_active = False
         self.connected_clients: set = set()
 
         # Use a thread-safe queue for updates
@@ -98,6 +99,13 @@ class RosBridge:
             for joint_index in range(1, NUM_JOINTS + 1)
         ]
         self.last_joint_state_message_dict = {}
+
+        self.gripper_lock_subscriber = self.node.create_subscription(
+            Bool,
+            "/explorer_input_devices/joystick/gripper_lock",
+            self.gripper_lock_callback,
+            10,
+        )
 
         # Camera related variables
         camera_topic = ros_node.get_parameter("camera_topic").value
@@ -227,6 +235,27 @@ class RosBridge:
         }
         self.update_queue.put(self.last_joint_state_message_dict[joint_index])
 
+    def gripper_lock_callback(self, msg: Bool):
+        """Callback for gripper lock state changes."""
+        new_state = msg.data
+
+        print(f"[DEBUG] gripper_lock reçu : {new_state}")
+
+        if new_state != self.gripper_lock_active:
+            self.gripper_lock_active = new_state
+
+            self.node.get_logger().info(
+                f"Gripper lock changed to: {self.gripper_lock_active}"
+            )
+
+            self.update_queue.put(
+                {
+                    "type": "gripper_lock_led_update",
+                    "active": self.gripper_lock_active,
+                    "timestamp": time.time(),
+                }
+            )
+
     def camera_image_callback(self, msg: CompressedImage):
         """Callback for ROS camera frame topic"""
         with self._camera_frame_condition:
@@ -346,6 +375,7 @@ class RosBridge:
                 "mode": self.current_mode,
                 "speed_level": self.speed_level,
                 "retract_status": self.retract_status,
+                "gripper_lock_active": self.gripper_lock_active,
             }
         ]
 

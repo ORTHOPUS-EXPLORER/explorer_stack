@@ -74,6 +74,7 @@ private:
   void change_speed_(const AxisInfo& axis_info);
   void drink_(const AxisInfo& axis_info);
   void gripper_(const AxisInfo& axis_info);
+  void lock_gripper_(const AxisInfo& axis_info);
   void complex_(const AxisInfo& axis_info);
   void cartesian_linear_gripper_(const AxisInfo& axis_info);
   void snake_(const AxisInfo& axis_info);
@@ -86,6 +87,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr active_pub_;
   // Drive the trajectory retract/home mode
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr trajectory_velocity_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_lock_pub_;
 
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr gripper_closure_direction_sub_;
@@ -133,6 +135,13 @@ private:
   double ve_z_ = 0.0;
   double r2_ = 1.0;
   double k_ = 0.5;
+
+  bool gripper_lock_{false};
+
+  bool lock_gripper_axis_active_{false};
+  int lock_gripper_impulses_{0};
+
+  std::chrono::steady_clock::time_point first_gripper_impulse_time_;
 
   // Modified upon command_node's retract_status changes
   std::atomic<bool> locked_{true};
