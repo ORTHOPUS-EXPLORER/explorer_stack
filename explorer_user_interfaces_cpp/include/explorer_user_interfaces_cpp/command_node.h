@@ -34,6 +34,8 @@ namespace space_control
  *   - [topic] command_node/trajectory/velocity/commands moves along the trajectory (hold-to-run,
  *     falls back to hold when not refreshed); a non-zero value switches to the joint_trajectory_controller.
  *   - [topic] command_node/retract_status reports trajectory progress
+ *   - [topic] command_node/ready heartbeat published at a fixed rate, true while the controllers are
+ *     ready (joint states received and no controller switch in progress)
  *
  * Also acts as the gateway between input devices and the robot, owning the speed level:
  *   - [service] command_node/set_speed_level sets or shifts the speed level;
@@ -74,6 +76,7 @@ private:
   // Speed-scaled relays of the input device commands
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_pub_;
 
   // Services
   rclcpp::Service<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_srv_;
@@ -81,6 +84,7 @@ private:
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
 
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr ready_timer_;
 
   double sampling_period_;
 
@@ -187,6 +191,12 @@ private:
   void getDoubleParameter_(const std::string& param_name, std::optional<double>& value);
 
   void timer_callback_();
+
+  // Controllers are ready: joint states received and no controller switch in progress
+  [[nodiscard]] bool is_ready_() const;
+
+  // Heartbeat, published at a fixed rate so subscribers can tell when this node is gone
+  void publish_ready_();
 };
 
 }  // namespace space_control

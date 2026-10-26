@@ -18,6 +18,9 @@ constexpr double TRAJECTORY_VELOCITY_TIMEOUT_SECONDS = 0.3;
 
 // Cartesian velocity magnitude above which a command asks for motion (same as joystick_selector)
 constexpr double CARTESIAN_ACTIVITY_THRESHOLD = 1e-3;
+
+// Period of the ready heartbeat, subscribers consider this node gone after a few missed ones
+constexpr double READY_PUBLISH_PERIOD_SECONDS = 0.1;
 }  // namespace
 
 CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
@@ -107,6 +110,7 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     n_->get_parameter("cartesian_velocity_output_topic").as_string(), 10);
   gripper_command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
+  ready_pub_ = n_->create_publisher<std_msgs::msg::Bool>("command_node/ready", 10);
 
   set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
     "command_node/set_speed_level",
@@ -123,6 +127,9 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   timer_ = n_->create_wall_timer(
     std::chrono::duration<double>(sampling_period_),
     std::bind(&CommandNode::timer_callback_, this));
+  ready_timer_ = n_->create_wall_timer(
+    std::chrono::duration<double>(READY_PUBLISH_PERIOD_SECONDS),
+    std::bind(&CommandNode::publish_ready_, this));
 }
 
 CommandNode::~CommandNode()
@@ -630,6 +637,18 @@ void CommandNode::timer_callback_()
       }
     }
   }
+}
+
+bool CommandNode::is_ready_() const
+{
+  const ControllerState state = controller_state_;
+  return init_ &&
+         (state == ControllerState::DEFAULT_CONTROLLER || state == ControllerState::TRAJECTORY);
+}
+
+void CommandNode::publish_ready_()
+{
+  ready_pub_->publish(std_msgs::msg::Bool().set__data(is_ready_()));
 }
 
 }  // namespace space_control
