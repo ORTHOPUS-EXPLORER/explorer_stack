@@ -16,6 +16,10 @@ find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlFrameSelection.msg"
+  "msg/LedColor.msg"
+  "msg/LedCommand.msg"
+  "msg/LedEffect.msg"
+  "msg/LedState.msg"
   "srv/Pose.srv"
   "srv/Float64.srv"
   "srv/SetSpeedLevel.srv"
