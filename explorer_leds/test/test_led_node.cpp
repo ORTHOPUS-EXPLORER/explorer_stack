@@ -396,6 +396,22 @@ TEST_F(LedNodeTest, RejectedCommandIsIgnored)
   EXPECT_FALSE(was_written(GREEN));
 }
 
+// play : an effect min_level reaches the controller, an invalid one rejecting the command
+TEST_F(LedNodeTest, InvalidMinLevelIsIgnored)
+{
+  // Arrange: min_level outside [0, 1]
+  auto effect = make_effect(explorer_msgs::msg::LedEffect::MODE_BREATHE, 1.0, GREEN);
+  effect.min_level = 1.5;
+
+  // Act: blue is sent after it to know green was processed
+  command_pub_->publish(make_command(effect));
+  command_pub_->publish(make_solid(BLUE));
+
+  // Assert: green would breathe from off if min_level were dropped
+  ASSERT_TRUE(spin_until_written(all_leds(BLUE)));
+  EXPECT_FALSE(was_written(GREEN));
+}
+
 // update : without heartbeat for the watchdog timeout, the LEDs play the lost communication pattern
 TEST_F(LedNodeWatchdogTest, NoHeartbeatShowsLostCommunication)
 {

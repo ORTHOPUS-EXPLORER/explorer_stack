@@ -87,6 +87,7 @@ LedEffect read_effect(const YAML::Node& node, const std::string& context)
   effect.mode = read_mode(node, context);
   effect.speed = read_optional_value<double>(node, "speed", 0.0, context);
   effect.intensities = read_optional_value<std::vector<double>>(node, "intensities", {}, context);
+  effect.min_level = read_optional_value<double>(node, "min_level", 0.0, context);
 
   using Components = std::vector<std::vector<float>>;
   for (const auto& components : read_optional_value<Components>(node, "colors", {}, context))

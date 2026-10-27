@@ -186,6 +186,21 @@ TEST(SetPattern, IntensityOutOfRangeIsRejected)
   EXPECT_TRUE(error.has_value());
 }
 
+// set_pattern : a min_level outside [0, 1] is rejected
+TEST(SetPattern, MinLevelOutOfRangeIsRejected)
+{
+  // Arrange
+  LedAnimation animation;
+  auto pattern = make_pattern(LedMode::BREATHE, 1.0, {RED}, {1.0});
+  pattern.min_level = 1.5;
+
+  // Act
+  const auto error = animation.set_pattern(pattern, 0.0);
+
+  // Assert
+  EXPECT_TRUE(error.has_value());
+}
+
 // set_pattern : an animated mode without a positive speed is rejected
 TEST(SetPattern, AnimatedModeWithoutSpeedIsRejected)
 {
@@ -474,6 +489,37 @@ TEST(Compute, BreatheRisesAndFalls)
   expect_rgb_near(animation.compute(0.5), RED);
   expect_rgb_near(animation.compute(0.75), (Rgbw{0.5, 0.0, 0.0}));
   expect_rgb_near(animation.compute(1.0), Rgbw{});
+}
+
+// compute : breathe rises from min_level instead of off, still reaching the full colour
+TEST(Compute, BreatheRisesFromMinLevel)
+{
+  // Arrange
+  LedAnimation animation;
+  auto pattern = make_pattern(LedMode::BREATHE, 1.0, {RED}, {1.0});
+  pattern.min_level = 0.2;
+  ASSERT_FALSE(animation.set_pattern(pattern, 0.0));
+
+  // Act & Assert: brightness is 0.2 + (1 - 0.2) * (1 - cos(2 pi t * 1 Hz)) / 2
+  expect_rgb_near(animation.compute(0.0), (Rgbw{0.2, 0.0, 0.0}));
+  expect_rgb_near(animation.compute(0.25), (Rgbw{0.6, 0.0, 0.0}));
+  expect_rgb_near(animation.compute(0.5), RED);
+}
+
+// compute : breathe min_level is a fraction of the colour intensity
+TEST(Compute, BreatheMinLevelFollowsIntensity)
+{
+  // Arrange
+  LedAnimation animation;
+  auto pattern = make_pattern(LedMode::BREATHE, 1.0, {RED}, {0.5});
+  pattern.min_level = 0.2;
+  ASSERT_FALSE(animation.set_pattern(pattern, 0.0));
+
+  // Act
+  const auto color = animation.compute(0.0);
+
+  // Assert: 0.2 min_level * 0.5 intensity, 0.2 if min_level were absolute
+  expect_rgb_near(color, (Rgbw{0.1, 0.0, 0.0}));
 }
 
 // compute : a time before the pattern started is the start of the animation

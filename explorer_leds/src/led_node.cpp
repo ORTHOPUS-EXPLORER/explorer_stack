@@ -165,6 +165,7 @@ std::optional<std::vector<LedEffect>> LedNode::to_effects_(
     effect.pattern.mode = *mode;
     effect.pattern.speed = effect_msg.speed;
     effect.pattern.intensities = effect_msg.intensities;
+    effect.pattern.min_level = effect_msg.min_level;
     for (const auto& color : effect_msg.colors)
     {
       effect.pattern.colors.push_back({color.r, color.g, color.b, color.w});

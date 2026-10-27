@@ -222,6 +222,22 @@ TEST_F(LedStripConfigTest, PatternIsRead)
   EXPECT_EQ(config.not_ready_pattern.colors, (std::vector<Rgbw>{{0.0, 0.0, 0.0, 1.0}}));
 }
 
+// load_led_strip_config : a pattern min_level is read, 0 (fully off) when not given
+TEST_F(LedStripConfigTest, PatternMinLevelIsRead)
+{
+  // Arrange
+  const auto path = write_config(
+    SPI_DEVICE + LED_COUNT + LOST_COMMUNICATION +
+    "not_ready: {mode: breathe, speed: 1, colors: [[1, 0, 0]], intensities: [1], min_level: 0.3}\n");
+
+  // Act
+  const auto config = load_led_strip_config(path);
+
+  // Assert
+  EXPECT_EQ(config.not_ready_pattern.min_level, 0.3);
+  EXPECT_EQ(config.lost_communication_pattern.min_level, 0.0);
+}
+
 // load_led_strip_config : every value of a complete file is read
 TEST_F(LedStripConfigTest, CompleteFileIsRead)
 {

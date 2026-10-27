@@ -73,6 +73,7 @@ LedPattern read_pattern(const YAML::Node& root, const std::string& key, const st
   pattern.speed = read_optional_value<double>(node, "speed", 0.0, context);
   pattern.intensities =
     read_optional_value<std::vector<double>>(node, "intensities", std::vector<double>{}, context);
+  pattern.min_level = read_optional_value<double>(node, "min_level", 0.0, context);
   using Components = std::vector<std::vector<double>>;
   for (const auto& components :
        read_optional_value<Components>(node, "colors", Components{}, context))

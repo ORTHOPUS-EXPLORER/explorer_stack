@@ -8,13 +8,12 @@
 # Arm not deployed: RETRACTED or IN_PROGRESS
 retract_status:
   RETRACTED:
-    - mode: breathe
-      speed: 0.5
+    - mode: solid
       colors: [[1, 1, 0]]    # yellow
       intensities: [1]
   IN_PROGRESS:
-    - mode: breathe
-      speed: 0.5
+    - mode: blink
+      speed: 2
       colors: [[1, 1, 0]]    # yellow
       intensities: [1]
 
@@ -23,19 +22,21 @@ retract_status:
 modes:
   B1:
     - mode: breathe
-      speed: 0.5
-      colors: [[1, 1, 0]]    # yellow
+      speed: 0.33
+      colors: [[0.5, 0, 1]]  # purple
       intensities: [1]
+      min_level: 0.4
   B1_BIS:                    # long click from B1
     - mode: blink
       speed: 1.5
-      colors: [[1, 1, 0]]    # yellow
+      colors: [[0.5, 0, 1]]  # purple
       intensities: [1]
   B2:
     - mode: breathe
-      speed: 0.5
+      speed: 0.33
       colors: [[1, 0.5, 0]]  # orange
       intensities: [1]
+      min_level: 0.4
   BOIRE:
     - mode: blink
       speed: 1.5
@@ -43,9 +44,10 @@ modes:
       intensities: [1]
   B3:                        # long click from B3
     - mode: breathe
-      speed: 0.5
+      speed: 0.33
       colors: [[1, 0, 0.5]]  # pink
       intensities: [1]
+      min_level: 0.4
   VITESSE:
     - mode: blink
       speed: 1.5
@@ -53,9 +55,10 @@ modes:
       intensities: [1]
   B4:
     - mode: breathe
-      speed: 0.5
+      speed: 0.33
       colors: [[0, 0, 1]]    # blue
       intensities: [1]
+      min_level: 0.4
   DEPLIER:                   # long click from B4
     - mode: blink
       speed: 1.5

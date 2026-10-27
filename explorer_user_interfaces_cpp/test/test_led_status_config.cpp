@@ -254,7 +254,7 @@ TEST_F(LedStatusConfigTest, EffectFieldsAreRead)
     "  B1:\n"
     "    - {mode: off}\n"
     "    - {leds: [0, 3], mode: alternate, speed: 2, colors: [[1, 0, 0], [0, 1, 0, 0.5]], "
-    "intensities: [0.5, 1]}\n");
+    "intensities: [0.5, 1], min_level: 0.2}\n");
 
   // Act
   const auto config = load_led_status_config(path);
@@ -270,6 +270,7 @@ TEST_F(LedStatusConfigTest, EffectFieldsAreRead)
     effects[1].colors,
     (std::vector<LedColor>{LedColor().set__r(1.0f), LedColor().set__g(1.0f).set__w(0.5f)}));
   EXPECT_EQ(effects[1].intensities, (std::vector<double>{0.5, 1.0}));
+  EXPECT_DOUBLE_EQ(effects[1].min_level, 0.2);
 }
 
 // load_led_status_config : optional effect fields left out are empty, an effect without leds
@@ -288,6 +289,7 @@ TEST_F(LedStatusConfigTest, MissingEffectFieldsAreEmpty)
   EXPECT_DOUBLE_EQ(effect.speed, 0.0);
   EXPECT_TRUE(effect.colors.empty());
   EXPECT_TRUE(effect.intensities.empty());
+  EXPECT_DOUBLE_EQ(effect.min_level, 0.0);
 }
 
 // load_led_status_config : missing sections give no command, nothing is sent for those statuses

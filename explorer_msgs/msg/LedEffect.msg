@@ -20,7 +20,8 @@ string MODE_FLASH_ONCE=flash_once
 #   fade_out   : ramps from the colour down to off, then stays off (exactly one colour)
 #   blink      : switches the colour on and off (exactly one colour)
 #   alternate  : cycles through the colours in order (at least two colours)
-#   breathe    : smoothly rises from off to the colour and back, repeatedly (exactly one colour)
+#   breathe    : smoothly rises from min_level to the colour and back, repeatedly (exactly one
+#                colour)
 #   flash_once : shows the colour once over the current animation, which then resumes
 #                (exactly one colour). Meant to acknowledge an action without changing the status.
 #                Only accepted on /explorer_leds/flash
@@ -40,3 +41,7 @@ LedColor[] colors
 
 # Brightness of each colour in [0, 1], one per colour: same size as colors
 float64[] intensities
+
+# breathe only: lowest level of a breath in [0, 1], as a fraction of the colour intensity.
+# 0 goes fully off, a higher value keeps the LEDs dimly lit between breaths
+float64 min_level

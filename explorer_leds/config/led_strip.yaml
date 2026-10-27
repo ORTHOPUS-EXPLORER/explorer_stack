@@ -18,3 +18,4 @@ not_ready:             # robot not ready : breathe orange
   speed: 2
   colors: [[1, 0.5, 0]]
   intensities: [1]
+  min_level: 0.4

@@ -57,11 +57,12 @@ struct LedPattern
   double speed = 0.0;
   std::vector<Rgbw> colors;
   std::vector<double> intensities;
+  double min_level = 0.0;
 
   bool operator==(const LedPattern& other) const
   {
     return mode == other.mode && speed == other.speed && colors == other.colors &&
-           intensities == other.intensities;
+           intensities == other.intensities && min_level == other.min_level;
   }
   bool operator!=(const LedPattern& other) const { return !(*this == other); }
 };

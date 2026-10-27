@@ -119,6 +119,11 @@ std::optional<std::string> LedAnimation::validate_(const LedPattern& pattern)
     return "intensities must be in [0, 1]";
   }
 
+  if (!is_unit_value(pattern.min_level))
+  {
+    return "min_level must be in [0, 1]";
+  }
+
   // A solid colour doesn't move, any other mode needs a speed
   if (pattern.mode != LedMode::SOLID && !(std::isfinite(pattern.speed) && pattern.speed > 0.0))
   {
@@ -164,8 +169,11 @@ Rgbw LedAnimation::compute_(const PlayingPattern& playing, double now_seconds)
     case LedMode::ALTERNATE:
       return scaled_color(pattern, static_cast<std::size_t>(cycles) % pattern.colors.size());
     case LedMode::BREATHE:
-      // Smooth rise and fall: off at the start of each cycle, full colour halfway
-      return scale(scaled_color(pattern, 0), (1.0 - std::cos(2.0 * M_PI * cycles)) / 2.0);
+    {
+      // Smooth rise and fall: lowest level at the start of each cycle, full colour halfway
+      const double rise = (1.0 - std::cos(2.0 * M_PI * cycles)) / 2.0;
+      return scale(scaled_color(pattern, 0), pattern.min_level + (1.0 - pattern.min_level) * rise);
+    }
   }
   return {};
 }
