@@ -4,6 +4,8 @@
 #include <cmath>
 #include <string>
 
+#include "explorer_leds/led_qos.h"
+
 namespace space_control
 {
 namespace
@@ -60,6 +62,17 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
 
   n_->get_parameter("use_qp_inria", use_qp_inria_);
 
+  n_->declare_parameter<std::string>("led_status_file", "");
+  const std::string led_status_file = n_->get_parameter("led_status_file").as_string();
+  if (led_status_file.empty())
+  {
+    RCLCPP_WARN(n_->get_logger(), "No 'led_status_file' given, LEDs are not commanded");
+  }
+  else
+  {
+    led_status_config_ = load_led_status_config(led_status_file);
+  }
+
   n_->declare_parameter<int>("min_speed_level", 1);
   n_->declare_parameter<int>("max_speed_level", 8);
   n_->declare_parameter<int>("default_speed_level", 4);
@@ -95,6 +108,9 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     "command_node/trajectory/velocity/commands", 10,
     std::bind(&CommandNode::callback_trajectory_velocity_, this, std::placeholders::_1));
   last_trajectory_vel_time_ = n_->now();
+  mode_name_sub_ = n_->create_subscription<std_msgs::msg::String>(
+    "command_node/mode_name", 10,
+    std::bind(&CommandNode::callback_mode_name_, this, std::placeholders::_1));
 
   trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "joint_trajectory_controller/joint_trajectory", 10);
@@ -111,6 +127,8 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   gripper_command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
   ready_pub_ = n_->create_publisher<std_msgs::msg::Bool>("command_node/ready", 10);
+  led_command_pub_ = n_->create_publisher<explorer_msgs::msg::LedCommand>(
+    "/explorer_leds/command", explorer_leds::led_command_qos());
 
   set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
     "command_node/set_speed_level",
@@ -235,6 +253,37 @@ void CommandNode::publish_retract_status_()
   last_retract_status_ = trajectory_manager_.get_status();;
 
   retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+  publish_led_command_();
+}
+
+void CommandNode::callback_mode_name_(const std_msgs::msg::String& msg)
+{
+  if (mode_name_ == msg.data)
+  {
+    return;
+  }
+  mode_name_ = msg.data;
+
+  publish_led_command_();
+}
+
+void CommandNode::publish_led_command_()
+{
+  if (!led_status_config_)
+  {
+    return;
+  }
+
+  const auto command =
+    select_led_command(*led_status_config_, trajectory_manager_.get_status(), mode_name_);
+  // No command for this status: the LEDs keep their current effect
+  if (!command || command == last_led_command_)
+  {
+    return;
+  }
+  last_led_command_ = command;
+
+  led_command_pub_->publish(*command);
 }
 
 void CommandNode::callback_set_speed_level_(

@@ -16,6 +16,7 @@ def generate_launch_description():
 
     config_yaml_file_path = os.path.join(input_devices_share, 'config', 'config_mode_0.yaml')
     trajectory_yaml_file_path = os.path.join(pkg_share, 'config', 'config_trajectory.yaml')
+    led_status_yaml_file_path = os.path.join(pkg_share, 'config', 'led_status_mode_0.yaml')
 
     joy_node = Node(
         package="joy",
@@ -39,7 +40,8 @@ def generate_launch_description():
     executable="command_node",
     output="screen",
     parameters=[{
-        "trajectory_file": trajectory_yaml_file_path
+        "trajectory_file": trajectory_yaml_file_path,
+        "led_status_file": led_status_yaml_file_path,
         }],
 )
     nodes = [
