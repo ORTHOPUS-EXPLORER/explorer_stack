@@ -140,6 +140,13 @@ def declare_shared_argument_list(
             description="Mode configuration YAML file used by device_joystick and the web GUI: "
             "a file name from explorer_input_devices/config, or an absolute path",
         ),
+        DeclareLaunchArgument(
+            "led_status_config_path",
+            default_value="led_status_mode_0.yaml",
+            description="LED status configuration YAML file used by command_node, matching "
+            "mode_config_path: a file name from explorer_user_interfaces_cpp/config, or an "
+            "absolute path",
+        ),
     ]
 
 
@@ -258,6 +265,33 @@ class ModeConfigPathSubstitution(Substitution):
         return os.path.join(
             get_package_share_directory("explorer_input_devices"), "config", value
         )
+
+
+class LedStatusConfigPathSubstitution(Substitution):
+    """Resolve the "led_status_config_path" launch argument.
+
+    A bare file name is resolved from explorer_user_interfaces_cpp/config folder
+    or an absolute path could be given.
+    """
+
+    def perform(self, context: LaunchContext) -> str:
+        value = os.path.expanduser(
+            LaunchConfiguration("led_status_config_path").perform(context)
+        )
+        if os.path.dirname(value):
+            return os.path.abspath(value)
+        return os.path.join(
+            get_package_share_directory("explorer_user_interfaces_cpp"), "config", value
+        )
+
+
+def get_parameter_led_status_config_path() -> Substitution:
+    """Get ros2 parameter "led_status_config_path", resolved to the config path.
+
+    Returns:
+        Substitution: led_status_config_path
+    """
+    return LedStatusConfigPathSubstitution()
 
 
 def get_parameter_mode_config_path() -> Substitution:

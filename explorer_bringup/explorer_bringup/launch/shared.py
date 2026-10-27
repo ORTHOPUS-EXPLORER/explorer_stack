@@ -38,6 +38,7 @@ from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_debug,
     get_parameter_gui,
+    get_parameter_led_status_config_path,
     get_parameter_mode_config_path,
     get_parameter_robot_description,
     get_parameter_robot_semantic_srdf,
@@ -249,7 +250,6 @@ def declare_command_node(
         trajectory_yaml_file_path = os.path.join(
             pkg_share, "config", "config_trajectory.yaml"
         )
-        led_status_yaml_file_path = os.path.join(pkg_share, "config", "led_status_mode_0.yaml")
         if type(default_controller_name_list) is OpaqueFunction:
             default_controller_name_list = default_controller_name_list.execute(context)
         if type(remappings) is OpaqueFunction:
@@ -262,7 +262,7 @@ def declare_command_node(
                 parameters=[
                     {
                         "trajectory_file": trajectory_yaml_file_path,
-                        "led_status_file": led_status_yaml_file_path,
+                        "led_status_file": get_parameter_led_status_config_path(),
                         "active_trajectory": trajectory,
                         "default_controller_name_list": default_controller_name_list,
                         "use_qp_inria": get_parameter_use_qp_inria(),
