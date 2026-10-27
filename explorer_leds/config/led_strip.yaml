@@ -1,0 +1,20 @@
+# SK6812 strip of the gripper, on the Radxa Zero 3W SPI3 (MOSI, pin 19).
+
+# Required
+spi_device: /dev/spidev3.0
+led_count: 16
+
+# Optional
+rgbw: true             # RGBW strip, false for RGB: white then made with red, green and blue (default false)
+max_brightness: 0.6    # cap applied to every colour, in [0, 1] (default 1.0)
+
+# Colours are [r, g, b] or [r, g, b, w], in [0, 1]
+lost_communication:    # no heartbeat from the robot: solid red
+  mode: solid
+  colors: [[1, 0, 0]]
+  intensities: [1]
+not_ready:             # robot not ready : breathe orange
+  mode: breathe
+  speed: 2
+  colors: [[1, 0.5, 0]]
+  intensities: [1]
