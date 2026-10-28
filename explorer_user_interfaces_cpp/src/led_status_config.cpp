@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -66,6 +67,23 @@ std::string read_mode(const YAML::Node& node, const std::string& context)
   return mode;
 }
 
+/// LED indices of \p key in \p node, empty if missing, throws if one doesn't fit in a LedEffect
+std::vector<std::uint16_t> read_leds(
+  const YAML::Node& node, const std::string& key, const std::string& context)
+{
+  std::vector<std::uint16_t> leds;
+  for (const int led : read_optional_value<std::vector<int>>(node, key, {}, context))
+  {
+    if (led < 0 || led > std::numeric_limits<std::uint16_t>::max())
+    {
+      throw std::runtime_error(
+        "LED status config " + context + ": invalid LED index " + std::to_string(led));
+    }
+    leds.push_back(static_cast<std::uint16_t>(led));
+  }
+  return leds;
+}
+
 LedEffect read_effect(const YAML::Node& node, const std::string& context)
 {
   if (!node.IsMap())
@@ -75,15 +93,7 @@ LedEffect read_effect(const YAML::Node& node, const std::string& context)
   }
 
   LedEffect effect;
-  for (const int led : read_optional_value<std::vector<int>>(node, "leds", {}, context))
-  {
-    if (led < 0 || led > std::numeric_limits<std::uint16_t>::max())
-    {
-      throw std::runtime_error(
-        "LED status config " + context + ": invalid LED index " + std::to_string(led));
-    }
-    effect.leds.push_back(static_cast<std::uint16_t>(led));
-  }
+  effect.leds = read_leds(node, "leds", context);
   effect.mode = read_mode(node, context);
   effect.speed = read_optional_value<double>(node, "speed", 0.0, context);
   effect.intensities = read_optional_value<std::vector<double>>(node, "intensities", {}, context);
@@ -146,6 +156,36 @@ std::map<std::string, LedCommand> read_section(
   }
   return commands;
 }
+
+/// \p effect restricted to \p leds: its LEDs that are in \p leds (every one of \p leds if the
+/// effect targets every LED)
+LedEffect restrict_to(LedEffect effect, const std::vector<std::uint16_t>& leds)
+{
+  if (effect.leds.empty())
+  {
+    effect.leds = leds;
+    return effect;
+  }
+
+  std::vector<std::uint16_t> kept;
+  std::copy_if(
+    effect.leds.begin(), effect.leds.end(), std::back_inserter(kept), [&leds](std::uint16_t led)
+    { return std::find(leds.begin(), leds.end(), led) != leds.end(); });
+  effect.leds = std::move(kept);
+  return effect;
+}
+
+/// base \p effect , an off effect left off
+LedEffect as_solid(LedEffect effect)
+{
+  if (effect.mode == LedEffect::MODE_OFF)
+  {
+    return effect;
+  }
+
+  effect.mode = LedEffect::MODE_SOLID;
+  return effect;
+}
 }  // namespace
 
 LedStatusConfig load_led_status_config(const std::string& path)
@@ -191,6 +231,8 @@ LedStatusConfig load_led_status_config(const std::string& path)
     config.mode_commands[name] = std::move(command);
   }
 
+  config.centered_leds = read_leds(root, "centered_leds", path);
+
   return config;
 }
 
@@ -198,26 +240,47 @@ std::optional<explorer_msgs::msg::LedCommand> select_led_command(
   const LedStatusConfig& config, RetractStatus retract_status,
   const std::optional<std::string>& mode_name)
 {
-  if (retract_status != RetractStatus::READY)
+  const auto mode_it = mode_name ? config.mode_commands.find(*mode_name) : config.mode_commands.end();
+  const bool has_mode_command = mode_it != config.mode_commands.end();
+
+  if (retract_status == RetractStatus::READY)
   {
-    const auto it = config.retract_status_commands.find(retract_status);
-    if (it == config.retract_status_commands.end())
+    if (!has_mode_command)
     {
       return std::nullopt;
     }
-    return it->second;
+    return mode_it->second;
   }
 
-  if (!mode_name)
+  LedCommand command;
+  const auto retract_it = config.retract_status_commands.find(retract_status);
+  if (retract_it != config.retract_status_commands.end())
+  {
+    command = retract_it->second;
+  }
+
+  // The mode blinking over the retract status on the centered LEDs, applied after it so it wins
+  // there. Only while RETRACTED: IN_PROGRESS shows on every LED, so they all switch to the mode
+  // together once READY (LEDs already playing the mode would otherwise be out of phase with the
+  // others)
+  if (
+    retract_status == RetractStatus::RETRACTED && has_mode_command && !config.centered_leds.empty())
+  {
+    for (const auto& effect : mode_it->second.effects)
+    {
+      auto restricted = restrict_to(effect, config.centered_leds);
+      if (!restricted.leds.empty())
+      {
+        command.effects.push_back(as_solid(std::move(restricted)));
+      }
+    }
+  }
+
+  if (command.effects.empty())
   {
     return std::nullopt;
   }
-  const auto it = config.mode_commands.find(*mode_name);
-  if (it == config.mode_commands.end())
-  {
-    return std::nullopt;
-  }
-  return it->second;
+  return command;
 }
 
 }  // namespace space_control

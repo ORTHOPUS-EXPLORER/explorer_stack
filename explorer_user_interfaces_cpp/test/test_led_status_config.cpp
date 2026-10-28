@@ -50,6 +50,15 @@ LedCommand solid_red(float r)
   return command;
 }
 
+/// Command of a single blink effect of colour (r, 0, 0) at 2 Hz, on every LED
+LedCommand blink_red(float r)
+{
+  LedCommand command = solid_red(r);
+  command.effects[0].mode = LedEffect::MODE_BLINK;
+  command.effects[0].speed = 2.0;
+  return command;
+}
+
 /// Config with a different command for each retract status and for modes B1 and B2
 LedStatusConfig status_config()
 {
@@ -59,6 +68,23 @@ LedStatusConfig status_config()
   config.mode_commands["B1"] = solid_red(0.3f);
   config.mode_commands["B2"] = solid_red(0.4f);
   return config;
+}
+
+/// \p command with its effects restricted to \p leds
+LedCommand on_leds(LedCommand command, const std::vector<std::uint16_t>& leds)
+{
+  for (auto& effect : command.effects)
+  {
+    effect.leds = leds;
+  }
+  return command;
+}
+
+/// \p first effects followed by \p second ones
+LedCommand concat(LedCommand first, const LedCommand& second)
+{
+  first.effects.insert(first.effects.end(), second.effects.begin(), second.effects.end());
+  return first;
 }
 }  // namespace
 
@@ -304,35 +330,23 @@ TEST_F(LedStatusConfigTest, MissingSectionsAreEmpty)
   // Assert
   EXPECT_TRUE(config.retract_status_commands.empty());
   EXPECT_TRUE(config.mode_commands.empty());
+  EXPECT_TRUE(config.centered_leds.empty());
+}
+
+// load_led_status_config : a negative centered LED index is rejected
+TEST_F(LedStatusConfigTest, NegativeCenteredLedIsRejected)
+{
+  // Arrange
+  const auto path = write_config("centered_leds: [1, -2]\n");
+
+  // Act & Assert
+  EXPECT_THROW((void)load_led_status_config(path), std::runtime_error);
 }
 
 // load_led_status_config : the config file shipped with the package is valid
 TEST_F(LedStatusConfigTest, ShippedConfigIsValid)
 {
   EXPECT_NO_THROW((void)load_led_status_config(SHIPPED_LED_STATUS_CONFIG));
-}
-
-// select_led_command : while RETRACTED, the RETRACTED command is selected whatever the mode
-TEST(SelectLedCommand, RetractedSelectsItsCommand)
-{
-  EXPECT_EQ(select_led_command(status_config(), RetractStatus::RETRACTED, "B1"), solid_red(0.1f));
-}
-
-// select_led_command : while IN_PROGRESS, the IN_PROGRESS command is selected whatever the mode
-TEST(SelectLedCommand, InProgressSelectsItsCommand)
-{
-  EXPECT_EQ(select_led_command(status_config(), RetractStatus::IN_PROGRESS, "B1"), solid_red(0.2f));
-}
-
-// select_led_command : a retract status without command selects nothing, not the mode command
-TEST(SelectLedCommand, RetractStatusWithoutCommandSelectsNothing)
-{
-  // Arrange
-  auto config = status_config();
-  config.retract_status_commands.erase(RetractStatus::RETRACTED);
-
-  // Act & Assert
-  EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, "B1"), std::nullopt);
 }
 
 // select_led_command : while READY, nothing is selected until a mode is received
@@ -347,10 +361,160 @@ TEST(SelectLedCommand, ReadyWithUnknownModeSelectsNothing)
   EXPECT_EQ(select_led_command(status_config(), RetractStatus::READY, "BOIRE"), std::nullopt);
 }
 
-// select_led_command : while READY, the command of the current mode is selected
+// select_led_command : while READY, the command of the current mode is selected on every LED,
+// centered LEDs included
 TEST(SelectLedCommand, ReadySelectsModeCommand)
 {
-  EXPECT_EQ(select_led_command(status_config(), RetractStatus::READY, "B2"), solid_red(0.4f));
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+
+  // Act & Assert
+  EXPECT_EQ(select_led_command(config, RetractStatus::READY, "B2"), solid_red(0.4f));
+}
+
+// select_led_command : while RETRACTED without centered LEDs, the RETRACTED command is selected
+// whatever the mode
+TEST(SelectLedCommand, RetractedSelectsItsCommand)
+{
+  EXPECT_EQ(select_led_command(status_config(), RetractStatus::RETRACTED, "B1"), solid_red(0.1f));
+}
+
+// select_led_command : while IN_PROGRESS without centered LEDs, the IN_PROGRESS command is selected
+// whatever the mode
+TEST(SelectLedCommand, InProgressSelectsItsCommand)
+{
+  EXPECT_EQ(select_led_command(status_config(), RetractStatus::IN_PROGRESS, "B1"), solid_red(0.2f));
+}
+
+// select_led_command : a retract status without command and without centered LEDs selects nothing,
+// not the mode command
+TEST(SelectLedCommand, RetractStatusWithoutCommandSelectsNothing)
+{
+  // Arrange
+  auto config = status_config();
+  config.retract_status_commands.erase(RetractStatus::RETRACTED);
+
+  // Act & Assert
+  EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, "B1"), std::nullopt);
+}
+
+// select_led_command : while RETRACTED, the mode colour blinks on the centered LEDs at their blink
+// speed, after the retract status so it wins there
+TEST(SelectLedCommand, ModeBlinksOnCenteredLedsWhileRetracted)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+
+  // Act
+  const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
+
+  // Assert: B1 is solid red 0.3, blinking at the 2 Hz of status_config()
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {1, 2})));
+}
+
+// select_led_command : while RETRACTED, a mode effect with several colours blinks in its first one
+TEST(SelectLedCommand, AlternateModeBlinksInFirstColour)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1};
+  auto alternate = solid_red(0.3f);
+  alternate.effects[0].mode = LedEffect::MODE_ALTERNATE;
+  alternate.effects[0].colors.push_back(LedColor().set__g(1.0f));
+  alternate.effects[0].intensities.push_back(1.0);
+  config.mode_commands["B1"] = alternate;
+
+  // Act
+  const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
+
+  // Assert: blink takes a single colour, explorer_leds would reject the command otherwise
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {1})));
+}
+
+// select_led_command : while RETRACTED, an off mode effect stays off on the centered LEDs
+TEST(SelectLedCommand, OffModeStaysOffOnCenteredLeds)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1};
+  LedCommand off;
+  off.effects.resize(1);
+  off.effects[0].mode = LedEffect::MODE_OFF;
+  config.mode_commands["B1"] = off;
+
+  // Act
+  const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
+
+  // Assert
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(off, {1})));
+}
+
+// select_led_command : while IN_PROGRESS, the centered LEDs show the retract status like the
+// others, so every LED switches to the mode at the same time once READY
+TEST(SelectLedCommand, InProgressShowsRetractStatusOnCenteredLeds)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+
+  // Act & Assert
+  EXPECT_EQ(select_led_command(config, RetractStatus::IN_PROGRESS, "B1"), solid_red(0.2f));
+}
+
+// select_led_command : while RETRACTED, a mode effect on some LEDs only keeps those that are
+// centered LEDs
+TEST(SelectLedCommand, ModeEffectKeepsItsCenteredLeds)
+{
+  // Arrange: LED 3 isn't a centered LED
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+  config.mode_commands["B1"] = on_leds(solid_red(0.3f), {2, 3});
+
+  // Act
+  const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
+
+  // Assert
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {2})));
+}
+
+// select_led_command : while RETRACTED, a mode effect on no centered LED is left out
+TEST(SelectLedCommand, ModeEffectOutsideCenteredLedsIsLeftOut)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+  config.mode_commands["B1"] = on_leds(solid_red(0.3f), {5});
+
+  // Act & Assert: an effect with no LED would be sent for every LED
+  EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, "B1"), solid_red(0.1f));
+}
+
+// select_led_command : while RETRACTED, the centered LEDs blink the mode even when the retract
+// status has no command
+TEST(SelectLedCommand, ModeBlinksOnCenteredLedsWithoutRetractCommand)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+  config.retract_status_commands.erase(RetractStatus::RETRACTED);
+
+  // Act & Assert
+  EXPECT_EQ(
+    select_led_command(config, RetractStatus::RETRACTED, "B1"), on_leds(blink_red(0.3f), {1, 2}));
+}
+
+// select_led_command : while RETRACTED, without a mode received the retract status shows on every
+// LED
+TEST(SelectLedCommand, NoModeShowsRetractStatusOnCenteredLeds)
+{
+  // Arrange
+  auto config = status_config();
+  config.centered_leds = {1, 2};
+
+  // Act & Assert
+  EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, std::nullopt), solid_red(0.1f));
 }
 
 }  // namespace space_control
