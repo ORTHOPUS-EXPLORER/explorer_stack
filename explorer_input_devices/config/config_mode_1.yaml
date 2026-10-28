@@ -58,7 +58,7 @@ button_mappings:
       - control_name: "rotation_Z"
         joystick_axis: "ax1"
         direction: 1
-        scale: 0.75
+        scale: 0.4
         smoothing_alpha: 0.1
         image: "rotation_Z.png"
       - control_name: "gripper_X"
@@ -105,7 +105,7 @@ button_mappings:
       - control_name: "rotation_Y"
         joystick_axis: "ax2"
         direction: 1
-        scale: 0.75
+        scale: 0.4
         smoothing_alpha: 0.1
         image: "rotation_Y.png" 
     button:
@@ -119,10 +119,10 @@ button_mappings:
         direction: 1
         scale: 1.0
         image: "gripper.png"  
-      - control_name: ""
-        joystick_axis: ""
-        direction: 0
-        scale: 0.0
+      - control_name: "lock_gripper"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 1.0
         image: ""
     button:
       - long_click: "DEPLIER"
