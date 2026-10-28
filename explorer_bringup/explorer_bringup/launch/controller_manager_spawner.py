@@ -72,8 +72,17 @@ def declare_node_forward_position_controller_spawner(output: str = "log") -> Nod
 
 
 def declare_custom_controller_spawner(
-    robot_controller_config: str, output: str = "log"
+    robot_controller_config: str,
+    output: str = "log",
+    chained_controller_list: List[str] = [],
 ) -> List[Node]:
+    """Spawn explorer_custom_controller.
+
+    Args:
+        chained_controller_list: controllers chained to explorer_custom_controller, spawned right
+            after it in the same call (the spawner activates them in order, downstream first)
+    """
+
     # Python method called at launch time that create a temporary duplicate controller config file with simulation parameter properly set
     def inner_opaque_function(context, robot_controller_config: str):
         config_path = os.path.join(
@@ -110,6 +119,7 @@ def declare_custom_controller_spawner(
             output=output,
             arguments=[
                 "explorer_custom_controller",
+                *chained_controller_list,
                 "--controller-manager",
                 "/controller_manager",
                 "-p",

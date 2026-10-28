@@ -79,7 +79,9 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 def generate_launch_description():
     # Use default robot controller config
     robot_controller_config = "custom_controller"
-    controller_position_topic_name = "/explorer_custom_controller/position/commands"
+    # Middleware controller: explorer_position_saturation_controller deal with out of position commands (manual commands or really soft impedance) 
+    # before reaching explorer_custom_controller
+    controller_position_topic_name = "/explorer_position_saturation_controller/position/commands"
 
     # Initialize Arguments
     declared_arguments = _declare_arguments(
@@ -97,10 +99,15 @@ def generate_launch_description():
         if use_qp_inria:
             return [
                 "explorer_custom_controller",
+                "explorer_position_saturation_controller",
                 "qontrol_explorer",
                 "gripper_controller",
             ]
-        return ["explorer_custom_controller", "gripper_controller"]
+        return [
+            "explorer_custom_controller",
+            "explorer_position_saturation_controller",
+            "gripper_controller",
+        ]
 
 
     command_node = declare_command_node(
@@ -111,7 +118,8 @@ def generate_launch_description():
 
     robot_controller_list = [
         *declare_custom_controller_spawner(
-            robot_controller_config=robot_controller_config
+            robot_controller_config=robot_controller_config,
+            chained_controller_list=["explorer_position_saturation_controller"],
         ),
         declare_node_trajectory_controller_spawner(),
         declare_node_gripper_controller_spawner(),

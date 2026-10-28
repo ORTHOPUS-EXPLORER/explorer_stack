@@ -1,0 +1,53 @@
+explorer_position_saturation_controller:
+  joints: {
+    type: string_array,
+    default_value: [],
+    description: "Joints whose position command is saturated",
+    read_only: true,
+    validation: {
+      unique<>: null,
+      not_empty<>: null,
+    }
+  }
+  reference_interface_name: {
+    type: string,
+    description: "Reference interface exported for each joint ($JOINT_NAME/$reference_interface_name), written by the upstream controller",
+    default_value: "qp_position",
+    read_only: true,
+  }
+  chained_controller_name: {
+    type: string,
+    description: "Downstream controller exposing the command interfaces this controller writes to",
+    default_value: "explorer_custom_controller",
+    read_only: true,
+  }
+  command_interface_name: {
+    type: string,
+    description: "Command interface claimed on the downstream controller for each joint ($chained_controller_name/$JOINT_NAME/$command_interface_name)",
+    default_value: "qp_position",
+    read_only: true,
+  }
+  state_interface_name: {
+    type: string,
+    description: "State interface used as measured joint position",
+    default_value: "position",
+    read_only: true,
+  }
+  position_error_saturation_enable: {
+    type: bool,
+    description: "Clamp the command to [measured - threshold, measured + threshold]",
+    default_value: true,
+  }
+  position_error_saturation_threshold: {
+    type: double,
+    description: "Maximum allowed distance between command and measured position (rad)",
+    default_value: 0.2617993877991494,  # 15 degrees
+    validation: {
+      gt_eq<>: [0.0]
+    }
+  }
+  position_error_saturation_persistent: {
+    type: bool,
+    description: "Keep the clamping as an offset on the input command (no spring back to the original setpoint once the error goes back under the threshold)",
+    default_value: false,
+  }

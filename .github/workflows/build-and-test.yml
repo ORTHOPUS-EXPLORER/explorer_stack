@@ -121,9 +121,13 @@ jobs:
 
       - name: Setup Virtual CAN (vcan0)
         run: |
-          # Install needed vcan modprobe
-          sudo apt update -y
-          sudo apt-get install -y linux-modules-extra-$(uname -r)
+          # Load the virtual CAN kernel module
+          # vcan ships in linux-modules on recent kernels, and only in linux-modules-extra on older ones
+          if ! sudo modprobe vcan; then
+            sudo apt update -y
+            sudo apt-get install -y linux-modules-extra-$(uname -r)
+            sudo modprobe vcan
+          fi
 
           # Load the virtual CAN kernel module
           sudo modprobe vcan
@@ -150,7 +154,7 @@ jobs:
             set -e;
             source /opt/ros/${ROS_DISTRO}/setup.bash;
             source install/setup.bash;
-            colcon test --merge-install --packages-select explorer_bringup explorer_user_interfaces_cpp;
+            colcon test --merge-install --packages-select explorer_bringup explorer_command_controllers explorer_user_interfaces_cpp;
             colcon test-result --all'
 
       - name: Upload test result Artifact

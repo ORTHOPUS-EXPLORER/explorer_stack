@@ -59,6 +59,8 @@ class TestProcessOutput(unittest.TestCase):
         launch_testing.asserts.assertExitCodes(proc_info, process="robot_state_publisher")
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["joint_state_broadcaster"])
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["explorer_custom_controller"])
+        # Spawned with explorer_custom_controller: fails if the chain cannot be activated
+        launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["explorer_position_saturation_controller"])
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["gripper_controller"])
         launch_testing.asserts.assertExitCodes(proc_info, process="spawner", cmd_args=["joint_trajectory_controller"])
         launch_testing.asserts.assertExitCodes(proc_info, process="joy_node")
