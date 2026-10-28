@@ -150,7 +150,7 @@ jobs:
             set -e;
             source /opt/ros/${ROS_DISTRO}/setup.bash;
             source install/setup.bash;
-            colcon test --merge-install --packages-select explorer_bringup explorer_user_interfaces_cpp;
+            colcon test --merge-install --packages-select explorer_bringup explorer_leds explorer_user_interfaces_cpp;
             colcon test-result --all'
 
       - name: Upload test result Artifact
