@@ -149,6 +149,7 @@ qontrol_explorer:
 
     robot_command: qp_position
     chainable_controller_name: explorer_custom_controller
+    reference_interface_name: velocity
 
     # Velocity parameters
     command_max_linear_velocity: 0.03

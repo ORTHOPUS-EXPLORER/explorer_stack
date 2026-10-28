@@ -18,6 +18,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlFrameSelection.msg"
   "srv/Pose.srv"
   "srv/Float64.srv"
+  "srv/SetSpeedLevel.srv"
   DEPENDENCIES geometry_msgs
 )
 

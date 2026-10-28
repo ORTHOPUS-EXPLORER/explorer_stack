@@ -3,8 +3,8 @@
  *  Copyright (C) 2022 Orthopus
  *  All rights reserved.
  */
-#ifndef CARTESIAN_CONTROLLER_DEVICE_SPACENAV_H
-#define CARTESIAN_CONTROLLER_DEVICE_SPACENAV_H
+#ifndef EXPLORER_INPUT_DEVICES_DEVICE_SPACENAV_H
+#define EXPLORER_INPUT_DEVICES_DEVICE_SPACENAV_H
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -16,6 +16,8 @@
 
 namespace input_device
 {
+  using SelectCallback = std::function<void(const std_msgs::msg::Int64::SharedPtr)>;
+
 /**
  * \brief Handle spacenav input device to control the robot
  *
@@ -24,7 +26,7 @@ namespace input_device
 class DeviceSpacenav : public Device
 {
 public:
-  DeviceSpacenav(rclcpp::Node::SharedPtr n);
+  DeviceSpacenav(rclcpp::Node::SharedPtr node);
 
 private:
   int control_mode_select_;
@@ -34,19 +36,20 @@ private:
   double static_trans_deadband_, static_rot_deadband_;
   double trans_x_, trans_y_, trans_z_, rot_x_, rot_y_, rot_z_;
 
-  std_msgs::msg::Float64 gripper_cmd_;
-  std_msgs::msg::Float64 gripper_cmd_prec_;
+  // Control mode selection is specific to the spacemouse, so it is owned here rather
+  // than by Device.
+  rclcpp::Subscription<std_msgs::msg::Int64>::SharedPtr select_sub_;
 
   bool spacenav_is_stopped_ = false;
   bool spacenav_is_stopped_prev_ = false;
 
-  void callbackJoy_(const sensor_msgs::msg::Joy::SharedPtr msg);
-  void callback_spacemouse_select_(const std_msgs::msg::Int64 msg);
-  void processButtons_(const sensor_msgs::msg::Joy::SharedPtr msg);
-  void debounceButtons_(const sensor_msgs::msg::Joy::SharedPtr msg, const int button_id, rclcpp::Time& debounce_timer_ptr,
+  void callback_joy_(const sensor_msgs::msg::Joy::SharedPtr msg);
+  void callback_spacemouse_select_(const std_msgs::msg::Int64::SharedPtr msg);
+  void process_buttons_(const sensor_msgs::msg::Joy::SharedPtr msg);
+  void debounce_buttons_(const sensor_msgs::msg::Joy::SharedPtr &msg, const int button_id, rclcpp::Time& debounce_timer_ptr,
                         int& button_value_ptr);
-  void updateGripperCmd_();
-  void updateControlMode_();
+  void update_gripper_command_();
+  void update_control_mode_();
 };
 }
 #endif

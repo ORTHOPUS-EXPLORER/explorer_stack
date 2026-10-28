@@ -32,13 +32,13 @@ from launch_ros.substitutions import FindPackageShare
 
 from explorer_bringup.launch.optional_parameters import (
     get_parameter_web_gui_host,
-    get_parameter_web_gui_mode_config_path,
     get_parameter_web_gui_port,
 )
 from explorer_bringup.launch.shared_parameters import (
     CONTROLLER_CONFIG_TYPE,
     get_parameter_debug,
     get_parameter_gui,
+    get_parameter_mode_config_path,
     get_parameter_robot_description,
     get_parameter_robot_semantic_srdf,
     get_parameter_use_poc2,
@@ -246,7 +246,6 @@ def declare_command_node(
         ## It was like this before refactor but it's weird mapping trajectory / force_deploy
         trajectory = LaunchConfiguration("force_deploy")
         pkg_share = get_package_share_directory("explorer_user_interfaces_cpp")
-        yaml_file_path = os.path.join(pkg_share, "config", "config_mode_0.yaml")
         trajectory_yaml_file_path = os.path.join(
             pkg_share, "config", "config_trajectory.yaml"
         )
@@ -261,7 +260,6 @@ def declare_command_node(
                 output=output,
                 parameters=[
                     {
-                        "mode_file": yaml_file_path,
                         "trajectory_file": trajectory_yaml_file_path,
                         "active_trajectory": trajectory,
                         "default_controller_name_list": default_controller_name_list,
@@ -282,6 +280,50 @@ def declare_command_node(
     )
 
 
+def declare_joystick_device_node(output: str = "screen") -> OpaqueFunction:
+    """Joystick input device: manage joystick input.
+    """
+
+    def inner_opaque_function(context) -> List[Node]:
+        use_qp_inria = get_parameter_use_qp_inria().perform(context).lower() == "true"
+
+        end_effector_pose_topic = (
+            "/qontrol_controller/x_current"
+            if use_qp_inria
+            else "/explorer_controllers/qp_solving/x_current"
+        )
+
+        return [
+            Node(
+                package="explorer_input_devices",
+                executable="device_joystick",
+                output=output,
+                parameters=[
+                    {
+                        # Shared with the web GUI so both use the same mode mapping
+                        "mode_file": get_parameter_mode_config_path(),
+                        "end_effector_pose_topic": end_effector_pose_topic,
+                        # Publish to joystick_selector physical joy input topic
+                        "cartesian_command_topic": "/explorer_input_devices/joystick/physical/velocity/commands"
+                    }
+                ],
+            )
+        ]
+
+    return OpaqueFunction(function=inner_opaque_function)
+
+
+def declare_joystick_selector_node(output: str = "screen") -> Node:
+    """Forwards either the physical or the virtual joystick to the robot.
+    """
+    return Node(
+        package="explorer_input_devices",
+        executable="joystick_selector",
+        name="joystick_selector",
+        output=output,
+    )
+
+
 def declare_web_gui_node(output: str = "screen") -> Node:
     return Node(
         package="explorer_user_interfaces_web",
@@ -291,7 +333,7 @@ def declare_web_gui_node(output: str = "screen") -> Node:
             {
                 "port": get_parameter_web_gui_port(),
                 "host": get_parameter_web_gui_host(),
-                "mode_config_path": get_parameter_web_gui_mode_config_path(),
+                "mode_config_path": get_parameter_mode_config_path(),
             }
         ],
         output=output,

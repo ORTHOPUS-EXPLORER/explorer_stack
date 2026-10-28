@@ -17,6 +17,8 @@ find_package(backward_ros REQUIRED)
 set(INTERFACES_DEPENDENCIES
   rclcpp
   std_msgs
+  std_srvs
+  sensor_msgs
   geometry_msgs
   trajectory_msgs
   explorer_msgs
@@ -31,9 +33,8 @@ foreach(Dependency IN ITEMS ${INTERFACES_DEPENDENCIES})
 endforeach()
 
 
-add_executable(command_node 
+add_executable(command_node
   src/command_node.cpp
-  src/button_handler.cpp
   src/trajectory_manager.cpp
   src/controller_manager_wrapper.cpp
   )

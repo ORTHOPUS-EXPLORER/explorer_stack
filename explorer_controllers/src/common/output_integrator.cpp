@@ -37,18 +37,13 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
 
   //init settings
   dq_output_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  gripper_vel_.data = 0.0;
   q_command_.data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   q_init_ = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  gripper_command_.data = {0.5};
 
   //init suscriber
   dq_output_sub_ = n_->create_subscription<std_msgs::msg::Float64MultiArray>(
     "/explorer_controllers/qp_solving/dq_output", 10,
     std::bind(&OutputIntegrator::callback_dq_output_, this, std::placeholders::_1));
-  gripper_pos_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
-    "/explorer_user_interfaces/rqt_armcontrol/input_gripper_velocity", 10,
-    std::bind(&OutputIntegrator::callback_gripper_vel_, this, std::placeholders::_1));
   home_pressed_sub_ = n_->create_subscription<std_msgs::msg::Bool>(
     "/explorer_user_interfaces/rqt_armcontrol/home_pressed", 10,
     std::bind(&OutputIntegrator::callback_home_, this, std::placeholders::_1));
@@ -83,7 +78,6 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
   //init publisher
   command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>(controller_position_topic_name_, 10);
-  gripper_command_pub_ = n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
 
 
   auto request = std::make_shared<explorer_msgs::srv::Float64::Request>();
@@ -105,11 +99,6 @@ OutputIntegrator::OutputIntegrator(rclcpp::Node::SharedPtr n)
 void OutputIntegrator::callback_dq_output_(const std_msgs::msg::Float64MultiArray& msg)
 {
   dq_output_.data = msg.data;
-}
-
-void OutputIntegrator::callback_gripper_vel_(const std_msgs::msg::Float64& msg)
-{
-  gripper_vel_.data = msg.data;
 }
 
 void OutputIntegrator::callback_home_(const std_msgs::msg::Bool& msg) { go_home_ = msg.data; }
@@ -329,18 +318,7 @@ void OutputIntegrator::timer_callback_()
     //RCLCPP_DEBUG_STREAM(n_->get_logger(),"q_command ["<< i <<"]: " << q_command_.data[i]);
   }
 
-  gripper_command_.data[0] = gripper_command_.data[0] + gripper_vel_.data * sampling_period_;
-  if (gripper_command_.data[0] <= 0.0)
-  {
-    gripper_command_.data[0] = 0.0;
-  }
-  else if (gripper_command_.data[0] >= 1.0)
-  {
-    gripper_command_.data[0] = 1.0;
-  }
-
   command_pub_->publish(q_command_);
-  gripper_command_pub_->publish(gripper_command_);
 }
 
 void OutputIntegrator::home_()

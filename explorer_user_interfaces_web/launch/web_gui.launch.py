@@ -25,7 +25,7 @@ def generate_launch_description():
         "mode_config_path",
         default_value=PathJoinSubstitution(
             [
-                FindPackageShare("explorer_user_interfaces_cpp"),
+                FindPackageShare("explorer_input_devices"),
                 "config",
                 "config_mode_0.yaml",
             ]
