@@ -36,7 +36,7 @@ def generate_launch_description():
             "flash_topic": "/explorer_leds/flash",
             "heartbeat_topic": "/command_node/ready",
             "update_rate_hz": 50.0,
-            "watchdog_timeout_seconds": 0.5,
+            "watchdog_timeout_seconds": 1.0,
             "strip_config_file": strip_config,
         }],
     )
