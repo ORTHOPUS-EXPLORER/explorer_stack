@@ -22,6 +22,7 @@ set(INTERFACES_DEPENDENCIES
   geometry_msgs
   trajectory_msgs
   explorer_msgs
+  explorer_leds
   explorer_joint_utils
   joy
   controller_manager
@@ -32,6 +33,21 @@ foreach(Dependency IN ITEMS ${INTERFACES_DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
+# LED status config loading and command selection, ROS independent
+add_library(led_status_config STATIC
+  src/led_status_config.cpp
+)
+target_include_directories(led_status_config
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+)
+ament_target_dependencies(led_status_config
+  explorer_msgs
+  rclcpp
+  trajectory_msgs
+  yaml_cpp_vendor
+)
+target_link_libraries(led_status_config yaml-cpp)
 
 add_executable(command_node
   src/command_node.cpp
@@ -51,6 +67,7 @@ ament_target_dependencies(command_node
 )
 
 target_link_libraries(command_node 
+  led_status_config
   yaml-cpp
 )
 
@@ -79,6 +96,12 @@ if(BUILD_TESTING)
     set(RUNNER "${ament_cmake_ros_DIR}/run_test_isolated.py")
     add_launch_test("${path}" RUNNER "${RUNNER}" ${ARGN})
   endfunction()
+
+  ## UNIT TESTS
+  ament_add_ros_isolated_gtest(test_led_status_config test/test_led_status_config.cpp)
+  target_link_libraries(test_led_status_config led_status_config)
+  target_compile_definitions(test_led_status_config PRIVATE
+    SHIPPED_LED_STATUS_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/bringup/config/led_status_mode_1.yaml")
 
   ## LAUNCH & E2E TESTS
   add_ros_isolated_launch_test(test/launch/test_mode_0.py)

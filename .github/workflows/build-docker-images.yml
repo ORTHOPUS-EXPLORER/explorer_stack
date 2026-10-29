@@ -1,4 +1,4 @@
-name: Build docker images (CI / dev / prod)
+name: Build docker images (CI / dev / prod / led_node)
 on:
     push:
       tags:
@@ -9,7 +9,7 @@ on:
         target:
           type: choice
           default: all
-          options: [all, CI, builder, dev-prod]
+          options: [all, CI, builder, dev, prod, led_node]
 
 permissions:
   contents: read
@@ -39,4 +39,16 @@ jobs:
     with:
       image_name: prod
       target: explorer_prod
+    secrets: inherit
+
+  # LED node only image, for the ARM board driving the LED strip
+  build-and-push-led-node-docker-image:
+    if: ${{ github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'led_node' }}
+    uses: ./.github/workflows/workflow-docker-image.yml
+    with:
+      image_name: led_node/prod
+      target: prod
+      file: Dockerfile.leds
+      # Native arm64 build, for the board
+      runs_on: ubuntu-24.04-arm
     secrets: inherit
