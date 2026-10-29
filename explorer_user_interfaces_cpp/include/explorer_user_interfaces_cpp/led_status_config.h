@@ -16,8 +16,8 @@ namespace space_control
 /**
  * \brief LED commands shown for each robot status, read from the LED status config file
  *
- * Until the arm is deployed, the LEDs show its retract status, except centered_leds which blink
- * in the input device mode colour while RETRACTED; once deployed (READY), every LED shows the mode.
+ * Until the arm is deployed, the LEDs show its retract status, except centered_leds which show
+ * the input device mode colour while RETRACTED; once deployed (READY), every LED shows the mode.
  */
 struct LedStatusConfig
 {
@@ -42,7 +42,7 @@ struct LedStatusConfig
  * the one of \p mode_name.
  *
  * While RETRACTED, the effects of \p mode_name follow the retract status ones, restricted to
- * centered_leds and turned into blinks of their first colour (so they show over it there).
+ * centered_leds and turned into their first colour, solid (so they show over it there).
  * Empty when there's nothing to show (no command for the status, or no mode received yet): the
  * LEDs then keep their current effect.
  */

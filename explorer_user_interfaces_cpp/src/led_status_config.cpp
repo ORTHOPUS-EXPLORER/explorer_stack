@@ -175,7 +175,7 @@ LedEffect restrict_to(LedEffect effect, const std::vector<std::uint16_t>& leds)
   return effect;
 }
 
-/// base \p effect , an off effect left off
+/// \p effect as a solid colour: its first colour, an off effect left off
 LedEffect as_solid(LedEffect effect)
 {
   if (effect.mode == LedEffect::MODE_OFF)
@@ -184,6 +184,11 @@ LedEffect as_solid(LedEffect effect)
   }
 
   effect.mode = LedEffect::MODE_SOLID;
+  effect.speed = 0.0;
+  effect.min_level = 0.0;
+  // Solid takes a single colour, an alternate effect shows its first one
+  effect.colors.resize(std::min<std::size_t>(effect.colors.size(), 1));
+  effect.intensities.resize(std::min<std::size_t>(effect.intensities.size(), 1));
   return effect;
 }
 }  // namespace
@@ -259,7 +264,7 @@ std::optional<explorer_msgs::msg::LedCommand> select_led_command(
     command = retract_it->second;
   }
 
-  // The mode blinking over the retract status on the centered LEDs, applied after it so it wins
+  // The mode colour over the retract status on the centered LEDs, applied after it so it wins
   // there. Only while RETRACTED: IN_PROGRESS shows on every LED, so they all switch to the mode
   // together once READY (LEDs already playing the mode would otherwise be out of phase with the
   // others)

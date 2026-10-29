@@ -50,15 +50,6 @@ LedCommand solid_red(float r)
   return command;
 }
 
-/// Command of a single blink effect of colour (r, 0, 0) at 2 Hz, on every LED
-LedCommand blink_red(float r)
-{
-  LedCommand command = solid_red(r);
-  command.effects[0].mode = LedEffect::MODE_BLINK;
-  command.effects[0].speed = 2.0;
-  return command;
-}
-
 /// Config with a different command for each retract status and for modes B1 and B2
 LedStatusConfig status_config()
 {
@@ -399,23 +390,28 @@ TEST(SelectLedCommand, RetractStatusWithoutCommandSelectsNothing)
   EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, "B1"), std::nullopt);
 }
 
-// select_led_command : while RETRACTED, the mode colour blinks on the centered LEDs at their blink
-// speed, after the retract status so it wins there
-TEST(SelectLedCommand, ModeBlinksOnCenteredLedsWhileRetracted)
+// select_led_command : while RETRACTED, the mode colour shows solid on the centered LEDs, after the
+// retract status so it wins there
+TEST(SelectLedCommand, ModeShowsSolidOnCenteredLedsWhileRetracted)
 {
-  // Arrange
+  // Arrange: B1 breathes red 0.3
   auto config = status_config();
   config.centered_leds = {1, 2};
+  auto breathe = solid_red(0.3f);
+  breathe.effects[0].mode = LedEffect::MODE_BREATHE;
+  breathe.effects[0].speed = 0.5;
+  breathe.effects[0].min_level = 0.4;
+  config.mode_commands["B1"] = breathe;
 
   // Act
   const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
 
-  // Assert: B1 is solid red 0.3, blinking at the 2 Hz of status_config()
-  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {1, 2})));
+  // Assert: solid red 0.3, without the breathe speed and min_level
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(solid_red(0.3f), {1, 2})));
 }
 
-// select_led_command : while RETRACTED, a mode effect with several colours blinks in its first one
-TEST(SelectLedCommand, AlternateModeBlinksInFirstColour)
+// select_led_command : while RETRACTED, a mode effect with several colours shows its first one
+TEST(SelectLedCommand, AlternateModeShowsFirstColour)
 {
   // Arrange
   auto config = status_config();
@@ -429,8 +425,8 @@ TEST(SelectLedCommand, AlternateModeBlinksInFirstColour)
   // Act
   const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
 
-  // Assert: blink takes a single colour, explorer_leds would reject the command otherwise
-  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {1})));
+  // Assert: solid takes a single colour, explorer_leds would reject the command otherwise
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(solid_red(0.3f), {1})));
 }
 
 // select_led_command : while RETRACTED, an off mode effect stays off on the centered LEDs
@@ -476,7 +472,7 @@ TEST(SelectLedCommand, ModeEffectKeepsItsCenteredLeds)
   const auto command = select_led_command(config, RetractStatus::RETRACTED, "B1");
 
   // Assert
-  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(blink_red(0.3f), {2})));
+  EXPECT_EQ(command, concat(solid_red(0.1f), on_leds(solid_red(0.3f), {2})));
 }
 
 // select_led_command : while RETRACTED, a mode effect on no centered LED is left out
@@ -491,9 +487,9 @@ TEST(SelectLedCommand, ModeEffectOutsideCenteredLedsIsLeftOut)
   EXPECT_EQ(select_led_command(config, RetractStatus::RETRACTED, "B1"), solid_red(0.1f));
 }
 
-// select_led_command : while RETRACTED, the centered LEDs blink the mode even when the retract
+// select_led_command : while RETRACTED, the centered LEDs show the mode even when the retract
 // status has no command
-TEST(SelectLedCommand, ModeBlinksOnCenteredLedsWithoutRetractCommand)
+TEST(SelectLedCommand, ModeShowsOnCenteredLedsWithoutRetractCommand)
 {
   // Arrange
   auto config = status_config();
@@ -502,7 +498,7 @@ TEST(SelectLedCommand, ModeBlinksOnCenteredLedsWithoutRetractCommand)
 
   // Act & Assert
   EXPECT_EQ(
-    select_led_command(config, RetractStatus::RETRACTED, "B1"), on_leds(blink_red(0.3f), {1, 2}));
+    select_led_command(config, RetractStatus::RETRACTED, "B1"), on_leds(solid_red(0.3f), {1, 2}));
 }
 
 // select_led_command : while RETRACTED, without a mode received the retract status shows on every
