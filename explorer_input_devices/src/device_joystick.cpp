@@ -679,7 +679,7 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
   }
 
   frame_id_.position_control_frame = 0;
-  frame_id_.orientation_control_frame = 1;
+  frame_id_.orientation_control_frame = 0;
 }
 
 void DeviceJoystick::cartesian_linear_gripper_(const AxisInfo& axis_info)
