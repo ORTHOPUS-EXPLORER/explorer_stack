@@ -127,7 +127,7 @@ button_mappings:
           deadzone: 0.2
     button:
       - long_click: "B5_bis"
-      - short_click: "B1"
+      - short_click: "B6"
 
   B5_bis:
     axes:
@@ -150,6 +150,51 @@ button_mappings:
     button:
       - long_click: ""
       - short_click: "B5"
+
+  B6:
+    axes:
+      - control_name: "snake_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 2.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Y.png" 
+        params:
+          max_coupling_gain: 0.5
+          modulation_ratio: 1.0
+      - control_name: "snake_X"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 2.0
+        smoothing_alpha: 0.1
+        image: "cartesian_X.png" 
+        params:
+          max_coupling_gain: 0.5
+          modulation_ratio: 1.0
+    button:
+      - long_click: "B6_bis"
+      - short_click: "B1"
+
+  B6_bis:
+    axes:
+      - control_name: "rotation_Z"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 0.4
+        smoothing_alpha: 0.1
+        image: "rotation_Z.png"  
+      - control_name: "snake_Z"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 2.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Z.png" 
+        params:
+          max_coupling_gain: 0.5
+          modulation_ratio: 1.0
+    button:
+      - long_click: ""
+      - short_click: "B6"
 
   VITESSE:
     axes:
