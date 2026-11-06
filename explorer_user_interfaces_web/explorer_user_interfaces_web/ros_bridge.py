@@ -51,6 +51,7 @@ class RosBridge:
         self.retract_status = (
             "retracted"  # Retract status: ready, in progress, retracted
         )
+        self.drink_active = False
         self.gripper_lock_active = False
         self.connected_clients: set = set()
 
@@ -145,6 +146,7 @@ class RosBridge:
         msg.data = direction
 
 
+        self.gripper_closure_direction = direction
         self.gripper_closure_direction_publisher.publish(msg)
 
 
@@ -174,6 +176,7 @@ class RosBridge:
                     drink_active = True
                     break
             print(f"[DEBUG] Backend: drink_active for mode {new_mode}: {drink_active}")
+            self.drink_active = drink_active
             # Put update in queue for drink LED
             self.update_queue.put(
                 {
@@ -375,7 +378,9 @@ class RosBridge:
                 "mode": self.current_mode,
                 "speed_level": self.speed_level,
                 "retract_status": self.retract_status,
+                "drink_active": self.drink_active,
                 "gripper_lock_active": self.gripper_lock_active,
+                "gripper_closure_direction": self.gripper_closure_direction,
             }
         ]
 
