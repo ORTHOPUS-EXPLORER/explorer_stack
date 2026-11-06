@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
-import json
 import os
-import queue
 import threading
 import time
 from typing import Dict, List
@@ -22,6 +20,9 @@ from std_msgs.msg import Bool, Int32, String
 from orthopus_vesc_interfaces.msg import State
 
 NUM_JOINTS = 6
+
+# Updates waiting to be sent to a page
+CLIENT_QUEUE_SIZE = 256
 
 # Must match orthopus_vesc_interface's state_pub_ QoS (transient-local, depth 1)
 # so we get the current state immediately on connect instead of waiting for
@@ -51,11 +52,12 @@ class RosBridge:
         self.retract_status = (
             "retracted"  # Retract status: ready, in progress, retracted
         )
+        self.drink_active = False
         self.gripper_lock_active = False
-        self.connected_clients: set = set()
-
-        # Use a thread-safe queue for updates
-        self.update_queue = queue.Queue()
+        self.gripper_closure_direction: str | None = None
+        # Queue of updates of each connected page, only used from the server event loop
+        self.connected_clients: set[asyncio.Queue] = set()
+        self._event_loop: asyncio.AbstractEventLoop | None = None
 
         # Load mode config once at startup
         config_path = (
@@ -145,10 +147,19 @@ class RosBridge:
         msg.data = direction
 
 
+        self.gripper_closure_direction = direction
         self.gripper_closure_direction_publisher.publish(msg)
 
 
         self.node.get_logger().info(f"Gripper closure direction published: {direction}")
+
+        self._publish_update(
+            {
+                "type": "gripper_closure_direction_update",
+                "direction": direction,
+                "timestamp": time.time(),
+            }
+        )
 
 
         return True
@@ -174,8 +185,9 @@ class RosBridge:
                     drink_active = True
                     break
             print(f"[DEBUG] Backend: drink_active for mode {new_mode}: {drink_active}")
+            self.drink_active = drink_active
             # Put update in queue for drink LED
-            self.update_queue.put(
+            self._publish_update(
                 {
                     "type": "drink_led_update",
                     "active": drink_active,
@@ -184,7 +196,7 @@ class RosBridge:
                 }
             )
             # Put update in queue for mode
-            self.update_queue.put(
+            self._publish_update(
                 {
                     "type": "mode_update",
                     "mode": self.current_mode,
@@ -198,7 +210,7 @@ class RosBridge:
         if new_level != self.speed_level:
             self.speed_level = new_level
             self.node.get_logger().info(f"Speed level changed to: {self.speed_level}")
-            self.update_queue.put(
+            self._publish_update(
                 {
                     "type": "speed_level_update",
                     "speed_level": self.speed_level,
@@ -214,7 +226,7 @@ class RosBridge:
             self.node.get_logger().info(
                 f"Retract status changed to: {self.retract_status}"
             )
-            self.update_queue.put(
+            self._publish_update(
                 {
                     "type": "retract_status_update",
                     "retract_status": self.retract_status,
@@ -233,7 +245,7 @@ class RosBridge:
             "error": msg.error,
             "timestamp": time.time(),
         }
-        self.update_queue.put(self.last_joint_state_message_dict[joint_index])
+        self._publish_update(self.last_joint_state_message_dict[joint_index])
 
     def gripper_lock_callback(self, msg: Bool):
         """Callback for gripper lock state changes."""
@@ -248,7 +260,7 @@ class RosBridge:
                 f"Gripper lock changed to: {self.gripper_lock_active}"
             )
 
-            self.update_queue.put(
+            self._publish_update(
                 {
                     "type": "gripper_lock_led_update",
                     "active": self.gripper_lock_active,
@@ -291,82 +303,51 @@ class RosBridge:
             return None, last_frame_index
         return frame, frame_index
 
-    async def get_updates(self):
-        """Get any pending updates from the queue"""
-        updates = []
+    def set_event_loop(self, event_loop: asyncio.AbstractEventLoop):
+        """Set the server event loop, which updates are handed over to from the ROS thread."""
+        self._event_loop = event_loop
+
+    def add_client(self) -> asyncio.Queue:
+        """Register a connected page, must be called from the server event loop.
+
+        Returns:
+            asyncio.Queue: updates to send to this page, starting with the current state
+        """
+        client_queue = asyncio.Queue(maxsize=CLIENT_QUEUE_SIZE)
+        self.connected_clients.add(client_queue)
+        self._put_current_state(client_queue)
+        return client_queue
+
+    def remove_client(self, client_queue: asyncio.Queue):
+        """Unregister a page, must be called from the server event loop."""
+        self.connected_clients.discard(client_queue)
+
+    def _publish_update(self, update: Dict):
+        """Send an update to every connected page, can be called from any thread."""
+        if self._event_loop is None:
+            # Server not started, so no page yet: it gets the current state when it connects
+            return
         try:
-            while not self.update_queue.empty():
-                update = self.update_queue.get_nowait()
-                updates.append(update)
-        except queue.Empty:
+            self._event_loop.call_soon_threadsafe(self._dispatch_update, update)
+        except RuntimeError:
+            # Event loop closed: the server is shutting down
             pass
-        return updates
 
-    async def broadcast_to_clients(self, message):
-        """Broadcast message to all connected clients"""
-        if not self.connected_clients:
-            return
-
-        disconnected = set()
-        for websocket in self.connected_clients:
+    def _dispatch_update(self, update: Dict):
+        """Add an update to the queue of every page, runs in the server event loop."""
+        for client_queue in self.connected_clients:
             try:
-                await websocket.send_text(json.dumps(message))
-            except Exception as e:
-                self.node.get_logger().debug(f"Failed to send to client: {e}")
-                disconnected.add(websocket)
+                client_queue.put_nowait(update)
+            except asyncio.QueueFull:
+                # Page too slow (e.g. sleeping device): its backlog is replaced by the current
+                # state, which already includes this update
+                while not client_queue.empty():
+                    client_queue.get_nowait()
+                self._put_current_state(client_queue)
 
-        # Clean up disconnected clients
-        self.connected_clients -= disconnected
-
-    async def broadcast_mode_update(self):
-        """Send mode update to all connected clients"""
-        print(
-            f"DEBUG: broadcast_mode_update called, clients: {len(self.connected_clients)}"
-        )
-
-        if not self.connected_clients:
-            print("DEBUG: No connected clients")
-            return
-
-        message = {
-            "type": "mode_update",
-            "mode": self.current_mode,
-            "timestamp": asyncio.get_event_loop().time(),
-        }
-
-        print(f"DEBUG: Sending message: {message}")
-
-        disconnected = set()
-        for websocket in self.connected_clients:
-            try:
-                await websocket.send_text(json.dumps(message))
-                print("DEBUG: Message sent successfully to client")
-            except Exception as e:
-                print(f"DEBUG: Error sending message: {e}")
-                disconnected.add(websocket)
-
-        # Clean up disconnected clients
-        self.connected_clients -= disconnected
-
-    async def broadcast_status_update(self):
-        """Send status update to all connected clients"""
-        if not self.connected_clients:
-            return
-
-        message = {
-            "type": "status_update",
-            "status": self.connection_status,
-            "timestamp": asyncio.get_event_loop().time(),
-        }
-
-        disconnected = set()
-        for websocket in self.connected_clients:
-            try:
-                await websocket.send_text(json.dumps(message))
-            except:
-                disconnected.add(websocket)
-
-        self.connected_clients -= disconnected
+    def _put_current_state(self, client_queue: asyncio.Queue):
+        for message in self.get_initial_message_list_on_connected():
+            client_queue.put_nowait(message)
 
     def get_initial_message_list_on_connected(self) -> List[Dict]:
         initial_messages = [
@@ -375,11 +356,14 @@ class RosBridge:
                 "mode": self.current_mode,
                 "speed_level": self.speed_level,
                 "retract_status": self.retract_status,
+                "drink_active": self.drink_active,
                 "gripper_lock_active": self.gripper_lock_active,
+                "gripper_closure_direction": self.gripper_closure_direction,
             }
         ]
 
-        for joint_state_message in self.last_joint_state_message_dict.values():
+        # Copy: joints are added from the ROS thread
+        for joint_state_message in list(self.last_joint_state_message_dict.values()):
             initial_messages.append(joint_state_message)
 
         return initial_messages

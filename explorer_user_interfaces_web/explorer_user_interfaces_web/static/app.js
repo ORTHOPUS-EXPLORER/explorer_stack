@@ -107,6 +107,9 @@ class ExplorerWebGUI {
                 this.updateMode(data.mode);
                 this.updateSpeedLevel(data.speed_level);
                 this.updateRetractStatus(data.retract_status);
+                this.updateDrinkLED(data.drink_active);
+                this.updateGripperLockLED(data.gripper_lock_active);
+                this.updateGripperDirection(data.gripper_closure_direction);
                 break;
 
             case 'joint_state_update':
@@ -126,6 +129,9 @@ class ExplorerWebGUI {
                 break;
             case 'gripper_lock_led_update':
                 this.updateGripperLockLED(data.active);
+                break;
+            case 'gripper_closure_direction_update':
+                this.updateGripperDirection(data.direction);
                 break;
         }
     }
@@ -263,6 +269,14 @@ class ExplorerWebGUI {
             case "unknown":
                 jointLed.classList.add('status-red');
                 break;
+        }
+    }
+
+    updateGripperDirection(direction) {
+        const gripperDirectionSelect = document.getElementById('gripper-direction');
+        if (gripperDirectionSelect) {
+            // Empty: no direction selected yet
+            gripperDirectionSelect.value = direction ?? '';
         }
     }
 
