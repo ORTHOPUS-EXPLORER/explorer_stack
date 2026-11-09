@@ -487,12 +487,55 @@ void DeviceJoystick::joint_direct_(const AxisInfo& axis_info)
   {
     return;
   }
-  // joint_6 is expressed as a tool-frame rotation rather than a joint velocity
+
   if (axis_info.control_name == ControlName::JOINT_6)
   {
-    cartesian_vel_.twist.angular.x = read_axis_value_(axis_info);
-    // Set control frame to end-effector for joint 6 control
-    frame_id_.orientation_control_frame = 1;
+    const double value = read_axis_value_(axis_info);
+
+    // Find the mode containing JOINT_6
+    auto* joint6_mode = find_mode_by_control_name(data_, ControlName::JOINT_6);
+
+    bool joint6_with_snake_z = false;
+
+    // Check if SNAKE_Z belongs to the same mode as JOINT_6
+    for (const auto& axis : joint6_mode->axes)
+    {
+      if (axis.control_name == ControlName::SNAKE_Z)
+      {
+        joint6_with_snake_z = true;
+        break;
+      }
+    }
+    
+    if (joint6_with_snake_z)
+    {
+      // Get current end-effector orientation
+      const double x = x_current_.orientation.x;
+      const double y = x_current_.orientation.y;
+      const double z = x_current_.orientation.z;
+      const double w = x_current_.orientation.w;
+
+      // First column of rotation matrix R_01
+      const double r11 = 1.0 - 2.0 * (y * y + z * z);
+      const double r21 = 2.0 * (x * y + w * z);
+      const double r31 = 2.0 * (x * z - w * y);
+
+      // Transform JOINT_6 angular velocity from frame 1 to frame 0
+      cartesian_vel_.twist.angular.x = value * r11;
+      cartesian_vel_.twist.angular.y = value * r21;
+      cartesian_vel_.twist.angular.z = value * r31;
+
+      // Set orientation control frame to base frame
+      frame_id_.orientation_control_frame = 0;
+    }
+    else
+    {
+      // Original JOINT_6 behavior: rotation around tool X axis
+      cartesian_vel_.twist.angular.x = value;
+
+      // Set control frame to end-effector
+      frame_id_.orientation_control_frame = 1;
+    }
   }
 }
 
