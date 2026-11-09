@@ -15,6 +15,7 @@
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
 #include "explorer_user_interfaces_cpp/led_status_config.h"
+#include "explorer_user_interfaces_cpp/timed_input.h"
 #include "explorer_user_interfaces_cpp/trajectory_manager.h"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -50,7 +51,8 @@ namespace space_control
  *   - [topic] command_node/robot/velocity/commands is scaled by the speed factor and relayed to the
  *     controllers;
  *   - [topic] command_node/gripper/velocity/commands is scaled by the speed factor, integrated into a
- *     position and relayed to the gripper controller.
+ *     position at a fixed rate and relayed to the gripper controller; it falls back to 0 when not
+ *     refreshed for a while.
  */
 class CommandNode
 {
@@ -95,6 +97,7 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr ready_timer_;
+  rclcpp::TimerBase::SharedPtr gripper_timer_;
 
   double sampling_period_;
 
@@ -115,9 +118,8 @@ private:
   std::atomic<bool> trajectory_mode_{false};
 
   // Trajectory movement input, speed-scaled value of the trajectory velocity topic.
-  std::atomic<double> trajectory_velocity_input_{0.0};
-  // Reception time of the last trajectory velocity, the input falls back to 0 (hold) when stale
-  rclcpp::Time last_trajectory_vel_time_;
+  // Falls back to 0 (hold) when stale.
+  TimedInput trajectory_velocity_input_;
 
   std::atomic<bool> switch_in_progress_{false};
 
@@ -139,8 +141,10 @@ private:
 
   // Integrated gripper position, value sent to the gripper controller
   std_msgs::msg::Float64MultiArray gripper_command_;
-  // Reception time of the previous gripper velocity, the integration step is measured from it
-  std::optional<rclcpp::Time> last_gripper_vel_time_;
+  // Last gripper velocity received, integrated by update_gripper_(). Falls back to 0 when stale.
+  TimedInput gripper_velocity_input_;
+  // Time of the previous update_gripper_() tick, the integration step is measured from it
+  std::optional<rclcpp::Time> last_gripper_update_time_;
 
   // Holds the controller-switch thread spawned in handle_controller_state_()
   std::thread switch_thread_;
@@ -181,6 +185,9 @@ private:
   void callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg);
 
   void callback_gripper_velocity_(const std_msgs::msg::Float64& msg);
+
+  // Integrate the last gripper velocity into the position command, at a fixed rate
+  void update_gripper_();
 
   // Publish the retract status, only when it changed (the topic is latched)
   void publish_retract_status_();
