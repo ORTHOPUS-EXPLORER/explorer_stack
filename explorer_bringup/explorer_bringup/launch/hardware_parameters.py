@@ -19,14 +19,17 @@ from launch.actions import (
 )
 
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     declare_shared_argument_list,
 )
 
 
 def declare_hardware_argument_list(
-    robot_controller_config: CONTROLLER_CONFIG_TYPE,
+    robot_controller_config: str,
+    robot_controller_config_path: str = "explorer_bringup",
 ) -> List[DeclareLaunchArgument]:
     return [
-        *declare_shared_argument_list(robot_controller_config=robot_controller_config),
+        *declare_shared_argument_list(
+            robot_controller_config=robot_controller_config,
+            robot_controller_config_path=robot_controller_config_path,
+        ),
     ]

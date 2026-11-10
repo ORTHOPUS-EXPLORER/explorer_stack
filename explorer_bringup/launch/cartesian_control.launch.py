@@ -35,7 +35,6 @@ from explorer_bringup.launch.shared import (
     declare_output_integrator_node,
 )
 from explorer_bringup.launch.shared_parameters import (
-    CONTROLLER_CONFIG_TYPE,
     get_parameter_gui,
 )
 from explorer_bringup.launch.simulation import (
@@ -49,7 +48,7 @@ from launch.conditions import IfCondition
 from launch_ros.actions import Node
 
 
-def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
+def _declare_arguments(robot_controller_config: str):
     return [
         *declare_simulation_argument_list(
             robot_controller_config=robot_controller_config
@@ -62,7 +61,7 @@ def _declare_arguments(robot_controller_config: CONTROLLER_CONFIG_TYPE):
 
 
 def generate_launch_description():
-    robot_controller_config = "controller"
+    robot_controller_config = "explorer_controller"
     # Used only if use_qp_inria=false
     controller_position_topic_name = "/forward_position_controller/commands"
 
@@ -84,7 +83,7 @@ def generate_launch_description():
     )
 
     robot_hardware = declare_hardware_node_group(
-        robot_controller_config_type=robot_controller_config,
+        robot_controller_config_file=robot_controller_config,
         robot_controller_list=robot_controller_list,
         launch_qp_solving=True,
         controller_position_topic_name=controller_position_topic_name,
