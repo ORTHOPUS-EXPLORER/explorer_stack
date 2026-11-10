@@ -48,7 +48,27 @@ button_mappings:
         params:
           deadzone: 0.2
     button:
-      - long_click: ""
+      - long_click: "B1_TER"
+      - short_click: "B1"
+
+  B1_TER:
+    axes:
+      - control_name: "gripper_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_Y.png"
+      - control_name: "gripper_X"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "cartesian_X.png"
+        params:
+          deadzone: 0.2
+    button:
+      - long_click: "B1_BIS"
       - short_click: "B1"
     
   B2:
@@ -107,7 +127,7 @@ button_mappings:
           deadzone: 0.2
       - control_name: "snake_Z"
         joystick_axis: "ax2"
-        direction: -1
+        direction: 1
         scale: 2.0
         smoothing_alpha: 0.1
         image: "cartesian_Z_mode_1.png" 
