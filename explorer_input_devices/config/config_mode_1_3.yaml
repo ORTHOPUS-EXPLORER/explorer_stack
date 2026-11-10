@@ -18,7 +18,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png" 
+        image: "cartesian_Y_mode_1.png" 
         params:
           rotation_speed_scale: 0.04
       - control_name: "complex_X"
@@ -26,7 +26,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_X.png"
+        image: "cartesian_X_mode_1.png"
     button:
       - long_click: "B1_BIS"
       - short_click: "B2"
@@ -38,13 +38,13 @@ button_mappings:
         direction: 1
         scale: 0.4
         smoothing_alpha: 0.1
-        image: "rotation_Z.png"
+        image: "rotation_Z_mode_1.png"
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png"
+        image: "cartesian_Z_mode_1.png"
         params:
           deadzone: 0.2
     button:
@@ -58,7 +58,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png" 
+        image: "gripper_Y.png" 
         params:
           rotation_speed_scale: 0.04
       - control_name: "gripper_Z"
@@ -66,7 +66,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png"
+        image: "gripper_Z.png"
         params:
           deadzone: 0.2
     button:
@@ -80,7 +80,7 @@ button_mappings:
         direction: -1
         scale: 0.75
         smoothing_alpha: 0.3
-        image: "joint_6.png"
+        image: "joint_6_mode_1.png"
         params:
           deadzone: 0.2
       - control_name: "cartesian_Z"
@@ -88,7 +88,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png"
+        image: "cartesian_Z_mode_1.png"
         params:
           deadzone: 0.2
     button:
@@ -102,7 +102,7 @@ button_mappings:
         direction: -1
         scale: 0.75
         smoothing_alpha: 0.3
-        image: "joint_6.png"
+        image: "joint_6_mode_1.png"
         params:
           deadzone: 0.2
       - control_name: "snake_Z"
@@ -110,7 +110,7 @@ button_mappings:
         direction: -1
         scale: 2.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png" 
+        image: "cartesian_Z_mode_1.png" 
         params:
           max_coupling_gain: 0.5
           modulation_ratio: 1.0
