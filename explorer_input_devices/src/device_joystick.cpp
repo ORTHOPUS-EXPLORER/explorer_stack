@@ -284,6 +284,7 @@ void DeviceJoystick::timer_callback_()
   reset_velocities_();
 
   complex_mode_ = false;
+  snake_mode_ = false;
 
   // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
   for (const auto& axis : mode.axes)
