@@ -137,9 +137,14 @@ RUN --mount=type=cache,target=/etc/apt/apt.conf.d,from=explorer_cacher,source=/e
     apt-get install -y gosu wget \
     ## Install latest LLVM toolchain (clangd)
     && UBUNTU_CODENAME=$(lsb_release -c -s) \
-    && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
-    && add-apt-repository -y deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-22 main \
-    && apt update \
+    ## Fetch LLVM signing key into a dedicated keyring
+    && install -d -m 0755 /etc/apt/keyrings \
+    && wget --tries=5 --retry-connrefused --waitretry=5 -O /tmp/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key \
+    && gpg --dearmor --yes -o /etc/apt/keyrings/apt.llvm.org.gpg /tmp/llvm-snapshot.gpg.key \
+    && chmod 0644 /etc/apt/keyrings/apt.llvm.org.gpg \
+    && rm /tmp/llvm-snapshot.gpg.key \
+    && echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-22 main" > /etc/apt/sources.list.d/llvm-toolchain.list \
+    && apt-get update \
     # Install clang related packages
     && apt-get install -y --no-install-recommends clang-22 clang-tools-22 clang-22-doc libclang-common-22-dev libclang-22-dev libclang1-22 clang-format-22 python3-clang-22 clangd-22 clang-tidy-22 \
     && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 22 \
