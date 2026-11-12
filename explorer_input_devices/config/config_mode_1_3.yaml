@@ -58,13 +58,13 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png"
+        image: "gripper_Y.png"
       - control_name: "gripper_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_X.png"
+        image: "gripper_X.png"
         params:
           deadzone: 0.2
     button:
