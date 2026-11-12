@@ -19,9 +19,9 @@
 }
 
 .status-led.status-orange {
-    background-color: #f97316 !important;
+    background-color: #f8e91b !important;
     /* Orange: moving/in progress */
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
+    box-shadow: 0 0 8px rgba(245, 249, 22, 0.671);
 }
 
 .status-led.status-red {
@@ -38,9 +38,9 @@
 }
 
 #gripper-lock-led.active {
-    background-color: #f63b3b !important;
+    background-color: #f97316 !important;
     /* Active: blue */
-    box-shadow: 0 0 8px rgba(246, 59, 59, 0.6);
+    box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
 }
 
 
