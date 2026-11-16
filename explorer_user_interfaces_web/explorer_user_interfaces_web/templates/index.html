@@ -31,50 +31,55 @@
                         </div>
                         <div class="bottom-row">
                             <div class="mode-cell">
-                                <div id="current-mode" class="text-xl font-bold text-blue-600">{{ current_mode }}</div>
+                                <div id="current-mode" class="font-bold text-blue-600"
+                                    style="font-size: 42px !important;">
+                                    {{ current_mode }}
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="led-col">
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">Deployed</span>
                             <div id="status-led" class="status-led" title="Deployment"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">Drink</span>
                             <div id="drink-led" class="status-led" title="Drink"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">GripperLock</span>
                             <div id="gripper-lock-led" class="status-led" title="État du verrouillage du gripper">
                             </div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 10px;">
                             <span class="led-label">Speed</span>
-                            <span id="speed-level">{{ speed_level if speed_level is not none else '--' }}</span>
+                            <span id="speed-level" style="font-size: 30px">
+                                {{ speed_level if speed_level is not none else '--' }}
+                            </span>
                         </div>
                         <div class="led-separator"></div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J1</span>
                             <div id="joint-led-1" class="status-led" title="Joint 1"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J2</span>
                             <div id="joint-led-2" class="status-led" title="Joint 2"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J3</span>
                             <div id="joint-led-3" class="status-led" title="Joint 3"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J4</span>
                             <div id="joint-led-4" class="status-led" title="Joint 4"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J5</span>
                             <div id="joint-led-5" class="status-led" title="Joint 5"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 4px;">
+                        <div class="joint-led-row" style="margin-top: 6px;">
                             <span class="led-label">J6</span>
                             <div id="joint-led-6" class="status-led" title="Joint 6"></div>
                         </div>
