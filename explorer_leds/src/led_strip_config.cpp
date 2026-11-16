@@ -47,6 +47,7 @@ T read_optional_value(
 /**
   * \brief Pattern of \p key in \p root, throws if missing or invalid.
   * flash_once is refused: a pattern replacing the effects lasts as long as the robot state.
+  * chase is refused: the pattern is played the same on every LED.
   */
 LedPattern read_pattern(const YAML::Node& root, const std::string& key, const std::string& path)
 {
@@ -63,7 +64,7 @@ LedPattern read_pattern(const YAML::Node& root, const std::string& key, const st
   const std::string context = path + " '" + key + "'";
   const auto mode_name = read_value<std::string>(node, "mode", context);
   const auto mode = mode_from_string(mode_name);
-  if (!mode || *mode == LedMode::FLASH_ONCE)
+  if (!mode || *mode == LedMode::FLASH_ONCE || *mode == LedMode::CHASE)
   {
     throw std::runtime_error("LED strip config " + context + ": invalid mode '" + mode_name + "'");
   }

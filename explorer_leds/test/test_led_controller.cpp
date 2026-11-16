@@ -90,6 +90,16 @@ LedPattern solid(const Rgbw& color)
   return pattern;
 }
 
+LedPattern chase(const Rgbw& color)
+{
+  LedPattern pattern;
+  pattern.mode = LedMode::CHASE;
+  pattern.speed = 1.0;
+  pattern.colors = {color};
+  pattern.intensities = {1.0};
+  return pattern;
+}
+
 LedEffect effect(std::vector<std::size_t> leds, const LedPattern& pattern)
 {
   return LedEffect{std::move(leds), pattern};
@@ -433,5 +443,52 @@ TEST_F(LedControllerTest, RepeatedWriteFailuresMakeError)
   EXPECT_EQ(controller->state(), LedState::ERROR);
   EXPECT_FALSE(controller->error().empty());
   EXPECT_TRUE(hardware_->closed);
+}
+
+// apply : a chase over every LED moves its colour to the next LED at each step, then loops
+TEST_F(LedControllerTest, ChaseMovesAlongStrip)
+{
+  // Arrange
+  auto controller = make_ready_controller();
+  ASSERT_FALSE(controller->apply({effect({}, chase(RED))}, 0.0));
+
+  // Act & Assert: one step per second at 1 Hz
+  controller->update(0.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{RED, OFF, OFF, OFF}));
+  controller->update(1.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{OFF, RED, OFF, OFF}));
+  controller->update(3.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{OFF, OFF, OFF, RED}));
+  controller->update(4.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{RED, OFF, OFF, OFF}));
+}
+
+// apply : a chase runs along its LEDs in the order listed, the others keep their effect
+TEST_F(LedControllerTest, ChaseFollowsListedLedOrder)
+{
+  // Arrange
+  auto controller = make_ready_controller();
+  ASSERT_FALSE(controller->apply({effect({}, solid(BLUE)), effect({3, 1}, chase(RED))}, 0.0));
+
+  // Act & Assert: LED 3 first, then LED 1, LEDs 0 and 2 stay blue
+  controller->update(0.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{BLUE, OFF, BLUE, RED}));
+  controller->update(1.5);
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{BLUE, RED, BLUE, OFF}));
+}
+
+// apply : sending the same chase again keeps it going instead of restarting it
+TEST_F(LedControllerTest, SameChaseKeepsPlaying)
+{
+  // Arrange
+  auto controller = make_ready_controller();
+  ASSERT_FALSE(controller->apply({effect({}, chase(RED))}, 0.0));
+
+  // Act
+  ASSERT_FALSE(controller->apply({effect({}, chase(RED))}, 1.2));
+  controller->update(1.5);
+
+  // Assert: second step, the head would be back on LED 0 if restarted
+  EXPECT_EQ(last_frame(), (std::vector<Rgbw>{OFF, RED, OFF, OFF}));
 }
 }  // namespace explorer_leds

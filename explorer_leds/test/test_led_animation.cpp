@@ -26,6 +26,20 @@ const Rgbw BLUE{0.0, 0.0, 1.0};
 
 constexpr double EPSILON = 1e-12;
 
+/// Chase pattern played by the LED at \p position of a chase over \p length LEDs
+LedPattern make_chase(
+  std::size_t position, std::size_t length, std::vector<Rgbw> colors, std::vector<double> intensities)
+{
+  LedPattern pattern;
+  pattern.mode = LedMode::CHASE;
+  pattern.speed = 1.0;
+  pattern.colors = std::move(colors);
+  pattern.intensities = std::move(intensities);
+  pattern.chase_position = position;
+  pattern.chase_length = length;
+  return pattern;
+}
+
 LedPattern make_pattern(
   LedMode mode, double speed, std::vector<Rgbw> colors, std::vector<double> intensities)
 {
@@ -56,6 +70,7 @@ TEST(ModeFromString, KnownNamesAreParsed)
   EXPECT_EQ(mode_from_string("alternate"), LedMode::ALTERNATE);
   EXPECT_EQ(mode_from_string("breathe"), LedMode::BREATHE);
   EXPECT_EQ(mode_from_string("flash_once"), LedMode::FLASH_ONCE);
+  EXPECT_EQ(mode_from_string("chase"), LedMode::CHASE);
 }
 
 // mode_from_string : an unknown name is rejected
@@ -520,6 +535,97 @@ TEST(Compute, BreatheMinLevelFollowsIntensity)
 
   // Assert: 0.2 min_level * 0.5 intensity, 0.2 if min_level were absolute
   expect_rgb_near(color, (Rgbw{0.1, 0.0, 0.0}));
+}
+
+// set_pattern : chase without colour is rejected
+TEST(SetPattern, ChaseWithoutColorIsRejected)
+{
+  // Arrange
+  LedAnimation animation;
+
+  // Act
+  const auto error = animation.set_pattern(make_chase(0, 4, {}, {}), 0.0);
+
+  // Assert
+  EXPECT_TRUE(error.has_value());
+}
+
+// set_pattern : chase with more colours than LEDs is rejected, they wouldn't all fit
+TEST(SetPattern, ChaseWithMoreColorsThanLedsIsRejected)
+{
+  // Arrange
+  LedAnimation animation;
+
+  // Act
+  const auto error =
+    animation.set_pattern(make_chase(0, 2, {RED, GREEN, BLUE}, {1.0, 1.0, 1.0}), 0.0);
+
+  // Assert
+  EXPECT_TRUE(error.has_value());
+}
+
+// set_pattern : chase without the LEDs it runs over is rejected (only LedController sets them)
+TEST(SetPattern, ChaseWithoutLedsIsRejected)
+{
+  // Arrange
+  LedAnimation animation;
+
+  // Act
+  const auto error = animation.set_pattern(make_chase(0, 0, {RED}, {1.0}), 0.0);
+
+  // Assert
+  EXPECT_TRUE(error.has_value());
+}
+
+// capped_speed : chase speed is capped like the other repeating modes
+TEST(CappedSpeed, ChaseAboveCapIsCapped)
+{
+  EXPECT_DOUBLE_EQ(capped_speed(LedMode::CHASE, 10.0), MAX_REPEATING_SPEED_HZ);
+}
+
+// compute : a single colour chase lights each LED in turn, one step per cycle, then loops
+TEST(Compute, ChaseHeadMovesOneLedPerCycle)
+{
+  // Arrange: LED at position 2 of a 4 LED chase
+  LedAnimation animation;
+  ASSERT_FALSE(animation.set_pattern(make_chase(2, 4, {RED}, {1.0}), 0.0));
+
+  // Act & Assert: the head is on position floor(t * 1 Hz) modulo 4
+  EXPECT_EQ(animation.compute(0.5), Rgbw{});
+  EXPECT_EQ(animation.compute(1.5), Rgbw{});
+  EXPECT_EQ(animation.compute(2.5), RED);
+  EXPECT_EQ(animation.compute(3.5), Rgbw{});
+  EXPECT_EQ(animation.compute(6.5), RED);
+}
+
+// compute : the next colours trail behind the head, scaled by their intensity
+TEST(Compute, ChaseColorsTrailBehindHead)
+{
+  // Arrange: LED at position 1 of a 4 LED chase, red head and half green tail
+  LedAnimation animation;
+  ASSERT_FALSE(animation.set_pattern(make_chase(1, 4, {RED, GREEN}, {1.0, 0.5}), 0.0));
+
+  // Act & Assert
+  EXPECT_EQ(animation.compute(0.5), Rgbw{});              // head on 0, tail on 3
+  EXPECT_EQ(animation.compute(1.5), RED);                 // head on 1
+  EXPECT_EQ(animation.compute(2.5), (Rgbw{0.0, 0.5, 0.0}));  // head on 2, tail on 1
+  EXPECT_EQ(animation.compute(3.5), Rgbw{});              // head on 3, tail on 2
+}
+
+// compute : as many colours as LEDs moves every colour to the next LED at each step
+TEST(Compute, ChaseWithOneColorPerLedRotatesEveryColor)
+{
+  // Arrange: LED at position 0 of a 3 LED chase
+  LedAnimation animation;
+  ASSERT_FALSE(
+    animation.set_pattern(make_chase(0, 3, {RED, GREEN, BLUE}, {1.0, 1.0, 1.0}), 0.0));
+
+  // Act & Assert: never off, the colour of the previous LED comes at each step. Colours trail
+  // behind the head, so at start LED 0 is red, LED 2 (just behind it) green and LED 1 blue
+  EXPECT_EQ(animation.compute(0.5), RED);
+  EXPECT_EQ(animation.compute(1.5), GREEN);
+  EXPECT_EQ(animation.compute(2.5), BLUE);
+  EXPECT_EQ(animation.compute(3.5), RED);
 }
 
 // compute : a time before the pattern started is the start of the animation

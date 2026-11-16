@@ -40,6 +40,7 @@ std::optional<LedMode> mode_from_string(const std::string& name)
     {"fade_in", LedMode::FADE_IN}, {"fade_out", LedMode::FADE_OUT},
     {"blink", LedMode::BLINK},     {"alternate", LedMode::ALTERNATE},
     {"breathe", LedMode::BREATHE}, {"flash_once", LedMode::FLASH_ONCE},
+    {"chase", LedMode::CHASE},
   };
 
   const auto mode = MODES.find(name);
@@ -52,7 +53,9 @@ std::optional<LedMode> mode_from_string(const std::string& name)
 
 double capped_speed(LedMode mode, double speed)
 {
-  if (mode == LedMode::BLINK || mode == LedMode::ALTERNATE || mode == LedMode::BREATHE)
+  if (
+    mode == LedMode::BLINK || mode == LedMode::ALTERNATE || mode == LedMode::BREATHE ||
+    mode == LedMode::CHASE)
   {
     return std::min(speed, MAX_REPEATING_SPEED_HZ);
   }
@@ -102,6 +105,24 @@ std::optional<std::string> LedAnimation::validate_(const LedPattern& pattern)
     if (pattern.colors.size() < 2)
     {
       return "alternate mode needs at least 2 colors";
+    }
+  }
+  else if (pattern.mode == LedMode::CHASE)
+  {
+    if (pattern.colors.empty())
+    {
+      return "chase mode needs at least 1 color";
+    }
+    if (pattern.chase_position >= pattern.chase_length)
+    {
+      return "chase position " + std::to_string(pattern.chase_position) +
+             " out of the " + std::to_string(pattern.chase_length) + " LEDs it runs over";
+    }
+    if (pattern.colors.size() > pattern.chase_length)
+    {
+      return "chase mode needs at most as many colors as LEDs (" +
+             std::to_string(pattern.colors.size()) + " colors, " +
+             std::to_string(pattern.chase_length) + " LEDs)";
     }
   }
   else if (pattern.colors.size() != 1)
@@ -173,6 +194,15 @@ Rgbw LedAnimation::compute_(const PlayingPattern& playing, double now_seconds)
       // Smooth rise and fall: lowest level at the start of each cycle, full colour halfway
       const double rise = (1.0 - std::cos(2.0 * M_PI * cycles)) / 2.0;
       return scale(scaled_color(pattern, 0), pattern.min_level + (1.0 - pattern.min_level) * rise);
+    }
+    case LedMode::CHASE:
+    {
+      // The head (first colour) moves one LED forward each cycle, the other colours trail behind
+      // it. Distance from the head back to this LED, wrapping around the chase
+      const std::size_t steps = static_cast<std::size_t>(cycles) % pattern.chase_length;
+      const std::size_t behind_head =
+        (steps + pattern.chase_length - pattern.chase_position) % pattern.chase_length;
+      return behind_head < pattern.colors.size() ? scaled_color(pattern, behind_head) : Rgbw{};
     }
   }
   return {};

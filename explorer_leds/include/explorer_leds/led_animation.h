@@ -6,6 +6,7 @@
 #ifndef EXPLORER_LEDS_LED_ANIMATION_H
 #define EXPLORER_LEDS_LED_ANIMATION_H
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <vector>
@@ -36,14 +37,15 @@ enum class LedMode
   BLINK,
   ALTERNATE,
   BREATHE,
-  FLASH_ONCE
+  FLASH_ONCE,
+  CHASE
 };
 
 /// Parse a mode name ("off", "solid", "fade_in", "fade_out", "blink", "alternate", "breathe",
-/// "flash_once")
+/// "flash_once", "chase")
 [[nodiscard]] std::optional<LedMode> mode_from_string(const std::string& name);
 
-/// Highest speed of the repeating modes (blink, alternate, breathe).
+/// Highest speed of the repeating modes (blink, alternate, breathe, chase).
 /// Flashing faster than 3 times per second can trigger photosensitive seizures.
 constexpr double MAX_REPEATING_SPEED_HZ = 3.0;
 
@@ -58,11 +60,16 @@ struct LedPattern
   std::vector<Rgbw> colors;
   std::vector<double> intensities;
   double min_level = 0.0;
+  // chase only: position of the LED in the chase, from 0 to chase_length - 1, and number of LEDs
+  // the chase runs over. Set by LedController for each LED, not part of the command
+  std::size_t chase_position = 0;
+  std::size_t chase_length = 0;
 
   bool operator==(const LedPattern& other) const
   {
     return mode == other.mode && speed == other.speed && colors == other.colors &&
-           intensities == other.intensities && min_level == other.min_level;
+           intensities == other.intensities && min_level == other.min_level &&
+           chase_position == other.chase_position && chase_length == other.chase_length;
   }
   bool operator!=(const LedPattern& other) const { return !(*this == other); }
 };
