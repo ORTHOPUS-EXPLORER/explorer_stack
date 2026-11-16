@@ -52,14 +52,26 @@ std::optional<std::string> LedController::apply(
       }
     }
 
-    for (const std::size_t led : leds)
+    // A chase runs along the LEDs in the order they're listed, each one playing its position
+    LedPattern pattern = effect.pattern;
+    if (pattern.mode == LedMode::CHASE)
     {
+      pattern.chase_length = leds.size();
+    }
+
+    for (std::size_t position = 0; position < leds.size(); ++position)
+    {
+      const std::size_t led = leds[position];
       if (led >= strip_.led_count)
       {
         return prefix + "LED " + std::to_string(led) + " out of range 0-" +
                std::to_string(strip_.led_count - 1);
       }
-      const auto error = animations[led].set_pattern(effect.pattern, now_seconds);
+      if (pattern.mode == LedMode::CHASE)
+      {
+        pattern.chase_position = position;
+      }
+      const auto error = animations[led].set_pattern(pattern, now_seconds);
       if (error)
       {
         return prefix + *error;

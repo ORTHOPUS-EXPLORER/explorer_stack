@@ -1,7 +1,7 @@
 # Animation played on some LEDs of the strip driven by explorer_leds
 
 # Indices of the LEDs the effect applies to, from 0 to the strip LED count - 1.
-# Empty means every LED
+# Empty means every LED. chase runs along them in the order listed
 uint16[] leds
 
 string MODE_OFF=off
@@ -12,6 +12,7 @@ string MODE_BLINK=blink
 string MODE_ALTERNATE=alternate
 string MODE_BREATHE=breathe
 string MODE_FLASH_ONCE=flash_once
+string MODE_CHASE=chase
 
 # One of the MODE_* constants:
 #   off        : LEDs switched off, colors and intensities are ignored
@@ -25,6 +26,10 @@ string MODE_FLASH_ONCE=flash_once
 #   flash_once : shows the colour once over the current animation, which then resumes
 #                (exactly one colour). Meant to acknowledge an action without changing the status.
 #                Only accepted on /explorer_leds/flash
+#   chase      : the colours move one LED forward at each step, along the LEDs in the order listed in
+#                leds, wrapping from the last back to the first (1 to as many colours as LEDs). The
+#                first colour leads, the next ones trail behind it, the other LEDs are off. As many
+#                colours as LEDs moves every LED colour to its neighbour
 string mode
 
 # Animation speed in Hz, must be > 0 for every mode except off and solid:
@@ -33,7 +38,8 @@ string mode
 #   alternate          : colour changes per second
 #   breathe            : breaths per second
 #   flash_once         : 1 / flash duration
-# blink, alternate and breathe are capped at 3 Hz: faster flashing can trigger photosensitive seizures
+#   chase              : steps per second
+# blink, alternate, breathe and chase are capped at 3 Hz: faster flashing can trigger photosensitive seizures
 float64 speed
 
 # Colours to display, white included (see LedColor)
