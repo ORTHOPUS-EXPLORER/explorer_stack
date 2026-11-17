@@ -56,7 +56,7 @@ std::string read_mode(const YAML::Node& node, const std::string& context)
   static const std::vector<std::string> MODES = {
     LedEffect::MODE_OFF,      LedEffect::MODE_SOLID, LedEffect::MODE_FADE_IN,
     LedEffect::MODE_FADE_OUT, LedEffect::MODE_BLINK, LedEffect::MODE_ALTERNATE,
-    LedEffect::MODE_BREATHE,
+    LedEffect::MODE_BREATHE,  LedEffect::MODE_CHASE,
   };
 
   const auto mode = read_value<std::string>(node, "mode", context);
@@ -186,7 +186,7 @@ LedEffect as_solid(LedEffect effect)
   effect.mode = LedEffect::MODE_SOLID;
   effect.speed = 0.0;
   effect.min_level = 0.0;
-  // Solid takes a single colour, an alternate effect shows its first one
+  // Solid takes a single colour, an alternate or chase effect shows its first one
   effect.colors.resize(std::min<std::size_t>(effect.colors.size(), 1));
   effect.intensities.resize(std::min<std::size_t>(effect.intensities.size(), 1));
   return effect;

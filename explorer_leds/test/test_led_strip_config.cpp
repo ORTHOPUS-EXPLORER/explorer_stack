@@ -178,6 +178,18 @@ TEST_F(LedStripConfigTest, PatternFlashOnceIsRejected)
   EXPECT_THROW((void)load_led_strip_config(path), std::runtime_error);
 }
 
+// load_led_strip_config : chase is rejected as a robot state pattern, every LED plays it the same
+TEST_F(LedStripConfigTest, PatternChaseIsRejected)
+{
+  // Arrange
+  const auto path = write_config(
+    SPI_DEVICE + LED_COUNT + LOST_COMMUNICATION +
+    "not_ready: {mode: chase, speed: 1, colors: [[1, 0, 0]], intensities: [1]}\n");
+
+  // Act & Assert
+  EXPECT_THROW((void)load_led_strip_config(path), std::runtime_error);
+}
+
 // load_led_strip_config : a pattern colour without 3 or 4 components is rejected
 TEST_F(LedStripConfigTest, PatternColorSizeIsRejected)
 {

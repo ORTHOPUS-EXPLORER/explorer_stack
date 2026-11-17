@@ -49,6 +49,16 @@ ament_target_dependencies(led_status_config
 )
 target_link_libraries(led_status_config yaml-cpp)
 
+# Input value with a validity timeout, ROS time only
+add_library(timed_input STATIC
+  src/timed_input.cpp
+)
+target_include_directories(timed_input
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+)
+ament_target_dependencies(timed_input rclcpp)
+
 add_executable(command_node
   src/command_node.cpp
   src/trajectory_manager.cpp
@@ -68,6 +78,7 @@ ament_target_dependencies(command_node
 
 target_link_libraries(command_node 
   led_status_config
+  timed_input
   yaml-cpp
 )
 
@@ -102,6 +113,9 @@ if(BUILD_TESTING)
   target_link_libraries(test_led_status_config led_status_config)
   target_compile_definitions(test_led_status_config PRIVATE
     SHIPPED_LED_STATUS_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/bringup/config/led_status_mode_1.yaml")
+
+  ament_add_ros_isolated_gtest(test_timed_input test/test_timed_input.cpp)
+  target_link_libraries(test_timed_input timed_input)
 
   ## LAUNCH & E2E TESTS
   add_ros_isolated_launch_test(test/launch/test_mode_0.py)

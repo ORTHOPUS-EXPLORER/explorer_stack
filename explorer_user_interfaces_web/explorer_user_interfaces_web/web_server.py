@@ -3,6 +3,7 @@
 import asyncio
 import json
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
@@ -18,10 +19,17 @@ from explorer_user_interfaces_web.ros_bridge import RosBridge
 CAMERA_FRAME_WAIT_TIMEOUT = 4.0
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Give the server event loop to the ROS bridge, before any page can connect"""
+    app.state.ros_bridge.set_event_loop(asyncio.get_running_loop())
+    yield
+
+
 def create_app(ros_node: Node) -> FastAPI:
     """Create and configure the FastAPI application"""
 
-    app = FastAPI(title="Explorer Robot Web GUI")
+    app = FastAPI(title="Explorer Robot Web GUI", lifespan=lifespan)
 
     # Get the package share directory for static files
     package_name = "explorer_user_interfaces_web"
@@ -77,69 +85,53 @@ def create_app(ros_node: Node) -> FastAPI:
             "timestamp": time.time(),
         }
 
+    async def send_updates(websocket: WebSocket, client_queue: asyncio.Queue):
+        """Send the updates of a page, in its own task so it can't delay the other pages"""
+        while True:
+            update = await client_queue.get()
+            await websocket.send_text(json.dumps(update))
+
+    async def receive_messages(websocket: WebSocket):
+        """Handle the messages sent by a page"""
+        while True:
+            message_text = await websocket.receive_text()
+
+            try:
+                message = json.loads(message_text)
+            except json.JSONDecodeError:
+                ros_node.get_logger().warning("Invalid JSON received from WebSocket")
+                continue
+
+            # Handle gripper direction selection
+            if isinstance(message, dict) and message.get("type") == "gripper_closure_direction":
+                direction = message.get("direction")
+
+                if isinstance(direction, str):
+                    ros_bridge.set_gripper_closure_direction(direction)
+                else:
+                    ros_node.get_logger().warning("Invalid gripper direction message")
+
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
         """WebSocket endpoint for real-time updates"""
         await websocket.accept()
-        ros_bridge.connected_clients.add(websocket)
+        client_queue = ros_bridge.add_client()
 
         try:
-            # Send initial messages
-            initial_message_list = ros_bridge.get_initial_message_list_on_connected()
-            for initial_message in initial_message_list:
-                await websocket.send_text(json.dumps(initial_message))
+            # The page is gone as soon as one of them stops: sending or receiving failed
+            tasks = {
+                asyncio.create_task(send_updates(websocket, client_queue)),
+                asyncio.create_task(receive_messages(websocket)),
+            }
+            _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
 
-            # Keep connection alive and check for updates
-            while True:
-                try:
-                    # Check for updates from ROS
-                    updates = await ros_bridge.get_updates()
-
-                    # Send any pending updates
-                    for update in updates:
-                        await websocket.send_text(json.dumps(update))
-
-                    # Wait a bit or for a client message
-                    try:
-                        message_text = await asyncio.wait_for(
-                           websocket.receive_text(),
-                           timeout=0.1,
-                        )
-
-
-                        try:
-                            message = json.loads(message_text)
-                        except json.JSONDecodeError:
-                            ros_node.get_logger().warning(
-                                "Invalid JSON received from WebSocket"
-                            )
-                            continue
-
-
-                       # Handle gripper direction selection
-                        if message.get("type") == "gripper_closure_direction":
-                            direction = message.get("direction")
-
-                            if isinstance(direction, str):
-                                ros_bridge.set_gripper_closure_direction(direction)
-                            else:
-                                ros_node.get_logger().warning(
-                                    "Invalid gripper direction message"
-                                )
-
-                    except asyncio.TimeoutError:
-                        # No message from client, continue checking for updates
-                        pass
-
-                except Exception as e:
-                    ros_node.get_logger().error(f"WebSocket error: {e}")
-                    break
-
-        except WebSocketDisconnect:
-            ros_bridge.connected_clients.discard(websocket)
-        except Exception as e:
-            ros_node.get_logger().error(f"WebSocket error: {e}")
-            ros_bridge.connected_clients.discard(websocket)
+            for result in await asyncio.gather(*tasks, return_exceptions=True):
+                if isinstance(result, Exception) and not isinstance(result, WebSocketDisconnect):
+                    ros_node.get_logger().error(f"WebSocket error: {result}")
+        finally:
+            ros_bridge.remove_client(client_queue)
 
     @app.websocket("/ws/camera")
     async def websocket_camera_endpoint(websocket: WebSocket):

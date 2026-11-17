@@ -26,7 +26,7 @@ def data_files_for_dir(source_dir, dest_prefix):
 
 # Dependencies that need pip
 pip_dependencies = [
-    'fastapi>=0.68.0',
+    'fastapi>=0.93.0',
     'uvicorn[standard]>=0.15.0',
     'websockets>=10.0',
     'jinja2>=3.0.0',
