@@ -87,6 +87,9 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   current_mode_name_ = data_.initial_mode;
 
+  current_pos_sub_ = get_node_()->create_subscription<sensor_msgs::msg::JointState>(
+    "/joint_states", rclcpp::SensorDataQoS(),
+    std::bind(&DeviceJoystick::callback_current_pos_, this, std::placeholders::_1));
   x_current_sub_ = get_node_()->create_subscription<geometry_msgs::msg::Pose>(
     get_node_()->get_parameter("end_effector_pose_topic").as_string(), 10,
     [this](const geometry_msgs::msg::Pose& msg) { callback_x_current_(msg); });
@@ -115,6 +118,17 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   timer_ = get_node_()->create_wall_timer(
     std::chrono::duration<double>(sampling_period_), [this]() { timer_callback_(); });
+}
+
+void DeviceJoystick::callback_current_pos_(const sensor_msgs::msg::JointState& msg)
+{
+  for (size_t i = 0; i < msg.name.size(); ++i)
+  {
+    if (msg.name[i] == "joint_1")
+    {
+      theta1_ = msg.position[i];
+    }
+  }
 }
 
 void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
@@ -284,6 +298,7 @@ void DeviceJoystick::timer_callback_()
   reset_velocities_();
 
   complex_mode_ = false;
+  snake_mode_ = false;
 
   // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
   for (const auto& axis : mode.axes)
@@ -404,6 +419,9 @@ void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
 
 void DeviceJoystick::snake_calculation_(const double r2, const double k)
 {
+  const Eigen::Matrix3d R_W_J1 =
+    Eigen::AngleAxisd(theta1_, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
   double x = x_current_.orientation.x;
   double y = x_current_.orientation.y;
   double z = x_current_.orientation.z;
@@ -413,16 +431,24 @@ void DeviceJoystick::snake_calculation_(const double r2, const double k)
   double ze_y = 2.0 * (x * y + w * z);
   double ze_z = 2.0 * (x * z - w * y);
 
-  const Eigen::Vector3d ze(ze_x, ze_y, ze_z);
+  const Eigen::Vector3d ze_W(ze_x, ze_y, ze_z);
 
-  const Eigen::Vector3d ve(ve_x_, ve_y_, ve_z_);
+  const Eigen::Vector3d ve_W(ve_x_, ve_y_, ve_z_);
 
-  const Eigen::Vector3d coupling = ze.cross(ve);
+  const Eigen::Vector3d ze_J1 = R_W_J1.transpose() * ze_W;
+  const Eigen::Vector3d ve_J1 = R_W_J1.transpose() * ve_W;
 
-  const Eigen::Vector3d omega_e = r2 * k * coupling;
+  const Eigen::Vector3d coupling_J1 = ze_J1.cross(ve_J1);
+  const Eigen::Vector3d omega_J1 = r2 * k * coupling_J1;
 
-  cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_e(2);
-  cartesian_vel_.twist.angular.y = cartesian_vel_.twist.angular.y + omega_e(1);
+  const Eigen::Vector3d omega_J1_selected(0.0, omega_J1.y(), omega_J1.z());
+
+  const Eigen::Vector3d omega_W = R_W_J1 * omega_J1_selected;
+
+  // Add angular velocity components to the command
+  cartesian_vel_.twist.angular.x += omega_W.x();
+  cartesian_vel_.twist.angular.y += omega_W.y();
+  cartesian_vel_.twist.angular.z += omega_W.z();
 }
 
 // Behavior implementations
@@ -487,12 +513,55 @@ void DeviceJoystick::joint_direct_(const AxisInfo& axis_info)
   {
     return;
   }
-  // joint_6 is expressed as a tool-frame rotation rather than a joint velocity
+
   if (axis_info.control_name == ControlName::JOINT_6)
   {
-    cartesian_vel_.twist.angular.x = read_axis_value_(axis_info);
-    // Set control frame to end-effector for joint 6 control
-    frame_id_.orientation_control_frame = 1;
+    const double value = read_axis_value_(axis_info);
+
+    // Find the mode containing JOINT_6
+    auto* joint6_mode = find_mode_by_control_name(data_, ControlName::JOINT_6);
+
+    bool joint6_with_snake_z = false;
+
+    // Check if SNAKE_Z belongs to the same mode as JOINT_6
+    for (const auto& axis : joint6_mode->axes)
+    {
+      if (axis.control_name == ControlName::SNAKE_Z)
+      {
+        joint6_with_snake_z = true;
+        break;
+      }
+    }
+
+    if (joint6_with_snake_z)
+    {
+      // Get current end-effector orientation
+      const double x = x_current_.orientation.x;
+      const double y = x_current_.orientation.y;
+      const double z = x_current_.orientation.z;
+      const double w = x_current_.orientation.w;
+
+      // First column of rotation matrix R_01
+      const double r11 = 1.0 - 2.0 * (y * y + z * z);
+      const double r21 = 2.0 * (x * y + w * z);
+      const double r31 = 2.0 * (x * z - w * y);
+
+      // Transform JOINT_6 angular velocity from frame 1 to frame 0
+      cartesian_vel_.twist.angular.x = value * r11;
+      cartesian_vel_.twist.angular.y = value * r21;
+      cartesian_vel_.twist.angular.z = value * r31;
+
+      // Set orientation control frame to base frame
+      frame_id_.orientation_control_frame = 0;
+    }
+    else
+    {
+      // Original JOINT_6 behavior: rotation around tool X axis
+      cartesian_vel_.twist.angular.x = value;
+
+      // Set control frame to end-effector
+      frame_id_.orientation_control_frame = 1;
+    }
   }
 }
 
@@ -679,7 +748,7 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
   }
 
   frame_id_.position_control_frame = 0;
-  frame_id_.orientation_control_frame = 1;
+  frame_id_.orientation_control_frame = 0;
 }
 
 void DeviceJoystick::cartesian_linear_gripper_(const AxisInfo& axis_info)

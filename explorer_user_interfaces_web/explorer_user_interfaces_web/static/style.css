@@ -19,9 +19,9 @@
 }
 
 .status-led.status-orange {
-    background-color: #f97316 !important;
+    background-color: #f8e91b !important;
     /* Orange: moving/in progress */
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
+    box-shadow: 0 0 8px rgba(245, 249, 22, 0.671);
 }
 
 .status-led.status-red {
@@ -38,9 +38,9 @@
 }
 
 #gripper-lock-led.active {
-    background-color: #f63b3b !important;
+    background-color: #f97316 !important;
     /* Active: blue */
-    box-shadow: 0 0 8px rgba(246, 59, 59, 0.6);
+    box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
 }
 
 
@@ -236,8 +236,8 @@
 
 .led-label {
     flex: 1;
-    text-align: center;
-    font-size: 0.75rem;
+    text-align: left;
+    font-size: 0.8rem;
     font-weight: bold;
     color: #374151;
 }
@@ -257,7 +257,7 @@
 }
 
 .gripper-control label {
-    font-size: 15px;
+    font-size: 20px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -269,5 +269,5 @@
     border: 1px solid #d1d5db;
     border-radius: 5px;
     background: white;
-    font-size: 15px;
+    font-size: 16px;
 }

@@ -25,6 +25,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 namespace input_device
 {
@@ -41,6 +42,7 @@ public:
 
 private:
   // ROS callbacks
+  void callback_current_pos_(const sensor_msgs::msg::JointState& msg);
   void callback_joy_(const sensor_msgs::msg::Joy& msg);
   void callback_x_current_(const geometry_msgs::msg::Pose& msg);
   void callback_gripper_closure_direction_(const std_msgs::msg::String& msg);
@@ -89,6 +91,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr trajectory_velocity_pub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_lock_pub_;
 
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr gripper_closure_direction_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr retract_status_sub_;
@@ -102,6 +105,8 @@ private:
   ModeData data_;
   std::string current_mode_name_;
   std::unordered_map<ControlName, std::function<void(AxisInfo)>> control_behaviors_;
+
+  double theta1_;
 
   // Joystick state variables
   mutable std::mutex mutex_axis_;
