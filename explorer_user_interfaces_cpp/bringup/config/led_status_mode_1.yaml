@@ -41,10 +41,10 @@ modes:
       colors: [[0.5, 1, 0]]  # lime green
       intensities: [1]
   B1_TER:                    # long click from B1
-    - mode: fade_in
-      speed: 1.5
-      colors: [[0.5, 1, 0]]  # lime green
-      intensities: [1]
+    - mode: chase
+      speed: 10
+      colors: [[0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0]]  # lime green head, darker lime green tail
+      intensities: [0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4]
   B2:
     - mode: breathe
       speed: 0.33
