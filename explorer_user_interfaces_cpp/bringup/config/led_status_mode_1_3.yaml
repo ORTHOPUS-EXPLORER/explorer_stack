@@ -40,11 +40,6 @@ modes:
       speed: 1.5
       colors: [[0.5, 1, 0]]  # lime green
       intensities: [1]
-  B1_TER:                    # long click from B1
-    - mode: fade_in
-      speed: 1.5
-      colors: [[0.5, 1, 0]]  # lime green
-      intensities: [1]
   B2:
     - mode: breathe
       speed: 0.33
