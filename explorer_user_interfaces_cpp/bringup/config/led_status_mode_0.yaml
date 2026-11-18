@@ -1,0 +1,70 @@
+# LED effects command_node sends to explorer_leds, by robot status (sent once, when it changes).
+#
+# Until the arm is deployed, the LEDs show its retract status, then (READY) the input device mode.
+# A status missing here sends nothing: the LEDs keep their current effect.
+#
+# Each status is a list of effects, applied in order (see explorer_msgs/msg/LedEffect.msg):
+
+# Arm not deployed: RETRACTED or IN_PROGRESS
+retract_status:
+  RETRACTED:
+    - mode: solid
+      colors: [[1, 1, 0]]    # yellow
+      intensities: [1]
+  IN_PROGRESS:
+    - mode: breathe
+      speed: 0.33
+      colors: [[1, 1, 0]]    # yellow
+      intensities: [1]
+      min_level: 0.5
+    - leds: [2, 6, 10, 14]  # middle LEDs
+      mode: blink
+      speed: 1.5
+      colors: [[1, 1, 0]]    # yellow
+      intensities: [1]
+
+# Each middle LED index of each side.
+centered_leds: [2, 6, 10, 14]
+
+# Arm deployed (READY)
+# A long click mode blinks in the colour of the mode it's reached from
+modes:
+  B1:
+    - mode: breathe
+      speed: 0.33
+      colors: [[0.5, 1, 0]]  # lime green
+      intensities: [1]
+      min_level: 0.5
+  VITESSE:                   # long click from B1
+    - mode: blink
+      speed: 1.5
+      colors: [[0.5, 1, 0]]  # lime green
+      intensities: [1]
+  B2:
+    - mode: breathe
+      speed: 0.33
+      colors: [[0, 1, 1]]    # cyan
+      intensities: [1]
+      min_level: 0.5
+  BOIRE:                     # long click from B2
+    - mode: blink
+      speed: 1.5
+      colors: [[0, 1, 1]]    # cyan
+      intensities: [1]
+  B3:
+    - mode: breathe
+      speed: 0.33
+      colors: [[1, 0, 1]]    # magenta
+      intensities: [1]
+      min_level: 0.5
+  B4:
+    - mode: breathe
+      speed: 0.33
+      colors: [[0, 0, 1]]    # blue
+      intensities: [1]
+      min_level: 0.5
+  DEPLIER:                   # long click from B4
+    - mode: blink
+      speed: 1.5
+      colors: [[0, 0, 1]]    # blue
+      intensities: [1]

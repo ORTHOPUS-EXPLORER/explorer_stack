@@ -20,7 +20,68 @@ class ExplorerWebGUI {
                 onMessage: (event) => this.handleCameraFrame(event.data),
             }),
         };
+        this.initGripperControl();
     }
+
+
+    handleCameraFrame(arrayBuffer) {
+        const cameraImage = document.getElementById('camera-feed-image');
+        if (!cameraImage) return;
+
+
+        const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+        const newUrl = URL.createObjectURL(blob);
+
+
+        if (this.cameraObjectUrl) {
+            URL.revokeObjectURL(this.cameraObjectUrl);
+        }
+        this.cameraObjectUrl = newUrl;
+        cameraImage.src = newUrl;
+    }
+
+
+
+    initGripperControl() {
+        const gripperDirectionSelect = document.getElementById('gripper-direction');
+
+
+        if (!gripperDirectionSelect) {
+            console.warn('Menu gripper introuvable');
+            return;
+        }
+
+
+        console.log('Menu gripper initialisé');
+
+
+        gripperDirectionSelect.addEventListener('change', (event) => {
+            const direction = event.target.value;
+
+
+            // Ne rien envoyer si aucune direction n'est sélectionnée
+            if (!direction) {
+                return;
+            }
+
+
+            const message = {
+                type: 'gripper_closure_direction',
+                direction: direction
+            };
+
+
+            console.log('Direction sélectionnée :', direction);
+            console.log('État du WebSocket :', this.sockets.data.ws?.readyState);
+
+
+            const sent = this.sockets.data.send(JSON.stringify(message));
+
+
+            console.log('Résultat de l’envoi :', sent);
+        });
+    }
+
 
     handleCameraFrame(arrayBuffer) {
         const cameraImage = document.getElementById('camera-feed-image');
@@ -46,6 +107,9 @@ class ExplorerWebGUI {
                 this.updateMode(data.mode);
                 this.updateSpeedLevel(data.speed_level);
                 this.updateRetractStatus(data.retract_status);
+                this.updateDrinkLED(data.drink_active);
+                this.updateGripperLockLED(data.gripper_lock_active);
+                this.updateGripperDirection(data.gripper_closure_direction);
                 break;
 
             case 'joint_state_update':
@@ -62,6 +126,12 @@ class ExplorerWebGUI {
 
             case 'retract_status_update':
                 this.updateRetractStatus(data.retract_status);
+                break;
+            case 'gripper_lock_led_update':
+                this.updateGripperLockLED(data.active);
+                break;
+            case 'gripper_closure_direction_update':
+                this.updateGripperDirection(data.direction);
                 break;
         }
     }
@@ -187,7 +257,7 @@ class ExplorerWebGUI {
         jointLed.classList.remove('status-green', 'status-orange', 'status-red');
 
         switch (data.state) {
-            case "Init": case "Idle": 
+            case "Init": case "Idle":
                 jointLed.classList.add('status-orange');
                 break;
             case "Enable":
@@ -200,6 +270,31 @@ class ExplorerWebGUI {
                 jointLed.classList.add('status-red');
                 break;
         }
+    }
+
+    updateGripperDirection(direction) {
+        const gripperDirectionSelect = document.getElementById('gripper-direction');
+        if (gripperDirectionSelect) {
+            // Empty: no direction selected yet
+            gripperDirectionSelect.value = direction ?? '';
+        }
+    }
+
+    updateGripperLockLED(active) {
+        const gripperLockLed = document.getElementById('gripper-lock-led');
+
+        console.log('[GRIPPER LED] active reçu :', active);
+        console.log('[GRIPPER LED] élément :', gripperLockLed);
+
+        if (!gripperLockLed) {
+            console.warn('[GRIPPER LED] Élément introuvable');
+            return;
+        }
+
+        gripperLockLed.classList.toggle('active', Boolean(active));
+
+        console.log('[GRIPPER LED] classes après modification :',
+                    gripperLockLed.className);
     }
 }
 

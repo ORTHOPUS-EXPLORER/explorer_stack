@@ -12,10 +12,20 @@ on:
         target:
           required: true
           type: string
+        file:
+          default: Dockerfile
+          required: false
+          type: string
+        # Runner the image is built on, its architecture is the image one
+        # (e.g. ubuntu-24.04-arm for an arm64 image)
+        runs_on:
+          default: ubuntu-latest
+          required: false
+          type: string
 
 jobs:
     build-and-deploy-docker-image:
-        runs-on: ubuntu-latest
+        runs-on: ${{ inputs.runs_on }}
         permissions:
           packages: write
         steps:
@@ -55,3 +65,4 @@ jobs:
                 tags: ${{ steps.meta.outputs.tags }}
                 labels: ${{ steps.meta.outputs.labels }}
                 target: ${{ inputs.target }}
+                file: ${{ inputs.file }}

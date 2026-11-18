@@ -4,13 +4,19 @@
 #include <cmath>
 #include <string>
 
+#include "explorer_leds/led_qos.h"
+
 namespace space_control
 {
 namespace
 {
-// Longest gap between two gripper velocity messages to be considered "continuous".
-// If this value is reached we considers it's a new "set" of gripper inputs.
-constexpr double MAX_GRIPPER_INTERVAL_SECONDS = 0.1;
+// The gripper position is integrated at this fixed rate, independently of the input rate, so
+// a slow or jittery source (e.g. a GUI) still moves the gripper smoothly.
+constexpr double GRIPPER_UPDATE_PERIOD_SECONDS = 0.01;
+
+// A gripper velocity not refreshed within this delay falls back to 0, so a source that vanishes
+// while moving does not keep driving the gripper.
+constexpr double GRIPPER_VELOCITY_TIMEOUT_SECONDS = 0.3;
 
 // A trajectory velocity not refreshed within this delay falls back to 0 (hold position), so a
 // source that vanishes while moving do not stays on last command sent.
@@ -18,9 +24,16 @@ constexpr double TRAJECTORY_VELOCITY_TIMEOUT_SECONDS = 0.3;
 
 // Cartesian velocity magnitude above which a command asks for motion (same as joystick_selector)
 constexpr double CARTESIAN_ACTIVITY_THRESHOLD = 1e-3;
+
+// Period of the ready heartbeat, subscribers consider this node gone after a few missed ones
+constexpr double READY_PUBLISH_PERIOD_SECONDS = 0.1;
 }  // namespace
 
-CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_wrapper_(n)
+CommandNode::CommandNode(rclcpp::Node::SharedPtr n)
+: n_(n),
+  controller_manager_wrapper_(n),
+  trajectory_velocity_input_(TRAJECTORY_VELOCITY_TIMEOUT_SECONDS),
+  gripper_velocity_input_(GRIPPER_VELOCITY_TIMEOUT_SECONDS)
 {
   RCLCPP_INFO(n->get_logger(), "CommandNode constructor");
 
@@ -57,6 +70,17 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
 
   n_->get_parameter("use_qp_inria", use_qp_inria_);
 
+  n_->declare_parameter<std::string>("led_status_file", "");
+  const std::string led_status_file = n_->get_parameter("led_status_file").as_string();
+  if (led_status_file.empty())
+  {
+    RCLCPP_WARN(n_->get_logger(), "No 'led_status_file' given, LEDs are not commanded");
+  }
+  else
+  {
+    led_status_config_ = load_led_status_config(led_status_file);
+  }
+
   n_->declare_parameter<int>("min_speed_level", 1);
   n_->declare_parameter<int>("max_speed_level", 8);
   n_->declare_parameter<int>("default_speed_level", 4);
@@ -91,7 +115,9 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   trajectory_vel_sub_ = n_->create_subscription<std_msgs::msg::Float64>(
     "command_node/trajectory/velocity/commands", 10,
     std::bind(&CommandNode::callback_trajectory_velocity_, this, std::placeholders::_1));
-  last_trajectory_vel_time_ = n_->now();
+  mode_name_sub_ = n_->create_subscription<std_msgs::msg::String>(
+    "command_node/mode_name", 10,
+    std::bind(&CommandNode::callback_mode_name_, this, std::placeholders::_1));
 
   trajectory_pub_ = n_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
     "joint_trajectory_controller/joint_trajectory", 10);
@@ -107,6 +133,9 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
     n_->get_parameter("cartesian_velocity_output_topic").as_string(), 10);
   gripper_command_pub_ =
     n_->create_publisher<std_msgs::msg::Float64MultiArray>("/gripper_controller/commands", 10);
+  ready_pub_ = n_->create_publisher<std_msgs::msg::Bool>("command_node/ready", 10);
+  led_command_pub_ = n_->create_publisher<explorer_msgs::msg::LedCommand>(
+    "/explorer_leds/command", explorer_leds::led_command_qos());
 
   set_speed_level_srv_ = n_->create_service<explorer_msgs::srv::SetSpeedLevel>(
     "command_node/set_speed_level",
@@ -123,6 +152,12 @@ CommandNode::CommandNode(rclcpp::Node::SharedPtr n) : n_(n), controller_manager_
   timer_ = n_->create_wall_timer(
     std::chrono::duration<double>(sampling_period_),
     std::bind(&CommandNode::timer_callback_, this));
+  gripper_timer_ = n_->create_wall_timer(
+    std::chrono::duration<double>(GRIPPER_UPDATE_PERIOD_SECONDS),
+    std::bind(&CommandNode::update_gripper_, this));
+  ready_timer_ = n_->create_wall_timer(
+    std::chrono::duration<double>(READY_PUBLISH_PERIOD_SECONDS),
+    std::bind(&CommandNode::publish_ready_, this));
 }
 
 CommandNode::~CommandNode()
@@ -177,8 +212,7 @@ void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistSt
 
 void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& msg)
 {
-  last_trajectory_vel_time_ = n_->now();
-  trajectory_velocity_input_.store(msg.data * trajectory_speed_factor_());
+  trajectory_velocity_input_.set(msg.data * trajectory_speed_factor_(), n_->now());
 
   // Moving along the trajectory needs joint_trajectory_controller, switch to it on demand.
   // Releasing the input only holds the position, the switch back is left to the next Cartesian
@@ -191,20 +225,35 @@ void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& ms
 
 void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
 {
-  const rclcpp::Time now = n_->now();
-  double dt = 0.0;
-  if (last_gripper_vel_time_)
-  {
-    // Computes time gap for "continuous" input or set to 0.0 for a new set of inputs
-    const double gap = (now - *last_gripper_vel_time_).seconds();
-    dt = gap > MAX_GRIPPER_INTERVAL_SECONDS ? 0.0 : gap;
-  }
-  last_gripper_vel_time_ = now;
+  // Only store the input, update_gripper_() integrates it at a fixed rate
+  gripper_velocity_input_.set(msg.data, n_->now());
 
   // Ensure default controller is enabled
   if (msg.data != 0.0)
   {
     setTrajectoryMode_(false);
+  }
+}
+
+void CommandNode::update_gripper_()
+{
+  const rclcpp::Time now = n_->now();
+
+  // Integration step measured from the previous tick, bounded in case the executor stalled
+  double dt = 0.0;
+  if (last_gripper_update_time_)
+  {
+    dt = std::clamp(
+      (now - *last_gripper_update_time_).seconds(), 0.0, 2.0 * GRIPPER_UPDATE_PERIOD_SECONDS);
+  }
+  last_gripper_update_time_ = now;
+
+  // Nothing published while idle (or input stale), so other writers of the gripper controller are
+  // not overridden
+  const double velocity = gripper_velocity_input_.get(now);
+  if (velocity == 0.0)
+  {
+    return;
   }
 
   // Until gripper_controller is back, hold
@@ -214,7 +263,7 @@ void CommandNode::callback_gripper_velocity_(const std_msgs::msg::Float64& msg)
   }
 
   double& position = gripper_command_.data[0];
-  position = std::clamp(position + msg.data * speed_factor_() * dt, 0.0, 1.0);
+  position = std::clamp(position + velocity * speed_factor_() * dt, 0.0, 1.0);
 
   gripper_command_pub_->publish(gripper_command_);
 }
@@ -228,6 +277,37 @@ void CommandNode::publish_retract_status_()
   last_retract_status_ = trajectory_manager_.get_status();;
 
   retract_status_pub_->publish(std_msgs::msg::String().set__data(to_string(trajectory_manager_.get_status())));
+  publish_led_command_();
+}
+
+void CommandNode::callback_mode_name_(const std_msgs::msg::String& msg)
+{
+  if (mode_name_ == msg.data)
+  {
+    return;
+  }
+  mode_name_ = msg.data;
+
+  publish_led_command_();
+}
+
+void CommandNode::publish_led_command_()
+{
+  if (!led_status_config_)
+  {
+    return;
+  }
+
+  const auto command =
+    select_led_command(*led_status_config_, trajectory_manager_.get_status(), mode_name_);
+  // No command for this status: the LEDs keep their current effect
+  if (!command || command == last_led_command_)
+  {
+    return;
+  }
+  last_led_command_ = command;
+
+  led_command_pub_->publish(*command);
 }
 
 void CommandNode::callback_set_speed_level_(
@@ -265,7 +345,7 @@ void CommandNode::setTrajectoryMode_(bool enable)
   if (!enable)
   {
     // Do not carry a stale rate into the next retract.
-    trajectory_velocity_input_.store(0.0);
+    trajectory_velocity_input_.reset();
   }
 
   RCLCPP_INFO(n_->get_logger(), "Trajectory mode %s", enable ? "requested" : "released");
@@ -523,7 +603,7 @@ void CommandNode::update_trajectory_()
     q_current_[i] = current_pos_.position[idx];
   }
 
-  trajectory_manager_.update(q_current_, static_cast<float>(trajectory_velocity_input_.load()));
+  trajectory_manager_.update(q_current_, static_cast<float>(trajectory_velocity_input_.get(n_->now())));
 
   auto trajectory = trajectory_manager_.get_trajectory();
   if (trajectory)
@@ -535,13 +615,6 @@ void CommandNode::update_trajectory_()
 
 void CommandNode::timer_callback_()
 {
-  // Check if last trajectory velocity input is older than timeout
-  if ((n_->now() - last_trajectory_vel_time_).seconds() > TRAJECTORY_VELOCITY_TIMEOUT_SECONDS)
-  {
-    // Force stationary (input seems not active anymore for now)
-    trajectory_velocity_input_.store(0.0);
-  }
-
   // TODO delete when deleting old QP (confusing)
   if (!use_qp_inria_)
   {
@@ -630,6 +703,18 @@ void CommandNode::timer_callback_()
       }
     }
   }
+}
+
+bool CommandNode::is_ready_() const
+{
+  const ControllerState state = controller_state_;
+  return init_ &&
+         (state == ControllerState::DEFAULT_CONTROLLER || state == ControllerState::TRAJECTORY);
+}
+
+void CommandNode::publish_ready_()
+{
+  ready_pub_->publish(std_msgs::msg::Bool().set__data(is_ready_()));
 }
 
 }  // namespace space_control

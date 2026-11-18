@@ -28,6 +28,7 @@ constexpr std::pair<const char*, ControlName> control_names[] = {
   {"change_speed", ControlName::CHANGE_SPEED},
   {"drink", ControlName::DRINK},
   {"gripper", ControlName::GRIPPER},
+  {"lock_gripper", ControlName::LOCK_GRIPPER},
   {"complex_X", ControlName::COMPLEX_X},
   {"complex_Y", ControlName::COMPLEX_Y},
   {"gripper_X", ControlName::GRIPPER_X},
@@ -306,5 +307,21 @@ bool validate_mode_data(
   }
 
   return true;
+}
+
+ButtonMode* find_mode_by_control_name(ModeData& data, ControlName control_name)
+{
+  for (auto& [mode_name, mode] : data.button_modes_map)
+  {
+    for (auto& axis : mode.axes)
+    {
+      if (axis.control_name == control_name)
+      {
+        return &mode;
+      }
+    }
+  }
+
+  return nullptr;
 }
 }  // namespace input_device

@@ -1,3 +1,6 @@
+#ifndef EXPLORER_USER_INTERFACES_CPP_TRAJECTORY_MANAGER_H
+#define EXPLORER_USER_INTERFACES_CPP_TRAJECTORY_MANAGER_H
+
 #include <chrono>
 #include <functional>
 #include <string>
@@ -90,3 +93,5 @@ private:
 };
 
 }  // namespace space_control
+
+#endif

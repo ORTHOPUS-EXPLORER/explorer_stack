@@ -1,0 +1,60 @@
+# Image running only explorer_leds, for the ARM board driving the LED strip (Radxa Zero 3W).
+# Much smaller than the main Dockerfile: ros-core base, only explorer_msgs and explorer_leds built.
+#
+# Build, from explorer_stack (on the board, or from x86 with QEMU binfmt installed):
+#   docker buildx build --platform linux/arm64 -f Dockerfile.leds -t explorer_leds .
+# Run, with the SPI device of the strip config and the host network (DDS discovery with the robot):
+#   docker run --rm --net=host --ipc=host --device /dev/spidev3.0 -e ROS_DOMAIN_ID=<id> explorer_leds
+# Another strip config: mount it and pass it to the launch file
+#   docker run ... -v ./my_strip.yaml:/strip.yaml explorer_leds \
+#     ros2 launch explorer_leds leds.launch.py strip_config:=/strip.yaml
+
+# Overridable ROS distro argument (generic)
+ARG ROS_DISTRO=jazzy
+
+##  ---------------- Builder part ----------------
+FROM ros:${ROS_DISTRO}-ros-base AS builder
+
+WORKDIR /explorer_ws
+COPY explorer_msgs src/explorer_msgs
+COPY explorer_leds src/explorer_leds
+
+# Install build dependencies, and list the exec ones into /tmp/exec_dependencies.txt for the
+# runner part
+RUN apt-get update \
+    && rosdep update --rosdistro ${ROS_DISTRO} \
+    && rosdep install -y --from-paths src --ignore-src \
+      --dependency-types=buildtool --dependency-types=build \
+    && rosdep keys --from-paths src --ignore-src --dependency-types=exec \
+      | xargs rosdep resolve --rosdistro ${ROS_DISTRO} \
+      | grep -v '^#' \
+      | tr ' ' '\n' \
+      | sort -u > /tmp/exec_dependencies.txt \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
+    && colcon build --merge-install --install-base /opt/explorer_leds \
+      --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+
+##  ---------------- Runner part ----------------
+FROM ros:${ROS_DISTRO}-ros-core AS prod
+LABEL org.opencontainers.image.source="https://github.com/ORTHOPUS-EXPLORER/explorer_stack"
+LABEL org.opencontainers.image.description="LED strip node of the Orthopus Explorer project"
+
+COPY --from=builder /tmp/exec_dependencies.txt /tmp/exec_dependencies.txt
+RUN apt-get update \
+    && xargs -r -a /tmp/exec_dependencies.txt apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* /tmp/exec_dependencies.txt
+
+COPY --from=builder /opt/explorer_leds /opt/explorer_leds
+
+# Source the LED build after ROS
+RUN sed --in-place \
+    -e '/^source .*/a source "/opt/explorer_leds/setup.bash" --' \
+    /ros_entrypoint.sh
+
+# Control how far ROS nodes will try to discover each other, as in the main image
+ENV ROS_AUTOMATIC_DISCOVERY_RANGE="SUBNET"
+
+CMD ["ros2", "launch", "explorer_leds", "leds.launch.py"]

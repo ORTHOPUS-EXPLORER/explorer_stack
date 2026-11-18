@@ -11,8 +11,11 @@
 
 #include "atomic"
 #include "explorer_joint_utils/joint_mode_resolver.h"
+#include "explorer_msgs/msg/led_command.hpp"
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "explorer_user_interfaces_cpp/controller_manager_wrapper.h"
+#include "explorer_user_interfaces_cpp/led_status_config.h"
+#include "explorer_user_interfaces_cpp/timed_input.h"
 #include "explorer_user_interfaces_cpp/trajectory_manager.h"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -34,6 +37,13 @@ namespace space_control
  *   - [topic] command_node/trajectory/velocity/commands moves along the trajectory (hold-to-run,
  *     falls back to hold when not refreshed); a non-zero value switches to the joint_trajectory_controller.
  *   - [topic] command_node/retract_status reports trajectory progress
+ *   - [topic] command_node/ready heartbeat published at a fixed rate, true while the controllers are
+ *     ready (joint states received and no controller switch in progress)
+ *
+ * Shows the robot status on the LEDs, with the commands of the led_status_file parameter:
+ *   - [topic] command_node/mode_name input device mode, shown once the arm is deployed;
+ *   - [topic] /explorer_leds/command (latched) LED command of the retract status until the arm is
+ *     deployed, then of the mode. Only published when it changes.
  *
  * Also acts as the gateway between input devices and the robot, owning the speed level:
  *   - [service] command_node/set_speed_level sets or shifts the speed level;
@@ -41,7 +51,8 @@ namespace space_control
  *   - [topic] command_node/robot/velocity/commands is scaled by the speed factor and relayed to the
  *     controllers;
  *   - [topic] command_node/gripper/velocity/commands is scaled by the speed factor, integrated into a
- *     position and relayed to the gripper controller.
+ *     position at a fixed rate and relayed to the gripper controller; it falls back to 0 when not
+ *     refreshed for a while.
  */
 class CommandNode
 {
@@ -65,6 +76,8 @@ private:
   // Normalized trajectory velocity input; sign is deploy (+) / retract (-), magnitude is speed.
   // A non-zero value switches to trajectory mode on its own.
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr trajectory_vel_sub_;
+  // Input device mode name, published continuously by the device
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr mode_name_sub_;
 
   // Publishers
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_pub_;
@@ -74,6 +87,8 @@ private:
   // Speed-scaled relays of the input device commands
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cartesian_vel_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr gripper_command_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ready_pub_;
+  rclcpp::Publisher<explorer_msgs::msg::LedCommand>::SharedPtr led_command_pub_;
 
   // Services
   rclcpp::Service<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_srv_;
@@ -81,6 +96,8 @@ private:
   rclcpp::AsyncParametersClient::SharedPtr param_client_;
 
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr ready_timer_;
+  rclcpp::TimerBase::SharedPtr gripper_timer_;
 
   double sampling_period_;
 
@@ -101,14 +118,20 @@ private:
   std::atomic<bool> trajectory_mode_{false};
 
   // Trajectory movement input, speed-scaled value of the trajectory velocity topic.
-  std::atomic<double> trajectory_velocity_input_{0.0};
-  // Reception time of the last trajectory velocity, the input falls back to 0 (hold) when stale
-  rclcpp::Time last_trajectory_vel_time_;
+  // Falls back to 0 (hold) when stale.
+  TimedInput trajectory_velocity_input_;
 
   std::atomic<bool> switch_in_progress_{false};
 
   // Last retract status published, empty until the first publication
   std::optional<RetractStatus> last_retract_status_;
+
+  // LED commands by robot status, empty when no LED status file is given (LEDs not commanded)
+  std::optional<LedStatusConfig> led_status_config_;
+  // Last input device mode received, empty until the first one
+  std::optional<std::string> mode_name_;
+  // Last LED command published, empty until the first publication
+  std::optional<explorer_msgs::msg::LedCommand> last_led_command_;
 
   // Speed level, the speed factor applied to relayed commands is multiplier * level
   int min_speed_level_;
@@ -118,8 +141,10 @@ private:
 
   // Integrated gripper position, value sent to the gripper controller
   std_msgs::msg::Float64MultiArray gripper_command_;
-  // Reception time of the previous gripper velocity, the integration step is measured from it
-  std::optional<rclcpp::Time> last_gripper_vel_time_;
+  // Last gripper velocity received, integrated by update_gripper_(). Falls back to 0 when stale.
+  TimedInput gripper_velocity_input_;
+  // Time of the previous update_gripper_() tick, the integration step is measured from it
+  std::optional<rclcpp::Time> last_gripper_update_time_;
 
   // Holds the controller-switch thread spawned in handle_controller_state_()
   std::thread switch_thread_;
@@ -161,10 +186,18 @@ private:
 
   void callback_gripper_velocity_(const std_msgs::msg::Float64& msg);
 
+  // Integrate the last gripper velocity into the position command, at a fixed rate
+  void update_gripper_();
+
   // Publish the retract status, only when it changed (the topic is latched)
   void publish_retract_status_();
 
   void callback_trajectory_velocity_(const std_msgs::msg::Float64& msg);
+
+  void callback_mode_name_(const std_msgs::msg::String& msg);
+
+  // Publish the LED command of the robot status, only when it changed (the topic is latched)
+  void publish_led_command_();
 
   void callback_set_speed_level_(
     const std::shared_ptr<explorer_msgs::srv::SetSpeedLevel::Request> request,
@@ -187,6 +220,12 @@ private:
   void getDoubleParameter_(const std::string& param_name, std::optional<double>& value);
 
   void timer_callback_();
+
+  // Controllers are ready: joint states received and no controller switch in progress
+  [[nodiscard]] bool is_ready_() const;
+
+  // Heartbeat, published at a fixed rate so subscribers can tell when this node is gone
+  void publish_ready_();
 };
 
 }  // namespace space_control

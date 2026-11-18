@@ -18,7 +18,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png" 
+        image: "cartesian_Y_mode_1.png" 
         params:
           rotation_speed_scale: 0.04
       - control_name: "complex_X"
@@ -26,47 +26,69 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_X.png"
+        image: "cartesian_X_mode_1.png"
     button:
       - long_click: "B1_BIS"
       - short_click: "B2"
     
   B1_BIS:
     axes:
-      - control_name: "complex_Y"
+      - control_name: "rotation_Z"
         joystick_axis: "ax1"
         direction: 1
-        scale: 3.0
+        scale: 0.4
         smoothing_alpha: 0.1
-        image: "cartesian_Y.png" 
-        params:
-          rotation_speed_scale: 0.04
+        image: "rotation_Z_mode_1.png"
       - control_name: "cartesian_Z"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png"
+        image: "cartesian_Z_mode_1.png"
         params:
           deadzone: 0.2
     button:
-      - long_click: ""
+      - long_click: "B1_TER"
       - short_click: "B1"
-    
-  B2:
+
+  B1_TER:
     axes:
-      - control_name: "rotation_Z"
+      - control_name: "gripper_Y"
         joystick_axis: "ax1"
         direction: 1
-        scale: 0.75
+        scale: 3.0
         smoothing_alpha: 0.1
-        image: "rotation_Z.png"
+        image: "gripper_Y.png"
       - control_name: "gripper_X"
         joystick_axis: "ax2"
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_X.png"
+        image: "gripper_X.png"
+        params:
+          deadzone: 0.2
+    button:
+      - long_click: "B1_BIS"
+      - short_click: "B1"
+    
+  B2:
+    axes:
+      - control_name: "gripper_Y"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "gripper_Y.png" 
+        params:
+          rotation_speed_scale: 0.04
+      - control_name: "gripper_Z"
+        joystick_axis: "ax2"
+        direction: 1
+        scale: 3.0
+        smoothing_alpha: 0.1
+        image: "gripper_Z.png"
+        params:
+          deadzone: 0.2
     button:
       - long_click: "BOIRE"
       - short_click: "B3"
@@ -78,7 +100,7 @@ button_mappings:
         direction: -1
         scale: 0.75
         smoothing_alpha: 0.3
-        image: "joint_6.png"
+        image: "joint_6_mode_1.png"
         params:
           deadzone: 0.2
       - control_name: "cartesian_Z"
@@ -86,7 +108,7 @@ button_mappings:
         direction: 1
         scale: 3.0
         smoothing_alpha: 0.1
-        image: "cartesian_Z.png"
+        image: "cartesian_Z_mode_1.png"
         params:
           deadzone: 0.2
     button:
@@ -99,15 +121,19 @@ button_mappings:
         joystick_axis: "ax1"
         direction: -1
         scale: 0.75
-        image: "joint_6.png" 
+        smoothing_alpha: 0.3
+        image: "joint_6_mode_1.png"
         params:
           deadzone: 0.2
-      - control_name: "rotation_Y"
+      - control_name: "snake_Z"
         joystick_axis: "ax2"
         direction: 1
-        scale: 0.75
+        scale: 2.0
         smoothing_alpha: 0.1
         image: "rotation_Y.png" 
+        params:
+          max_coupling_gain: 0.5
+          modulation_ratio: 1.0
     button:
       - long_click: "VITESSE"
       - short_click: "B4"
@@ -119,10 +145,10 @@ button_mappings:
         direction: 1
         scale: 1.0
         image: "gripper.png"  
-      - control_name: ""
-        joystick_axis: ""
-        direction: 0
-        scale: 0.0
+      - control_name: "lock_gripper"
+        joystick_axis: "ax1"
+        direction: 1
+        scale: 1.0
         image: ""
     button:
       - long_click: "DEPLIER"

@@ -29,6 +29,7 @@ namespace input_device
             mutable std::mutex mutex_click_;
             bool short_click_ RCPPUTILS_TSA_GUARDED_BY(mutex_click_) = false;
             bool long_click_ RCPPUTILS_TSA_GUARDED_BY(mutex_click_) = false;
+            bool long_click_sent_ RCPPUTILS_TSA_GUARDED_BY(mutex_click_) = false;
             bool button_prev_ = false;
             std::chrono::steady_clock::time_point start_;
     };

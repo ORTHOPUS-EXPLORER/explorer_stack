@@ -6,14 +6,14 @@
 #ifndef EXPLORER_INPUT_DEVICES_DEVICE_JOYSTICK_H
 #define EXPLORER_INPUT_DEVICES_DEVICE_JOYSTICK_H
 
+#include <Eigen/Dense>
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <unordered_map>
-#include <cmath>
-#include <Eigen/Dense>
 
 #include "explorer_input_devices/button_handler.h"
 #include "explorer_input_devices/device.h"
@@ -21,9 +21,11 @@
 #include "explorer_msgs/msg/control_frame_selection.hpp"
 #include "explorer_msgs/srv/set_speed_level.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "mode_config.h"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 namespace input_device
 {
@@ -40,8 +42,10 @@ public:
 
 private:
   // ROS callbacks
+  void callback_current_pos_(const sensor_msgs::msg::JointState& msg);
   void callback_joy_(const sensor_msgs::msg::Joy& msg);
   void callback_x_current_(const geometry_msgs::msg::Pose& msg);
+  void callback_gripper_closure_direction_(const std_msgs::msg::String& msg);
   void callback_retract_status_(const std_msgs::msg::String& msg);
 
   // Internal timer callback
@@ -72,6 +76,7 @@ private:
   void change_speed_(const AxisInfo& axis_info);
   void drink_(const AxisInfo& axis_info);
   void gripper_(const AxisInfo& axis_info);
+  void lock_gripper_(const AxisInfo& axis_info);
   void complex_(const AxisInfo& axis_info);
   void cartesian_linear_gripper_(const AxisInfo& axis_info);
   void snake_(const AxisInfo& axis_info);
@@ -84,8 +89,11 @@ private:
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr active_pub_;
   // Drive the trajectory retract/home mode
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr trajectory_velocity_pub_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_lock_pub_;
 
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr current_pos_sub_;
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr x_current_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr gripper_closure_direction_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr retract_status_sub_;
 
   rclcpp::Client<explorer_msgs::srv::SetSpeedLevel>::SharedPtr set_speed_level_client_;
@@ -97,6 +105,8 @@ private:
   ModeData data_;
   std::string current_mode_name_;
   std::unordered_map<ControlName, std::function<void(AxisInfo)>> control_behaviors_;
+
+  double theta1_;
 
   // Joystick state variables
   mutable std::mutex mutex_axis_;
@@ -130,6 +140,13 @@ private:
   double ve_z_ = 0.0;
   double r2_ = 1.0;
   double k_ = 0.5;
+
+  bool gripper_lock_{false};
+
+  bool lock_gripper_axis_active_{false};
+  int lock_gripper_impulses_{0};
+
+  std::chrono::steady_clock::time_point first_gripper_impulse_time_;
 
   // Modified upon command_node's retract_status changes
   std::atomic<bool> locked_{true};

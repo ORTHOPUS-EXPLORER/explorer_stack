@@ -68,4 +68,19 @@ class WebSocketWrapper {
             this.connect();
         }
     }
+
+    send(data) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.warn(
+                `${this.name} WebSocket is not connected. Message not sent.`,
+                data
+            );
+            return false;
+        }
+
+
+        this.ws.send(data);
+        return true;
+    }
+
 }

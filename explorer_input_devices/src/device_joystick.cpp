@@ -46,6 +46,7 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::CHANGE_SPEED, [this](const AxisInfo& axis) { change_speed_(axis); }},
     {ControlName::DRINK, [this](const AxisInfo& axis) { drink_(axis); }},
     {ControlName::GRIPPER, [this](const AxisInfo& axis) { gripper_(axis); }},
+    {ControlName::LOCK_GRIPPER, [this](const AxisInfo& axis) { lock_gripper_(axis); }},
     {ControlName::COMPLEX_X, [this](const AxisInfo& axis) { complex_(axis); }},
     {ControlName::COMPLEX_Y, [this](const AxisInfo& axis) { complex_(axis); }},
     {ControlName::GRIPPER_X, [this](const AxisInfo& axis) { cartesian_linear_gripper_(axis); }},
@@ -54,8 +55,7 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     {ControlName::SNAKE_X, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::SNAKE_Y, [this](const AxisInfo& axis) { snake_(axis); }},
     {ControlName::SNAKE_Z, [this](const AxisInfo& axis) { snake_(axis); }},
-    {ControlName::TRAJECTORY_CONTROL,
-     [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
+    {ControlName::TRAJECTORY_CONTROL, [this](const AxisInfo& axis) { trajectory_control_(axis); }}};
 
   // Get the value of the mode_file parameter
   std::string mode_file;
@@ -87,9 +87,15 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   current_mode_name_ = data_.initial_mode;
 
+  current_pos_sub_ = get_node_()->create_subscription<sensor_msgs::msg::JointState>(
+    "/joint_states", rclcpp::SensorDataQoS(),
+    std::bind(&DeviceJoystick::callback_current_pos_, this, std::placeholders::_1));
   x_current_sub_ = get_node_()->create_subscription<geometry_msgs::msg::Pose>(
     get_node_()->get_parameter("end_effector_pose_topic").as_string(), 10,
     [this](const geometry_msgs::msg::Pose& msg) { callback_x_current_(msg); });
+  gripper_closure_direction_sub_ = get_node_()->create_subscription<std_msgs::msg::String>(
+    "/gripper/closure_direction", 10,
+    std::bind(&DeviceJoystick::callback_gripper_closure_direction_, this, std::placeholders::_1));
   // Latch topic
   retract_status_sub_ = get_node_()->create_subscription<std_msgs::msg::String>(
     "command_node/retract_status", rclcpp::QoS(1).transient_local(),
@@ -103,6 +109,8 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
     get_node_()->get_parameter("active_topic").as_string(), 10);
   trajectory_velocity_pub_ = get_node_()->create_publisher<std_msgs::msg::Float64>(
     "command_node/trajectory/velocity/commands", 10);
+  gripper_lock_pub_ = get_node_()->create_publisher<std_msgs::msg::Bool>(
+    "/explorer_input_devices/joystick/gripper_lock", 10);
   set_speed_level_client_ =
     get_node_()->create_client<explorer_msgs::srv::SetSpeedLevel>("command_node/set_speed_level");
 
@@ -110,6 +118,17 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   timer_ = get_node_()->create_wall_timer(
     std::chrono::duration<double>(sampling_period_), [this]() { timer_callback_(); });
+}
+
+void DeviceJoystick::callback_current_pos_(const sensor_msgs::msg::JointState& msg)
+{
+  for (size_t i = 0; i < msg.name.size(); ++i)
+  {
+    if (msg.name[i] == "joint_1")
+    {
+      theta1_ = msg.position[i];
+    }
+  }
 }
 
 void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
@@ -139,6 +158,64 @@ void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
 }
 
 void DeviceJoystick::callback_x_current_(const geometry_msgs::msg::Pose& msg) { x_current_ = msg; }
+
+void DeviceJoystick::callback_gripper_closure_direction_(const std_msgs::msg::String& msg)
+{
+  JoystickAxis gripper_axis;
+  int gripper_direction;
+
+  const std::string& closure_direction = msg.data;
+
+  if (closure_direction == "bas")
+  {
+    gripper_axis = JoystickAxis::AX2;
+    gripper_direction = 1;
+  }
+  else if (closure_direction == "haut")
+  {
+    gripper_axis = JoystickAxis::AX2;
+    gripper_direction = -1;
+  }
+  else if (closure_direction == "droite")
+  {
+    gripper_axis = JoystickAxis::AX1;
+    gripper_direction = 1;
+  }
+  else if (closure_direction == "gauche")
+  {
+    gripper_axis = JoystickAxis::AX1;
+    gripper_direction = -1;
+  }
+
+  auto* gripper_mode = find_mode_by_control_name(data_, ControlName::GRIPPER);
+
+  if (gripper_mode == nullptr)
+  {
+    RCLCPP_WARN(
+      get_node_()->get_logger(),
+      "[GRIPPER DEBUG] Aucun mode contenant le controle GRIPPER trouve.");
+    return;
+  }
+
+  // LOCK_GRIPPER must use the opposite joystick axis,
+  // but only if it belongs to the same mode as GRIPPER.
+  const JoystickAxis lock_gripper_axis =
+    (gripper_axis == JoystickAxis::AX1) ? JoystickAxis::AX2 : JoystickAxis::AX1;
+
+  for (auto& axis : gripper_mode->axes)
+  {
+    if (axis.control_name == ControlName::GRIPPER)
+    {
+      axis.joystick_axis = gripper_axis;
+      axis.direction = gripper_direction;
+    }
+    else if (axis.control_name == ControlName::LOCK_GRIPPER)
+    {
+      axis.joystick_axis = lock_gripper_axis;
+      axis.direction = 1;
+    }
+  }
+}
 
 void DeviceJoystick::callback_retract_status_(const std_msgs::msg::String& msg)
 {
@@ -179,8 +256,7 @@ void DeviceJoystick::request_speed_level_change_(int delta)
       if (!response->success)
       {
         RCLCPP_ERROR(
-          get_node_()->get_logger(), "Failed to change speed level: %s",
-          response->message.c_str());
+          get_node_()->get_logger(), "Failed to change speed level: %s", response->message.c_str());
       }
     });
 }
@@ -222,6 +298,7 @@ void DeviceJoystick::timer_callback_()
   reset_velocities_();
 
   complex_mode_ = false;
+  snake_mode_ = false;
 
   // Step 5: Execute control behaviors for each axis (uses pre-smoothed values)
   for (const auto& axis : mode.axes)
@@ -342,26 +419,36 @@ void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
 
 void DeviceJoystick::snake_calculation_(const double r2, const double k)
 {
+  const Eigen::Matrix3d R_W_J1 =
+    Eigen::AngleAxisd(theta1_, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
   double x = x_current_.orientation.x;
   double y = x_current_.orientation.y;
   double z = x_current_.orientation.z;
   double w = x_current_.orientation.w;
 
-
   double ze_x = 1.0 - 2.0 * (y * y + z * z);
   double ze_y = 2.0 * (x * y + w * z);
   double ze_z = 2.0 * (x * z - w * y);
- 
-  const Eigen::Vector3d ze(ze_x, ze_y, ze_z);
 
-  const Eigen::Vector3d ve(ve_x_, ve_y_, ve_z_);
+  const Eigen::Vector3d ze_W(ze_x, ze_y, ze_z);
 
-  const Eigen::Vector3d coupling = ze.cross(ve);
+  const Eigen::Vector3d ve_W(ve_x_, ve_y_, ve_z_);
 
-  const Eigen::Vector3d omega_e = r2 * k * coupling;
+  const Eigen::Vector3d ze_J1 = R_W_J1.transpose() * ze_W;
+  const Eigen::Vector3d ve_J1 = R_W_J1.transpose() * ve_W;
 
-  cartesian_vel_.twist.angular.z = cartesian_vel_.twist.angular.z + omega_e(2);
-  cartesian_vel_.twist.angular.y = cartesian_vel_.twist.angular.y + omega_e(1);
+  const Eigen::Vector3d coupling_J1 = ze_J1.cross(ve_J1);
+  const Eigen::Vector3d omega_J1 = r2 * k * coupling_J1;
+
+  const Eigen::Vector3d omega_J1_selected(0.0, omega_J1.y(), omega_J1.z());
+
+  const Eigen::Vector3d omega_W = R_W_J1 * omega_J1_selected;
+
+  // Add angular velocity components to the command
+  cartesian_vel_.twist.angular.x += omega_W.x();
+  cartesian_vel_.twist.angular.y += omega_W.y();
+  cartesian_vel_.twist.angular.z += omega_W.z();
 }
 
 // Behavior implementations
@@ -426,12 +513,55 @@ void DeviceJoystick::joint_direct_(const AxisInfo& axis_info)
   {
     return;
   }
-  // joint_6 is expressed as a tool-frame rotation rather than a joint velocity
+
   if (axis_info.control_name == ControlName::JOINT_6)
   {
-    cartesian_vel_.twist.angular.x = read_axis_value_(axis_info);
-    // Set control frame to end-effector for joint 6 control
-    frame_id_.orientation_control_frame = 1;
+    const double value = read_axis_value_(axis_info);
+
+    // Find the mode containing JOINT_6
+    auto* joint6_mode = find_mode_by_control_name(data_, ControlName::JOINT_6);
+
+    bool joint6_with_snake_z = false;
+
+    // Check if SNAKE_Z belongs to the same mode as JOINT_6
+    for (const auto& axis : joint6_mode->axes)
+    {
+      if (axis.control_name == ControlName::SNAKE_Z)
+      {
+        joint6_with_snake_z = true;
+        break;
+      }
+    }
+
+    if (joint6_with_snake_z)
+    {
+      // Get current end-effector orientation
+      const double x = x_current_.orientation.x;
+      const double y = x_current_.orientation.y;
+      const double z = x_current_.orientation.z;
+      const double w = x_current_.orientation.w;
+
+      // First column of rotation matrix R_01
+      const double r11 = 1.0 - 2.0 * (y * y + z * z);
+      const double r21 = 2.0 * (x * y + w * z);
+      const double r31 = 2.0 * (x * z - w * y);
+
+      // Transform JOINT_6 angular velocity from frame 1 to frame 0
+      cartesian_vel_.twist.angular.x = value * r11;
+      cartesian_vel_.twist.angular.y = value * r21;
+      cartesian_vel_.twist.angular.z = value * r31;
+
+      // Set orientation control frame to base frame
+      frame_id_.orientation_control_frame = 0;
+    }
+    else
+    {
+      // Original JOINT_6 behavior: rotation around tool X axis
+      cartesian_vel_.twist.angular.x = value;
+
+      // Set control frame to end-effector
+      frame_id_.orientation_control_frame = 1;
+    }
   }
 }
 
@@ -484,10 +614,11 @@ void DeviceJoystick::drink_(const AxisInfo& axis_info)
 
 void DeviceJoystick::gripper_(const AxisInfo& axis_info)
 {
-  if (locked_)
+  if (locked_ || gripper_lock_)
   {
     return;
   }
+
   // Determine joystick axis value
   float value = 0.0;
 
@@ -495,6 +626,52 @@ void DeviceJoystick::gripper_(const AxisInfo& axis_info)
 
   // Assign to gripper velocity; Device integrates it into the position command.
   gripper_vel_ = value;
+}
+
+void DeviceJoystick::lock_gripper_(const AxisInfo& axis_info)
+{
+  constexpr float impulse_threshold = 0.8f;
+  constexpr float neutral_threshold = 0.2f;
+  constexpr auto double_impulse_timeout = std::chrono::milliseconds(2000);
+
+  const float value = read_axis_value_(axis_info);
+  const auto now = std::chrono::steady_clock::now();
+
+  // Reset if the second impulse did not arrive in time.
+  if (lock_gripper_impulses_ == 1 && now - first_gripper_impulse_time_ > double_impulse_timeout)
+  {
+    lock_gripper_impulses_ = 0;
+  }
+
+  // Rearm detection when the joystick returns to neutral.
+  if (value < neutral_threshold)
+  {
+    lock_gripper_axis_active_ = false;
+    return;
+  }
+
+  // Count only the beginning of a new impulse.
+  if (value >= impulse_threshold && !lock_gripper_axis_active_)
+  {
+    lock_gripper_axis_active_ = true;
+
+    if (lock_gripper_impulses_ == 0)
+    {
+      lock_gripper_impulses_ = 1;
+      first_gripper_impulse_time_ = now;
+    }
+    else
+    {
+      // Two impulses detected: toggle the gripper lock.
+      gripper_lock_ = !gripper_lock_;
+      lock_gripper_impulses_ = 0;
+
+      gripper_lock_pub_->publish(std_msgs::msg::Bool().set__data(gripper_lock_));
+
+      RCLCPP_INFO(
+        get_node_()->get_logger(), "Gripper lock: %s", gripper_lock_ ? "LOCKED" : "UNLOCKED");
+    }
+  }
 }
 
 void DeviceJoystick::complex_(const AxisInfo& axis_info)
@@ -555,12 +732,12 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
     ve_y_ = value;
     cartesian_vel_.twist.linear.y = value;
   }
-    if (axis_info.control_name == ControlName::SNAKE_Z)
+  if (axis_info.control_name == ControlName::SNAKE_Z)
   {
     ve_z_ = value;
     cartesian_vel_.twist.linear.z = value;
   }
-  
+
   if (axis_info.params.count("max_coupling_gain"))
   {
     k_ = static_cast<double>(axis_info.params.at("max_coupling_gain"));
@@ -571,7 +748,7 @@ void DeviceJoystick::snake_(const AxisInfo& axis_info)
   }
 
   frame_id_.position_control_frame = 0;
-  frame_id_.orientation_control_frame = 1;
+  frame_id_.orientation_control_frame = 0;
 }
 
 void DeviceJoystick::cartesian_linear_gripper_(const AxisInfo& axis_info)
@@ -600,7 +777,6 @@ void DeviceJoystick::cartesian_linear_gripper_(const AxisInfo& axis_info)
   }
   frame_id_.position_control_frame = 1;
 }
-
 
 void DeviceJoystick::trajectory_control_(const AxisInfo& axis_info)
 {
