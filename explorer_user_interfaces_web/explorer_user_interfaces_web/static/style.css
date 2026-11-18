@@ -67,10 +67,23 @@
     flex: 1 1 0;
 }
 
+@media (orientation: landscape) {
+    .main-square {
+        min-width: 400px;
+        min-height: 400px;
+    }
+
+    .speed-level {
+        font-size: 30px;
+    }
+}
+
 /* Portrait viewport (height > width): stack panels vertically */
 @media (orientation: portrait) {
     :root {
-        --panel-size: min(94vw, 42vh);
+        /* Fit two stacked squares in the height, but never go below 400px
+           unless the screen itself is narrower (then use 94vw). */
+        --panel-size: max(min(94vw, 42vh), min(475px, 94vw));
     }
 
     .panels-row {
@@ -82,13 +95,25 @@
     .panel {
         flex: 0 0 auto;
     }
+
+    .main-square {
+        min-width: 250px;
+        min-height: 250px;
+    }
+
+    .joint-led-row {
+        margin-top: 4px !important;
+    }
+
+    .speed-level {
+        font-size: 20px;
+    }
 }
 
 .main-square {
     width: var(--panel-size);
     height: var(--panel-size);
-    min-width: 113px;
-    min-height: 113px;
+
     max-width: 500px;
     max-height: 500px;
     background: #fff;
@@ -208,7 +233,8 @@
 }
 
 .led-col {
-    min-width: 0;
+    min-width: 125px;
+    flex-shrink: 0;
     width: 25%;
     height: 100%;
     display: flex;
@@ -232,10 +258,23 @@
     align-items: center;
     justify-content: space-between;
     width: 80%;
+    margin-top: 10px;
+    gap: 4px;
+}
+
+/* LEDs and speed value never shrink: the label wraps instead */
+.joint-led-row > .status-led,
+.joint-led-row > .speed-level {
+    flex-shrink: 0;
 }
 
 .led-label {
-    flex: 1;
+    flex: 1 1 0;
+    /* Allow the label to shrink below its longest word and wrap,
+       so the LED next to it always stays visible. */
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.1;
     text-align: left;
     font-size: 0.8rem;
     font-weight: bold;

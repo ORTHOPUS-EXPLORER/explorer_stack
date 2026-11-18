@@ -26,7 +26,7 @@
                                     onload="this.style.display='block'; this.parentNode.style.background='transparent';"
                                     onerror="this.style.display='none';">
                                 <span class="text-gray-500 text-sm" id="no-image-text"
-                                    style="position: absolute; z-index: 3;">No Image</span>
+                                    style="position: absolute; z-index: 3;">Aucune image</span>
                             </div>
                         </div>
                         <div class="bottom-row">
@@ -39,47 +39,47 @@
                         </div>
                     </div>
                     <div class="led-col">
-                        <div class="joint-led-row" style="margin-top: 6px;">
-                            <span class="led-label">Deployed</span>
+                        <div class="joint-led-row">
+                            <span class="led-label">Déploiement</span>
                             <div id="status-led" class="status-led" title="Deployment"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
-                            <span class="led-label">Drink</span>
+                        <div class="joint-led-row">
+                            <span class="led-label">Boire</span>
                             <div id="drink-led" class="status-led" title="Drink"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
-                            <span class="led-label">GripperLock</span>
+                        <div class="joint-led-row">
+                            <span class="led-label">Gripper<br>verrouillé</span>
                             <div id="gripper-lock-led" class="status-led" title="État du verrouillage du gripper">
                             </div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 10px;">
-                            <span class="led-label">Speed</span>
-                            <span id="speed-level" style="font-size: 30px">
+                        <div class="joint-led-row">
+                            <span class="led-label">Vitesse</span>
+                            <span class="speed-level" id="speed-level">
                                 {{ speed_level if speed_level is not none else '--' }}
                             </span>
                         </div>
                         <div class="led-separator"></div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J1</span>
                             <div id="joint-led-1" class="status-led" title="Joint 1"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J2</span>
                             <div id="joint-led-2" class="status-led" title="Joint 2"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J3</span>
                             <div id="joint-led-3" class="status-led" title="Joint 3"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J4</span>
                             <div id="joint-led-4" class="status-led" title="Joint 4"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J5</span>
                             <div id="joint-led-5" class="status-led" title="Joint 5"></div>
                         </div>
-                        <div class="joint-led-row" style="margin-top: 6px;">
+                        <div class="joint-led-row">
                             <span class="led-label">J6</span>
                             <div id="joint-led-6" class="status-led" title="Joint 6"></div>
                         </div>
@@ -91,7 +91,7 @@
                     </label>
 
 
-                    <select id="gripper-direction">
+                    <select id="gripper-direction" style="text-align: center;">
                         <option value="" selected disabled>-- Sélectionner une direction --</option>
                         <option value="bas">Bas</option>
                         <option value="haut">Haut</option>
@@ -106,7 +106,7 @@
                 <img id="camera-feed-image" alt="Camera Feed" class="camera-feed"
                     onload="this.style.display='block'; document.getElementById('no-camera-text').style.display='none';"
                     onerror="this.style.display='none'; document.getElementById('no-camera-text').style.display='block';">
-                <span class="text-gray-500 text-sm" id="no-camera-text">No Camera Feed</span>
+                <span class="text-gray-500 text-sm" id="no-camera-text">Connexion perdue avec la caméra</span>
             </div>
         </div>
     </div>
