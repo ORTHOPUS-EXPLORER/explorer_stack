@@ -171,7 +171,7 @@ CommandNode::~CommandNode()
 double CommandNode::speed_factor_() const { return speed_level_multiplier_ * speed_level_; }
 
 // Fixed speed level for trajectory
-double CommandNode::trajectory_speed_factor_() const { return speed_level_multiplier_ * 4; }
+double CommandNode::fixed_speed_factor_() const { return speed_level_multiplier_ * 4; }
 
 void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistStamped& msg)
 {
@@ -212,7 +212,7 @@ void CommandNode::callback_cartesian_velocity_(const geometry_msgs::msg::TwistSt
 
 void CommandNode::callback_trajectory_velocity_(const std_msgs::msg::Float64& msg)
 {
-  trajectory_velocity_input_.set(msg.data * trajectory_speed_factor_(), n_->now());
+  trajectory_velocity_input_.set(msg.data * fixed_speed_factor_(), n_->now());
 
   // Moving along the trajectory needs joint_trajectory_controller, switch to it on demand.
   // Releasing the input only holds the position, the switch back is left to the next Cartesian
@@ -263,7 +263,7 @@ void CommandNode::update_gripper_()
   }
 
   double& position = gripper_command_.data[0];
-  position = std::clamp(position + velocity * speed_factor_() * dt, 0.0, 1.0);
+  position = std::clamp(position + velocity * fixed_speed_factor_() * dt, 0.0, 1.0);
 
   gripper_command_pub_->publish(gripper_command_);
 }
