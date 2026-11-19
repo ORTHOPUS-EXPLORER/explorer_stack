@@ -27,6 +27,8 @@
                                     onerror="this.style.display='none';">
                                 <span class="text-gray-500 text-sm" id="no-image-text"
                                     style="position: absolute; z-index: 3;">Aucune image</span>
+                                <!-- LED ring of the gripper, filled by led_ring.js -->
+                                <div id="led-ring" class="led-ring" title="Anneau LED"></div>
                             </div>
                         </div>
                         <div class="bottom-row">
@@ -114,6 +116,7 @@
         window.explorerConfig = {{ mode_config | tojson }};
     </script>
     <script src="/static/websocket_wrapper.js"></script>
+    <script src="/static/led_ring.js"></script>
     <script src="/static/app.js"></script>
 </body>
 
