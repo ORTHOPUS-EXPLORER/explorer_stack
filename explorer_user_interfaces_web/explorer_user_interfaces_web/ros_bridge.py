@@ -17,6 +17,7 @@ from rclpy.qos import (
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Bool, Int32, String
 
+from explorer_msgs.msg import LedCommand, LedEffect
 from orthopus_vesc_interfaces.msg import State
 
 NUM_JOINTS = 6
@@ -41,6 +42,26 @@ QOS_COMMAND_NODE_LATCH_PROFILE = QoSProfile(
     durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
 )
 
+# Must match explorer_leds::led_command_qos() (transient-local, depth 1): the LED status is only
+# published on change.
+QOS_LED_COMMAND = QoSProfile(
+    depth=1,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+)
+
+
+def led_effect_to_dict(effect: LedEffect) -> Dict:
+    """LedEffect as sent to the pages, colours as [r, g, b, w] lists"""
+    return {
+        "leds": [int(led) for led in effect.leds],
+        "mode": effect.mode,
+        "speed": effect.speed,
+        "colors": [[color.r, color.g, color.b, color.w] for color in effect.colors],
+        "intensities": list(effect.intensities),
+        "min_level": effect.min_level,
+    }
+
 
 class RosBridge:
     """Bridge between ROS2 and the web interface"""
@@ -55,6 +76,8 @@ class RosBridge:
         self.drink_active = False
         self.gripper_lock_active = False
         self.gripper_closure_direction: str | None = None
+        # Last LED status command (/explorer_leds/command), replayed to a page that connects later
+        self.last_led_command_message: Dict | None = None
         # Queue of updates of each connected page, only used from the server event loop
         self.connected_clients: set[asyncio.Queue] = set()
         self._event_loop: asyncio.AbstractEventLoop | None = None
@@ -106,6 +129,20 @@ class RosBridge:
             Bool,
             "/explorer_input_devices/joystick/gripper_lock",
             self.gripper_lock_callback,
+            10,
+        )
+
+        # LED ring: status (latched) and one-shot flashes, both LedCommand
+        self.led_command_subscriber = self.node.create_subscription(
+            LedCommand,
+            "/explorer_leds/command",
+            self.led_command_callback,
+            QOS_LED_COMMAND,
+        )
+        self.led_flash_subscriber = self.node.create_subscription(
+            LedCommand,
+            "/explorer_leds/flash",
+            self.led_flash_callback,
             10,
         )
 
@@ -268,6 +305,26 @@ class RosBridge:
                 }
             )
 
+    def led_command_callback(self, msg: LedCommand):
+        """Callback for the LED status: effects the LED ring plays until the next command"""
+        self.last_led_command_message = {
+            "type": "led_command",
+            "effects": [led_effect_to_dict(effect) for effect in msg.effects],
+            "timestamp": time.time(),
+        }
+        self._publish_update(self.last_led_command_message)
+
+    def led_flash_callback(self, msg: LedCommand):
+        """Callback for LED flashes (flash_once), played once over the current status"""
+        # Not kept for pages connecting later: a flash is only meaningful when it happens
+        self._publish_update(
+            {
+                "type": "led_flash",
+                "effects": [led_effect_to_dict(effect) for effect in msg.effects],
+                "timestamp": time.time(),
+            }
+        )
+
     def camera_image_callback(self, msg: CompressedImage):
         """Callback for ROS camera frame topic"""
         with self._camera_frame_condition:
@@ -365,6 +422,10 @@ class RosBridge:
         # Copy: joints are added from the ROS thread
         for joint_state_message in list(self.last_joint_state_message_dict.values()):
             initial_messages.append(joint_state_message)
+
+        # Send last LED command message
+        if self.last_led_command_message is not None:
+            initial_messages.append(self.last_led_command_message)
 
         return initial_messages
 

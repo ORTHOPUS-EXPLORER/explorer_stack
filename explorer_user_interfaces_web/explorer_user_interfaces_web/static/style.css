@@ -310,3 +310,35 @@
     background: white;
     font-size: 16px;
 }
+
+/* LED ring of the gripper, lower right of the mode image: one LED on each side of a rectangle */
+.led-ring {
+    position: absolute;
+    left: 8%;
+    top: 8%;
+    z-index: 4;
+    width: clamp(40px, 16%, 72px);
+    aspect-ratio: 4 / 3;
+    border: 2px solid #374151;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.6);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.ring-led {
+    position: absolute;
+    width: clamp(10px, 28%, 16px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    /* Switched off: the colour is drawn over it by led_ring.js */
+    background-color: #bbb;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    transform: translate(-50%, -50%);
+}
+
+/* Clockwise from the top, centred on the rectangle border */
+.ring-led-0 { left: 50%; top: 0; }
+.ring-led-1 { left: 100%; top: 50%; }
+.ring-led-2 { left: 50%; top: 100%; }
+.ring-led-3 { left: 0; top: 50%; }

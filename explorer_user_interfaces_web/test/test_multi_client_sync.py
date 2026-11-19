@@ -13,6 +13,8 @@ import uvicorn
 import websockets
 from std_msgs.msg import Bool, Int32, String
 
+from explorer_msgs.msg import LedColor, LedCommand, LedEffect
+
 from explorer_user_interfaces_web.ros_bridge import CLIENT_QUEUE_SIZE, RosBridge
 from explorer_user_interfaces_web.web_server import create_app
 
@@ -290,3 +292,86 @@ def test_slow_page_does_not_disturb_the_others():
 
     # Assert
     assert [message["speed_level"] for message in received] == levels
+
+
+def led_command(mode, leds=(), speed=0.0, colors=((1.0, 0.0, 0.0, 0.0),), intensities=(1.0,)):
+    return LedCommand(
+        effects=[
+            LedEffect(
+                leds=list(leds),
+                mode=mode,
+                speed=speed,
+                colors=[LedColor(r=r, g=g, b=b, w=w) for r, g, b, w in colors],
+                intensities=list(intensities),
+            )
+        ]
+    )
+
+
+# led_command_callback : a LED command reaches the pages, colours as [r, g, b, w]
+def test_led_command_reaches_pages(server):
+    async def scenario():
+        async with websockets.connect(server.url) as page:
+            await receive(page)
+
+            # Act
+            server.bridge.led_command_callback(led_command("blink", leds=[2, 6], speed=1.5))
+
+            return await receive(page)
+
+    update = asyncio.run(scenario())
+
+    # Assert
+    assert update["type"] == "led_command"
+    assert update["effects"] == [
+        {
+            "leds": [2, 6],
+            "mode": "blink",
+            "speed": 1.5,
+            "colors": [[1.0, 0.0, 0.0, 0.0]],
+            "intensities": [1.0],
+            "min_level": 0.0,
+        }
+    ]
+
+
+# websocket_endpoint : a new page receives the last LED command, but not the flashes
+def test_new_page_receives_last_led_command(server):
+    # Arrange
+    server.bridge.led_command_callback(led_command("solid"))
+    server.bridge.led_command_callback(led_command("breathe", speed=0.33))
+    server.bridge.led_flash_callback(led_command("flash_once", speed=2.0))
+
+    async def scenario():
+        async with websockets.connect(server.url) as page:
+            await receive(page)
+            led_update = await receive(page)
+            # Nothing else is queued for the page
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(page.recv(), 0.2)
+            return led_update
+
+    # Act
+    led_update = asyncio.run(scenario())
+
+    # Assert
+    assert led_update["type"] == "led_command"
+    assert led_update["effects"][0]["mode"] == "breathe"
+
+
+# led_flash_callback : a LED flash reaches the pages as its own message type
+def test_led_flash_reaches_pages(server):
+    async def scenario():
+        async with websockets.connect(server.url) as page:
+            await receive(page)
+
+            # Act
+            server.bridge.led_flash_callback(led_command("flash_once", speed=2.0))
+
+            return await receive(page)
+
+    update = asyncio.run(scenario())
+
+    # Assert
+    assert update["type"] == "led_flash"
+    assert update["effects"][0]["mode"] == "flash_once"
