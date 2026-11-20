@@ -111,10 +111,11 @@
 }
 
 .main-square {
-    width: var(--panel-size);
+    /* Wider than high, never wider than the screen (portrait) */
+    width: min(calc(var(--panel-size) * 1.15), 94vw);
     height: var(--panel-size);
 
-    max-width: 500px;
+    max-width: 575px;
     max-height: 500px;
     background: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -165,7 +166,9 @@
 }
 
 .left-col {
-    width: 75%;
+    /* Same width as before main-square was widened (75% of a square): the extra width goes to
+       led-col. Keep the 1.15 in sync with .main-square width */
+    width: calc(75% / 1.15);
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -235,7 +238,8 @@
 .led-col {
     min-width: 125px;
     flex-shrink: 0;
-    width: 25%;
+    /* What left-col leaves */
+    flex: 1 0 0;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -276,7 +280,7 @@
     overflow-wrap: anywhere;
     line-height: 1.1;
     text-align: left;
-    font-size: 0.8rem;
+    font-size: 1.3rem;
     font-weight: bold;
     color: #374151;
 }
@@ -306,7 +310,10 @@
 }
 
 .gripper-control label {
-    font-size: 20px;
+    /* Only as wide as its text (led-label would share the row equally with the select): the
+       select takes the rest */
+    flex: 0 0 auto;
+    font-size: 1.4rem;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -314,11 +321,14 @@
 .gripper-control select {
     flex: 1;
     min-width: 0;
-    padding: 5px;
+    padding: 4px 6px;
     border: 1px solid #d1d5db;
     border-radius: 5px;
     background: white;
-    font-size: 16px;
+    /* Same size as the label, so the text fills the select */
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
 }
 
 /* LED ring of the gripper, over the mode image: one LED on each side of a rectangle */
