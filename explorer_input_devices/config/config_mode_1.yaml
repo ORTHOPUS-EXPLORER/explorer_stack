@@ -130,7 +130,7 @@ button_mappings:
         direction: 1
         scale: 2.0
         smoothing_alpha: 0.1
-        image: "rotation_Y.png" 
+        image: "rotation_Y_mode_1.png" 
         params:
           max_coupling_gain: 0.5
           modulation_ratio: 1.0
