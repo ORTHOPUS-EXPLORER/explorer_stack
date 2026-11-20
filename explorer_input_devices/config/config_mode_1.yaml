@@ -130,7 +130,7 @@ button_mappings:
         direction: 1
         scale: 2.0
         smoothing_alpha: 0.1
-        image: "rotation_Y.png" 
+        image: "rotation_Y_mode_1.png" 
         params:
           max_coupling_gain: 0.5
           modulation_ratio: 1.0
@@ -165,7 +165,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 1.0
-        image: "change_speed.png"
+        image: "speed.png"
     button:
       - long_click: ""
       - short_click: "B3"
