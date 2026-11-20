@@ -32,19 +32,19 @@ modes:
   B1:
     - mode: breathe
       speed: 0.33
-      colors: [[0.5, 1, 0]]  # lime green
+      colors: [[0, 0, 0, 1]]  # white
       intensities: [1]
       min_level: 0.5
   B1_BIS:                    # long click from B1
     - mode: blink
       speed: 1.5
-      colors: [[0.5, 1, 0]]  # lime green
+      colors: [[0, 0, 0, 1]]  # white
       intensities: [1]
   B1_TER:                    # long click from B1
     - mode: chase
       speed: 10
-      colors: [[0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0], [0.5, 1, 0]]  # lime green head, darker lime green tail
-      intensities: [0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4]
+      colors: [[0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1], [0, 0, 0, 1]]  # white
+      intensities: [0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4, 0.4, 0.4, 1, 0.4 ] # white head, less bright white "tail"
   B2:
     - mode: breathe
       speed: 0.33
