@@ -165,7 +165,7 @@ button_mappings:
         joystick_axis: "ax2"
         direction: 1
         scale: 1.0
-        image: "change_speed.png"
+        image: "speed.png"
     button:
       - long_click: ""
       - short_click: "B3"
