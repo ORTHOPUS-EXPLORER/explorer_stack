@@ -113,8 +113,11 @@ class LedRing {
             return;
         }
         const [red, green, blue] = rgb.map((component) => Math.round((component / brightness) * 255));
-        const color = `rgba(${red}, ${green}, ${blue}, ${brightness.toFixed(3)})`;
+        // The eye sees LED brightness non-linearly: a LED at 40% still looks clearly lit, so dim
+        // LEDs are shown brighter than linear (otherwise a dim white looks grey)
+        const opacity = Math.sqrt(brightness);
+        const color = `rgba(${red}, ${green}, ${blue}, ${opacity.toFixed(3)})`;
         icon.style.backgroundImage = `linear-gradient(${color}, ${color})`;
-        icon.style.boxShadow = `0 0 ${Math.round(4 + 6 * brightness)}px ${color}`;
+        icon.style.boxShadow = `0 0 ${Math.round(4 + 6 * opacity)}px ${color}`;
     }
 }
