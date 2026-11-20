@@ -5,6 +5,9 @@ class ExplorerWebGUI {
     constructor() {
         this.cameraObjectUrl = null;
 
+        const ledRingContainer = document.getElementById('led-ring');
+        this.ledRing = ledRingContainer ? new LedRing(ledRingContainer) : null;
+
         this.sockets = {
             data: new WebSocketWrapper('data', '/ws', {
                 onMessage: (event) => {
@@ -132,6 +135,12 @@ class ExplorerWebGUI {
                 break;
             case 'gripper_closure_direction_update':
                 this.updateGripperDirection(data.direction);
+                break;
+            case 'led_command':
+                this.ledRing?.apply(data.effects);
+                break;
+            case 'led_flash':
+                this.ledRing?.apply(data.effects);
                 break;
         }
     }

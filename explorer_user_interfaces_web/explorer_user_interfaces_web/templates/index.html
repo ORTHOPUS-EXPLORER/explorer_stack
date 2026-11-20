@@ -27,6 +27,8 @@
                                     onerror="this.style.display='none';">
                                 <span class="text-gray-500 text-sm" id="no-image-text"
                                     style="position: absolute; z-index: 3;">Aucune image</span>
+                                <!-- LED ring of the gripper, filled by led_ring.js -->
+                                <div id="led-ring" class="led-ring" title="Anneau LED"></div>
                             </div>
                         </div>
                         <div class="bottom-row">
@@ -58,30 +60,33 @@
                                 {{ speed_level if speed_level is not none else '--' }}
                             </span>
                         </div>
-                        <div class="led-separator"></div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J1</span>
-                            <div id="joint-led-1" class="status-led" title="Joint 1"></div>
-                        </div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J2</span>
-                            <div id="joint-led-2" class="status-led" title="Joint 2"></div>
-                        </div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J3</span>
-                            <div id="joint-led-3" class="status-led" title="Joint 3"></div>
-                        </div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J4</span>
-                            <div id="joint-led-4" class="status-led" title="Joint 4"></div>
-                        </div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J5</span>
-                            <div id="joint-led-5" class="status-led" title="Joint 5"></div>
-                        </div>
-                        <div class="joint-led-row">
-                            <span class="led-label">J6</span>
-                            <div id="joint-led-6" class="status-led" title="Joint 6"></div>
+                        <!-- Joint states, at the bottom of the column -->
+                        <div class="joint-led-group">
+                            <div class="led-separator"></div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J1</span>
+                                <div id="joint-led-1" class="status-led" title="Joint 1"></div>
+                            </div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J2</span>
+                                <div id="joint-led-2" class="status-led" title="Joint 2"></div>
+                            </div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J3</span>
+                                <div id="joint-led-3" class="status-led" title="Joint 3"></div>
+                            </div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J4</span>
+                                <div id="joint-led-4" class="status-led" title="Joint 4"></div>
+                            </div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J5</span>
+                                <div id="joint-led-5" class="status-led" title="Joint 5"></div>
+                            </div>
+                            <div class="joint-led-row">
+                                <span class="led-label">J6</span>
+                                <div id="joint-led-6" class="status-led" title="Joint 6"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -91,7 +96,7 @@
                     </label>
 
 
-                    <select id="gripper-direction" style="text-align: center;">
+                    <select id="gripper-direction">
                         <option value="" selected disabled>-- Sélectionner une direction --</option>
                         <option value="bas">Bas</option>
                         <option value="haut">Haut</option>
@@ -114,6 +119,7 @@
         window.explorerConfig = {{ mode_config | tojson }};
     </script>
     <script src="/static/websocket_wrapper.js"></script>
+    <script src="/static/led_ring.js"></script>
     <script src="/static/app.js"></script>
 </body>
 
