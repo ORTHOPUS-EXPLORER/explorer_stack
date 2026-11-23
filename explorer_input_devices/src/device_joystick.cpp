@@ -87,9 +87,6 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   current_mode_name_ = data_.initial_mode;
 
-  current_pos_sub_ = get_node_()->create_subscription<sensor_msgs::msg::JointState>(
-    "/joint_states", rclcpp::SensorDataQoS(),
-    std::bind(&DeviceJoystick::callback_current_pos_, this, std::placeholders::_1));
   x_current_sub_ = get_node_()->create_subscription<geometry_msgs::msg::Pose>(
     get_node_()->get_parameter("end_effector_pose_topic").as_string(), 10,
     [this](const geometry_msgs::msg::Pose& msg) { callback_x_current_(msg); });
@@ -118,17 +115,6 @@ DeviceJoystick::DeviceJoystick(rclcpp::Node::SharedPtr n)
 
   timer_ = get_node_()->create_wall_timer(
     std::chrono::duration<double>(sampling_period_), [this]() { timer_callback_(); });
-}
-
-void DeviceJoystick::callback_current_pos_(const sensor_msgs::msg::JointState& msg)
-{
-  for (size_t i = 0; i < msg.name.size(); ++i)
-  {
-    if (msg.name[i] == "joint_1")
-    {
-      theta1_ = msg.position[i];
-    }
-  }
 }
 
 void DeviceJoystick::callback_joy_(const sensor_msgs::msg::Joy& msg)
@@ -419,36 +405,44 @@ void DeviceJoystick::complex_calculation_(const double rotation_speed_scale)
 
 void DeviceJoystick::snake_calculation_(const double r2, const double k)
 {
-  const Eigen::Matrix3d R_W_J1 =
-    Eigen::AngleAxisd(theta1_, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-
   double x = x_current_.orientation.x;
   double y = x_current_.orientation.y;
   double z = x_current_.orientation.z;
   double w = x_current_.orientation.w;
 
+  // Gripper axis expressed in World
   double ze_x = 1.0 - 2.0 * (y * y + z * z);
   double ze_y = 2.0 * (x * y + w * z);
   double ze_z = 2.0 * (x * z - w * y);
 
-  const Eigen::Vector3d ze_W(ze_x, ze_y, ze_z);
+  const Eigen::Vector3d ze(ze_x, ze_y, ze_z);
 
-  const Eigen::Vector3d ve_W(ve_x_, ve_y_, ve_z_);
+  // Translation velocity expressed in World
+  const Eigen::Vector3d ve(ve_x_, ve_y_, ve_z_);
 
-  const Eigen::Vector3d ze_J1 = R_W_J1.transpose() * ze_W;
-  const Eigen::Vector3d ve_J1 = R_W_J1.transpose() * ve_W;
+  // Original Snake coupling
+  const Eigen::Vector3d coupling = ze.cross(ve);
+  const Eigen::Vector3d omega_e = r2 * k * coupling;
 
-  const Eigen::Vector3d coupling_J1 = ze_J1.cross(ve_J1);
-  const Eigen::Vector3d omega_J1 = r2 * k * coupling_J1;
+  // Dynamic rotation axis in World XY plane
+  const Eigen::Vector3d world_Z(0.0, 0.0, 1.0);
 
-  const Eigen::Vector3d omega_J1_selected(0.0, omega_J1.y(), omega_J1.z());
+  Eigen::Vector3d y_dynamic = world_Z.cross(ze);
 
-  const Eigen::Vector3d omega_W = R_W_J1 * omega_J1_selected;
+  if (y_dynamic.norm() > 1e-6)
+  {
+    y_dynamic.normalize();
 
-  // Add angular velocity components to the command
-  cartesian_vel_.twist.angular.x += omega_W.x();
-  cartesian_vel_.twist.angular.y += omega_W.y();
-  cartesian_vel_.twist.angular.z += omega_W.z();
+    // Rotation around the dynamic Y axis, expressed in World
+    const Eigen::Vector3d omega_y =
+        omega_e.dot(y_dynamic) * y_dynamic;
+
+    cartesian_vel_.twist.angular.x += omega_y.x();
+    cartesian_vel_.twist.angular.y += omega_y.y();
+  }
+
+  // Preserve the original rotation around World Z
+  cartesian_vel_.twist.angular.z += omega_e.z();
 }
 
 // Behavior implementations
