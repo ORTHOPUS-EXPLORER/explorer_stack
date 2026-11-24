@@ -152,12 +152,12 @@ void DeviceJoystick::callback_gripper_closure_direction_(const std_msgs::msg::St
 
   const std::string& closure_direction = msg.data;
 
-  if (closure_direction == "bas")
+  if (closure_direction == "arriere")
   {
     gripper_axis = JoystickAxis::AX2;
     gripper_direction = 1;
   }
-  else if (closure_direction == "haut")
+  else if (closure_direction == "avant")
   {
     gripper_axis = JoystickAxis::AX2;
     gripper_direction = -1;
