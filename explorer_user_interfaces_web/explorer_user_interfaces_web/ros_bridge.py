@@ -172,7 +172,7 @@ class RosBridge:
         """Publish the selected gripper closure direction."""
 
 
-        valid_directions = {"bas", "haut", "droite", "gauche"}
+        valid_directions = {"arriere", "avant", "droite", "gauche"}
 
 
         if direction not in valid_directions:

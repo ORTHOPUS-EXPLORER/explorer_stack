@@ -11,12 +11,11 @@ from unittest.mock import MagicMock
 import pytest
 import uvicorn
 import websockets
+from explorer_user_interfaces_web.ros_bridge import CLIENT_QUEUE_SIZE, RosBridge
+from explorer_user_interfaces_web.web_server import create_app
 from std_msgs.msg import Bool, Int32, String
 
 from explorer_msgs.msg import LedColor, LedCommand, LedEffect
-
-from explorer_user_interfaces_web.ros_bridge import CLIENT_QUEUE_SIZE, RosBridge
-from explorer_user_interfaces_web.web_server import create_app
 
 TIMEOUT_SECONDS = 5.0
 
@@ -79,7 +78,7 @@ def test_new_page_receives_shared_state(server):
     }
     server.bridge.mode_callback(String(data="DRINK"))
     server.bridge.gripper_lock_callback(Bool(data=True))
-    server.bridge.set_gripper_closure_direction("haut")
+    server.bridge.set_gripper_closure_direction("avant")
 
     async def scenario():
         async with websockets.connect(server.url) as page:
@@ -93,7 +92,7 @@ def test_new_page_receives_shared_state(server):
     assert initial["mode"] == "DRINK"
     assert initial["drink_active"] is True
     assert initial["gripper_lock_active"] is True
-    assert initial["gripper_closure_direction"] == "haut"
+    assert initial["gripper_closure_direction"] == "avant"
 
 
 # websocket_endpoint : a new page receives the state of the joints after the initial message
