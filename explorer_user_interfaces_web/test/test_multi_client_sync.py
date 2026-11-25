@@ -2,9 +2,11 @@
 
 import asyncio
 import json
+import re
 import socket
 import threading
 import time
+import urllib.request
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -374,3 +376,21 @@ def test_led_flash_reaches_pages(server):
     # Assert
     assert update["type"] == "led_flash"
     assert update["effects"][0]["mode"] == "flash_once"
+
+
+def http_get(server, path):
+    url = server.url.replace("ws://", "http://").removesuffix("/ws") + path
+    return urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS)
+
+
+def test_browser_does_not_cache_files(server):
+    response = http_get(server, "/")
+    assert response.headers["Cache-Control"] == "no-store"
+
+    urls = re.findall(r'(?:src|href)="(/static/[^"]+\.(?:js|css))"', response.read().decode())
+    assert urls
+    for url in urls:
+        assert http_get(server, url).headers["Cache-Control"] == "no-store"
+
+    image_response = http_get(server, "/static/images/drink.png")
+    assert image_response.headers["Cache-Control"] == "no-store"
