@@ -19,6 +19,15 @@ from explorer_user_interfaces_web.ros_bridge import RosBridge
 CAMERA_FRAME_WAIT_TIMEOUT = 4.0
 
 
+class NoStoreStaticFiles(StaticFiles):
+    """Static files that the browser must never keep in its cache"""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Give the server event loop to the ROS bridge, before any page can connect"""
@@ -49,7 +58,7 @@ def create_app(ros_node: Node) -> FastAPI:
 
     app.mount(
         "/static",
-        StaticFiles(directory=str(static_dir), follow_symlink=True),
+        NoStoreStaticFiles(directory=str(static_dir), follow_symlink=True),
         name="static",
     )
 
@@ -72,7 +81,10 @@ def create_app(ros_node: Node) -> FastAPI:
             "mode_config": ros_bridge.mode_config,
         }
         return templates.TemplateResponse(
-            request=request, name="index.html", context=context
+            request=request,
+            name="index.html",
+            context=context,
+            headers={"Cache-Control": "no-store"},
         )
 
     @app.get("/api/status")
